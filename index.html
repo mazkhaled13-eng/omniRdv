@@ -1,0 +1,2742 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniMed — Plateforme médicale</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-gradient:linear-gradient(135deg,#e0c3fc 0%,#8ec5fc 50%,#fbc2eb 100%);
+  --glass-bg:rgba(255,255,255,.65);--glass-bg-2:rgba(255,255,255,.45);--glass-bg-3:rgba(255,255,255,.3);
+  --glass-border:rgba(255,255,255,.8);
+  --accent-primary:#8b5cf6;--accent-primary-2:#7c3aed;--accent-light:#ede9fe;
+  --text-main:#1f2937;--text-muted:#6b7280;
+  --success:#10b981;--success-bg:#d1fae5;
+  --danger:#ef4444;--danger-bg:#fee2e2;
+  --warn:#f59e0b;--warn-bg:#fef3c7;
+  --info-bg:#dbeafe;--info-text:#1d4ed8;
+  --radius-sm:8px;--radius-md:12px;--radius-lg:20px;--radius-xl:28px;--radius-pill:9999px;
+  --shadow:0 20px 40px rgba(0,0,0,.08);--shadow-sm:0 8px 20px rgba(0,0,0,.06);
+  --transition:all .2s ease-in-out;
+}
+body.dark{
+  --bg-gradient:linear-gradient(135deg,#1e1b4b 0%,#0f172a 50%,#2e1065 100%);
+  --glass-bg:rgba(30,30,45,.6);--glass-bg-2:rgba(30,30,45,.4);--glass-bg-3:rgba(30,30,45,.25);
+  --glass-border:rgba(255,255,255,.12);
+  --accent-light:rgba(139,92,246,.2);
+  --text-main:#f1f5f9;--text-muted:#94a3b8;
+  --shadow:0 20px 40px rgba(0,0,0,.4);--shadow-sm:0 8px 20px rgba(0,0,0,.25);
+  --info-bg:rgba(59,130,246,.2);--info-text:#93c5fd;
+  --success-bg:rgba(16,185,129,.2);
+  --danger-bg:rgba(239,68,68,.2);
+  --warn-bg:rgba(245,158,11,.2);
+}
+html,body{height:100%}
+body{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg-gradient);background-attachment:fixed;color:var(--text-main);
+  min-height:100vh;padding:20px;display:flex;justify-content:center;align-items:flex-start;
+  transition:background .4s ease,color .3s ease;font-size:14px;line-height:1.5}
+body[dir="rtl"]{direction:rtl}
+.app{width:100%;max-width:1400px;height:calc(100vh - 40px);
+  background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--glass-border);border-radius:var(--radius-xl);
+  box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.app-top{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 24px;border-bottom:1px solid var(--glass-border);
+  background:var(--glass-bg-3);flex-shrink:0;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-logo{width:40px;height:40px;border-radius:var(--radius-md);
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  display:grid;place-items:center;color:#fff;font-size:19px;
+  box-shadow:0 8px 16px rgba(139,92,246,.35)}
+.brand-text{display:flex;flex-direction:column}
+.brand-name{font-weight:700;font-size:16px;letter-spacing:-.3px}
+.brand-sub{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
+.title-block{flex:1;text-align:center;min-width:140px;padding:0 10px}
+.page-title{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.page-sub{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.app-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 20px;border-bottom:1px solid var(--glass-border);
+  background:var(--glass-bg-2);flex-shrink:0;flex-wrap:wrap}
+.nav-items{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+.nav-item{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;
+  border-radius:var(--radius-md);cursor:pointer;color:var(--text-main);
+  font-weight:500;font-size:13px;transition:var(--transition);
+  border:1px solid transparent;background:transparent;font-family:inherit;white-space:nowrap}
+.nav-item:hover{background:var(--glass-bg-3);border-color:var(--glass-border)}
+.nav-item.active{background:var(--accent-light);color:var(--accent-primary);font-weight:600;border-color:var(--accent-light)}
+.nav-item .ico{font-size:15px}
+.nav-item .badge{margin-left:6px;background:var(--danger);color:#fff;font-size:10px;
+  padding:1px 6px;border-radius:var(--radius-pill);font-weight:700}
+body[dir="rtl"] .nav-item .badge{margin-left:0;margin-right:6px}
+.nav-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.role-menu{display:flex;gap:3px;background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:3px}
+.role-btn{padding:7px 11px;border-radius:var(--radius-sm);border:none;
+  background:transparent;cursor:pointer;font-family:inherit;
+  font-size:15px;line-height:1;transition:var(--transition);color:var(--text-main)}
+.role-btn:hover{background:var(--glass-bg)}
+.role-btn.active{background:var(--accent-primary);color:#fff;box-shadow:0 4px 10px rgba(139,92,246,.3)}
+.segmented{display:flex;gap:2px;background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);border-radius:var(--radius-pill);padding:3px}
+.segmented button{padding:5px 11px;border-radius:var(--radius-pill);border:none;
+  background:transparent;cursor:pointer;font-family:inherit;
+  font-size:11.5px;font-weight:600;color:var(--text-muted);transition:var(--transition)}
+.segmented button.active{background:var(--accent-primary);color:#fff}
+.switch{position:relative;display:inline-block;width:52px;height:28px;cursor:pointer;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);border-radius:var(--radius-pill);
+  transition:var(--transition);display:flex;align-items:center}
+.switch .slider::before{content:'';position:absolute;height:20px;width:20px;
+  left:3px;top:3px;background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  border-radius:50%;transition:var(--transition);
+  box-shadow:0 2px 6px rgba(139,92,246,.4);z-index:1}
+.switch input:checked + .slider::before{transform:translateX(24px)}
+.switch .slider .ico{position:absolute;top:50%;transform:translateY(-50%);
+  font-size:12px;pointer-events:none;z-index:2;transition:var(--transition)}
+.switch .slider .ico-moon{left:7px;opacity:0}
+.switch .slider .ico-sun{right:7px;opacity:1}
+.switch input:checked + .slider .ico-moon{opacity:1}
+.switch input:checked + .slider .ico-sun{opacity:0}
+.content-wrap{flex:1;overflow-y:auto;padding:22px 26px}
+.content-wrap::-webkit-scrollbar{width:8px}
+.content-wrap::-webkit-scrollbar-thumb{background:var(--glass-border);border-radius:4px}
+.card{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm);
+  backdrop-filter:blur(12px);transition:var(--transition)}
+.card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:4px;display:flex;
+  align-items:center;gap:8px;flex-wrap:wrap}
+.card-sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1000px){.grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+.hero{background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(236,72,153,.15));
+  border:1px solid var(--glass-border);border-radius:var(--radius-xl);
+  padding:24px;margin-bottom:20px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40%;right:-10%;width:320px;height:320px;
+  background:radial-gradient(circle,rgba(139,92,246,.35),transparent 70%);border-radius:50%}
+.hero::after{content:'';position:absolute;bottom:-60%;left:-5%;width:280px;height:280px;
+  background:radial-gradient(circle,rgba(236,72,153,.28),transparent 70%);border-radius:50%}
+.hero-content{position:relative;z-index:1}
+.hero h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.hero p{color:var(--text-muted);max-width:520px;margin-bottom:14px;font-size:13px}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.input,.select,.textarea{width:100%;padding:10px 14px;background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);border-radius:var(--radius-md);
+  color:var(--text-main);font-family:inherit;font-size:13.5px;
+  transition:var(--transition);outline:none}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--accent-primary);
+  box-shadow:0 0 0 4px rgba(139,92,246,.15);background:var(--glass-bg)}
+.textarea{resize:vertical;min-height:70px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:600;color:var(--text-muted)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.field-row{grid-template-columns:1fr}}
+/* ===== Input + bouton sur la même ligne ===== */
+.input-with-btn{display:flex;gap:8px;align-items:stretch;width:100%}
+.input-with-btn .input{flex:1;min-width:0}
+.input-with-btn .pill-btn{flex-shrink:0;white-space:nowrap}
+.pill-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;
+  border-radius:var(--radius-pill);background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);color:var(--text-main);
+  font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;
+  transition:var(--transition);position:relative}
+.pill-btn:hover{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-light)}
+.pill-btn.primary{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}
+.pill-btn.primary:hover{background:var(--accent-primary-2);color:#fff}
+.pill-btn.success{background:var(--success);color:#fff;border-color:var(--success)}
+.pill-btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.pill-btn.danger:hover{background:#dc2626;color:#fff}
+.pill-btn .dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;
+  background:var(--danger);border:2px solid var(--glass-bg)}
+.mini-btn{padding:5px 9px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;
+  background:var(--glass-bg-3);border:1px solid var(--glass-border);
+  cursor:pointer;color:var(--text-main);font-family:inherit;transition:var(--transition)}
+.mini-btn:hover{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-light)}
+.mini-btn.ok:hover{background:var(--success-bg);color:var(--success)}
+.mini-btn.no:hover{background:var(--danger-bg);color:var(--danger)}
+.mini-btn.warn:hover{background:var(--warn-bg);color:var(--warn)}
+.doc-card{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);padding:16px;cursor:pointer;
+  transition:var(--transition);display:flex;gap:14px;align-items:flex-start}
+.doc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--success)}
+.doc-card.selected{border-color:var(--success);background:var(--success-bg);
+  box-shadow:0 0 0 3px rgba(16,185,129,.2)}
+.doc-avatar{width:56px;height:56px;border-radius:var(--radius-md);
+  background:linear-gradient(135deg,var(--accent-light),#e0e7ff);
+  display:grid;place-items:center;font-size:26px;flex-shrink:0;
+  border:1px solid var(--glass-border)}
+body.dark .doc-avatar{background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(99,102,241,.2))}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-weight:600;font-size:14.5px;margin-bottom:2px}
+.doc-spec{font-size:12px;color:var(--accent-primary);font-weight:500;margin-bottom:4px}
+.doc-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted)}
+.doc-meta span{display:flex;align-items:center;gap:4px}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+  border-radius:var(--radius-pill);font-size:10.5px;font-weight:600;
+  background:var(--info-bg);color:var(--info-text);border:1px solid transparent}
+.tag.success{background:var(--success-bg);color:var(--success)}
+.tag.danger{background:var(--danger-bg);color:var(--danger)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.accent{background:var(--accent-light);color:var(--accent-primary)}
+.tag.muted{background:var(--glass-bg-3);color:var(--text-muted)}
+.tag.money{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46;font-weight:700}
+body.dark .tag.money{background:rgba(16,185,129,.25);color:#6ee7b7}
+
+/* ============================================================
+   SLOTS — corrigé : selected a TOUJOURS la priorité
+   ============================================================ */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.slot{padding:9px 4px;border-radius:var(--radius-md);text-align:center;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
+  cursor:pointer;font-size:12.5px;font-weight:600;transition:var(--transition);
+  font-family:inherit;color:#065f46;
+  text-decoration:none}
+body.dark .slot{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(16,185,129,.4)}
+.slot:hover:not(:disabled){background:rgba(16,185,129,.24);color:#065f46;border-color:var(--success);transform:translateY(-1px)}
+body.dark .slot:hover:not(:disabled){color:#6ee7b7}
+/* SELECTED — spécificité renforcée + variante dark explicite */
+.slot.selected,
+body.dark .slot.selected,
+body .slot.selected{
+  background:var(--accent-primary) !important;
+  color:#fff !important;
+  border-color:var(--accent-primary) !important;
+  box-shadow:0 4px 12px rgba(139,92,246,.45) !important;
+  transform:translateY(-1px);
+  text-decoration:none !important
+}
+.slot.selected:hover,
+body.dark .slot.selected:hover{background:var(--accent-primary-2) !important;color:#fff !important}
+/* DISABLED — pas de barré, rouge transparent */
+.slot:disabled,
+.slot[disabled]{
+  opacity:.85;cursor:not-allowed;
+  background:rgba(239,68,68,.14) !important;color:#b91c1c !important;
+  border-color:rgba(239,68,68,.35) !important;
+  text-decoration:none !important;
+  -webkit-text-decoration:none !important;
+  text-decoration-line:none !important;
+  font-weight:600
+}
+body.dark .slot:disabled,
+body.dark .slot[disabled]{
+  background:rgba(239,68,68,.18) !important;color:#fca5a5 !important;
+  border-color:rgba(239,68,68,.4) !important
+}
+
+/* ============================================================
+   DATES — même correction
+   ============================================================ */
+.dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.date-chip{flex-shrink:0;padding:10px 12px;border-radius:var(--radius-md);
+  text-align:center;background:rgba(16,185,129,.12);
+  border:1px solid rgba(16,185,129,.35);
+  cursor:pointer;min-width:62px;transition:var(--transition);
+  font-family:inherit;color:#065f46;font-weight:600;text-decoration:none}
+body.dark .date-chip{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(16,185,129,.4)}
+.date-chip:hover:not(.disabled):not(:disabled){background:rgba(16,185,129,.24);border-color:var(--success);color:#065f46;transform:translateY(-1px)}
+body.dark .date-chip:hover:not(.disabled):not(:disabled){color:#6ee7b7}
+.date-chip.selected,
+body.dark .date-chip.selected{
+  background:var(--accent-primary) !important;color:#fff !important;
+  border-color:var(--accent-primary) !important;
+  box-shadow:0 4px 12px rgba(139,92,246,.45) !important;
+  text-decoration:none !important
+}
+.date-chip.selected:hover,
+body.dark .date-chip.selected:hover{background:var(--accent-primary-2) !important;color:#fff !important}
+.date-chip.disabled,
+.date-chip:disabled{cursor:not-allowed;
+  background:rgba(239,68,68,.12) !important;color:#b91c1c !important;
+  border-color:rgba(239,68,68,.35) !important;opacity:.85;
+  text-decoration:none !important}
+body.dark .date-chip.disabled,
+body.dark .date-chip:disabled{background:rgba(239,68,68,.16) !important;color:#fca5a5 !important}
+.date-chip .d-day{font-size:10px;text-transform:uppercase;letter-spacing:.4px;opacity:.85}
+.date-chip .d-num{font-size:16px;font-weight:700;line-height:1.2}
+.date-chip .d-mon{font-size:10px;opacity:.85}
+
+/* ============================================================
+   WORK DAYS — rouge par défaut, VERT plein au clic
+   Correction : variante body.dark .wday.on explicite
+   ============================================================ */
+.wday{min-width:56px;padding:9px 12px;font-size:12px;font-weight:700;
+  border-radius:var(--radius-pill);
+  border:1px solid rgba(239,68,68,.4);
+  background:rgba(239,68,68,.14);color:#b91c1c;
+  cursor:pointer;font-family:inherit;transition:var(--transition);
+  display:inline-flex;align-items:center;justify-content:center;gap:4px}
+body.dark .wday{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.45)}
+.wday:hover{background:rgba(239,68,68,.22);color:#b91c1c;transform:translateY(-1px)}
+body.dark .wday:hover{color:#fca5a5}
+/* ACTIF — spécificité renforcée + variante dark explicite */
+.wday.on,
+body.dark .wday.on,
+body .wday.on{
+  background:var(--success) !important;
+  color:#fff !important;
+  border-color:var(--success) !important;
+  box-shadow:0 4px 12px rgba(16,185,129,.4) !important;
+  text-decoration:none !important
+}
+.wday.on:hover,
+body.dark .wday.on:hover{background:#059669 !important;color:#fff !important;transform:translateY(-1px)}
+
+/* ============================================================
+   APERÇU créneaux — clickable pour bloquer
+   ============================================================ */
+.slot-preview{display:flex;flex-wrap:wrap;gap:5px;padding:12px;
+  background:var(--glass-bg-3);border-radius:var(--radius-md);
+  border:1px dashed var(--glass-border);min-height:48px;align-items:center}
+.pv-slot{padding:6px 10px;border-radius:var(--radius-pill);
+  font-size:11.5px;font-weight:600;cursor:pointer;transition:var(--transition);
+  border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.12);color:#065f46;
+  font-family:inherit;text-decoration:none}
+body.dark .pv-slot{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(16,185,129,.4)}
+.pv-slot:hover{background:rgba(16,185,129,.24);transform:translateY(-1px)}
+.pv-slot.off,
+body.dark .pv-slot.off{
+  background:rgba(239,68,68,.14) !important;color:#b91c1c !important;
+  border-color:rgba(239,68,68,.35) !important;
+  text-decoration:none !important;opacity:.9
+}
+body.dark .pv-slot.off{background:rgba(239,68,68,.18) !important;color:#fca5a5 !important}
+.pv-hint{font-size:11px;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:6px}
+
+.appt{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);padding:9px 12px;display:flex;gap:10px;
+  align-items:center;transition:var(--transition);flex-wrap:wrap;margin-bottom:6px}
+.appt:hover{box-shadow:var(--shadow-sm)}
+.appt-time{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:52px;padding:5px 6px;border-radius:var(--radius-sm);
+  background:var(--accent-light);color:var(--accent-primary);flex-shrink:0}
+.appt-time .h{font-size:12.5px;font-weight:700;line-height:1.1}
+.appt-time .d{font-size:9px;text-transform:uppercase;letter-spacing:.3px;opacity:.85}
+.appt-body{flex:1;min-width:0}
+.appt-patient{font-weight:600;font-size:12.5px;margin-bottom:1px}
+.appt-meta{font-size:10.5px;color:var(--text-muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.appt-actions{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.stat{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);padding:14px;display:flex;gap:12px;align-items:center}
+.stat-ico{width:42px;height:42px;border-radius:var(--radius-md);display:grid;place-items:center;
+  font-size:19px;background:var(--accent-light);color:var(--accent-primary);flex-shrink:0}
+.stat-val{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text-muted);margin-top:2px}
+.stat.money .stat-ico{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46}
+body.dark .stat.money .stat-ico{background:rgba(16,185,129,.25);color:#6ee7b7}
+.stat.money .stat-val{color:#059669}
+body.dark .stat.money .stat-val{color:#6ee7b7}
+.notif-action{display:flex;gap:12px;padding:14px 16px;
+  background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);cursor:pointer;transition:var(--transition);margin-bottom:8px}
+.notif-action:hover{background:var(--accent-light);border-color:var(--accent-primary);transform:translateX(3px)}
+.notif-action.unread{border-left:3px solid var(--accent-primary)}
+body[dir="rtl"] .notif-action.unread{border-left:1px solid var(--glass-border);border-right:3px solid var(--accent-primary)}
+.notif-action .na-ico{width:40px;height:40px;border-radius:var(--radius-md);
+  display:grid;place-items:center;font-size:18px;
+  background:var(--glass-bg-3);flex-shrink:0;border:1px solid var(--glass-border)}
+.notif-action.unread .na-ico{background:var(--accent-light)}
+.notif-action .na-body{flex:1;min-width:0}
+.notif-action .na-title{font-weight:600;font-size:13.5px;margin-bottom:2px}
+.notif-action .na-msg{font-size:12px;color:var(--text-muted);line-height:1.5}
+.notif-action .na-time{font-size:10.5px;color:var(--text-muted);margin-top:5px}
+.notif-action .na-arrow{color:var(--text-muted);font-size:22px;align-self:center;
+  transition:var(--transition);flex-shrink:0}
+.notif-action:hover .na-arrow{color:var(--accent-primary);transform:translateX(2px)}
+.modal-back{position:fixed;inset:0;background:rgba(15,23,42,.4);backdrop-filter:blur(6px);
+  display:grid;place-items:center;padding:20px;z-index:100;animation:fade .2s ease;overflow-y:auto}
+.modal{background:var(--glass-bg);backdrop-filter:blur(20px);
+  border:1px solid var(--glass-border);border-radius:var(--radius-xl);
+  padding:24px;width:100%;max-width:640px;box-shadow:var(--shadow);
+  max-height:90vh;overflow-y:auto;animation:pop .25s ease;margin:auto}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:12.5px;color:var(--text-muted);margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+#toasts{position:fixed;top:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:200}
+body[dir="rtl"] #toasts{right:auto;left:24px}
+.toast{padding:12px 16px;border-radius:var(--radius-md);
+  background:var(--glass-bg);backdrop-filter:blur(16px);
+  border:1px solid var(--glass-border);box-shadow:var(--shadow);
+  font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;
+  min-width:260px;max-width:380px;animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--danger)}
+.toast.info{border-left:3px solid var(--accent-primary)}
+.empty{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-ico{font-size:42px;margin-bottom:10px;opacity:.5}
+.bar{height:6px;background:rgba(0,0,0,.06);border-radius:var(--radius-pill);overflow:hidden}
+body.dark .bar{background:rgba(255,255,255,.08)}
+.bar-fill{height:100%;background:var(--accent-primary);border-radius:var(--radius-pill);transition:width .6s ease}
+.steps{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.step{flex:1;min-width:120px;padding:10px 14px;border-radius:var(--radius-md);
+  background:var(--glass-bg-3);border:1px solid var(--glass-border);
+  font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--text-muted)}
+.step.active{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-primary);font-weight:600}
+.step.done{background:var(--success-bg);color:var(--success);border-color:transparent}
+.step-num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:var(--glass-bg);font-size:11px;font-weight:700}
+.step.active .step-num{background:var(--accent-primary);color:#fff}
+.step.done .step-num{background:var(--success);color:#fff}
+.qr{width:96px;height:96px;background:#fff;border-radius:var(--radius-md);
+  display:grid;place-items:center;padding:6px;border:1px solid var(--glass-border)}
+.qr svg{width:100%;height:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{padding:6px 12px;border-radius:var(--radius-pill);font-size:12px;font-weight:500;
+  background:var(--glass-bg-3);border:1px solid var(--glass-border);
+  cursor:pointer;color:var(--text-main);transition:var(--transition);font-family:inherit}
+.chip:hover{background:var(--accent-light);color:var(--accent-primary)}
+.chip.active{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}
+.pagination{display:flex;gap:5px;justify-content:center;align-items:center;margin-top:14px;flex-wrap:wrap}
+.page-btn{min-width:34px;height:34px;border-radius:var(--radius-md);
+  border:1px solid var(--glass-border);background:var(--glass-bg-3);
+  color:var(--text-main);cursor:pointer;font-family:inherit;
+  font-size:12.5px;font-weight:600;transition:var(--transition);padding:0 10px}
+.page-btn:hover:not(:disabled){background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-light)}
+.page-btn.active{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+.page-info{font-size:12px;color:var(--text-muted);margin:0 6px}
+.login-wrap{max-width:400px;margin:30px auto}
+.sep{height:1px;background:var(--glass-border);margin:16px 0}
+.section-title{font-size:12px;font-weight:700;color:var(--accent-primary);
+  text-transform:uppercase;letter-spacing:.5px;margin:6px 0 10px;display:flex;align-items:center;gap:6px}
+.admin-doc-row{display:flex;gap:14px;align-items:center;padding:14px 16px;
+  background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);margin-bottom:10px;transition:var(--transition);flex-wrap:wrap}
+.admin-doc-row:hover{box-shadow:var(--shadow-sm)}
+.tbl-wrap{background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:16px}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl thead th{background:var(--glass-bg-3);color:var(--text-muted);
+  font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;
+  padding:11px 12px;text-align:left;border-bottom:1px solid var(--glass-border);white-space:nowrap}
+body[dir="rtl"] table.tbl thead th{text-align:right}
+table.tbl tbody td{padding:10px 12px;border-bottom:1px solid var(--glass-border)}
+table.tbl tbody tr:last-child td{border-bottom:none}
+table.tbl tbody tr:hover{background:var(--glass-bg-3)}
+table.tbl tfoot td{padding:12px;font-weight:700;background:var(--glass-bg-3);border-top:2px solid var(--glass-border)}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+body[dir="rtl"] .num{text-align:left}
+.list-item{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 12px;background:var(--glass-bg-3);border:1px solid var(--glass-border);
+  border-radius:var(--radius-md);margin-bottom:6px;font-size:13px;transition:var(--transition)}
+.list-item:hover{background:var(--glass-bg);border-color:var(--accent-light)}
+.list-item .li-name{font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-box{max-height:320px;overflow-y:auto;padding-right:4px}
+.list-box::-webkit-scrollbar{width:6px}
+.list-box::-webkit-scrollbar-thumb{background:var(--glass-border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="toasts"></div>
+<div id="modal-root"></div>
+
+<script>
+/* ============================================================
+   OmniMed v8 — Correction CSS priorité (dark mode override)
+   ============================================================ */
+const COMMISSION_PER_RDV = 50;
+const APPTS_PER_PAGE = 6;
+
+const WILAYAS = [
+  'Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa','Biskra','Béchar','Blida','Bouira',
+  'Tamanrasset','Tébessa','Tlemcen','Tiaret','Tizi Ouzou','Alger','Djelfa','Jijel','Sétif','Saïda',
+  'Skikda','Sidi Bel Abbès','Annaba','Guelma','Constantine','Médéa','Mostaganem','M\'Sila','Mascara','Ouargla',
+  'Oran','El Bayadh','Illizi','Bordj Bou Arreridj','Boumerdès','El Tarf','Tindouf','Tissemsilt','El Oued','Khenchela',
+  'Souk Ahras','Tipaza','Mila','Aïn Defla','Naâma','Aïn Témouchent','Ghardaïa','Relizane','Timimoun','Bordj Badji Mokhtar',
+  'Ouled Djellal','Béni Abbès','In Salah','In Guezzam','Touggourt','Djanet','El M\'Ghair','El Meniaa'
+];
+const COMMUNES = {
+  'Adrar':['Adrar','Reggane','Aoulef','Fenoughil'],'Chlef':['Chlef','Ténès','Boukadir','Ouled Fares','Abou El Hassan'],
+  'Laghouat':['Laghouat','Aflou','Hassi R\'Mel','Ksar El Hirane'],'Oum El Bouaghi':['Oum El Bouaghi','Aïn Beïda','Aïn M\'lila','Meskiana'],
+  'Batna':['Batna','Barika','Merouana','N\'Gaous','Aïn Touta'],'Béjaïa':['Béjaïa','Akbou','Kherrata','Sidi Aïch','Amizour'],
+  'Biskra':['Biskra','Tolga','Sidi Okba','Zeribet El Oued'],'Béchar':['Béchar','Kenadsa','Abadla','Taghit'],
+  'Blida':['Blida','Boufarik','Larbaâ','Mouzaïa','Ouled Yaïch'],'Bouira':['Bouira','Lakhdaria','Sour El Ghozlane','Aïn Bessem'],
+  'Tamanrasset':['Tamanrasset','Abalessa','Idles'],'Tébessa':['Tébessa','Bir El Ater','Cheria','El Aouinet'],
+  'Tlemcen':['Tlemcen','Maghnia','Remchi','Ghazaouet','Chetouane'],'Tiaret':['Tiaret','Sougueur','Frenda','Ksar Chellala'],
+  'Tizi Ouzou':['Tizi Ouzou','Azazga','Draâ Ben Khedda','Larbaâ Nath Irathen','Tigzirt'],
+  'Alger':['Alger-Centre','Bab El Oued','Hydra','Bir Mourad Raïs','Kouba','Hussein Dey','El Harrach','Dar El Beïda','Chéraga'],
+  'Djelfa':['Djelfa','Aïn Oussera','Messaad','Hassi Bahbah'],'Jijel':['Jijel','Taher','El Milia','Chekfa'],
+  'Sétif':['Sétif','El Eulma','Aïn Oulmene','Bougaa','Aïn Arnat'],'Saïda':['Saïda','Aïn El Hadjar','Ouled Brahim','Youb'],
+  'Skikda':['Skikda','Azzaba','Collo','El Harrouch','Tamalous'],'Sidi Bel Abbès':['Sidi Bel Abbès','Telagh','Sfisef','Aïn El Berd'],
+  'Annaba':['Annaba','El Bouni','El Hadjar','Sidi Amar','Berrahal'],'Guelma':['Guelma','Oued Zenati','Héliopolis','Bouchegouf'],
+  'Constantine':['Constantine','El Khroub','Aïn Smara','Hamma Bouziane','Didouche Mourad'],
+  'Médéa':['Médéa','Berrouaghia','Ksar El Boukhari','Tablat'],'Mostaganem':['Mostaganem','Aïn Tédeles','Hassi Mameche','Sidi Ali'],
+  'M\'Sila':['M\'Sila','Bou Saâda','Sidi Aïssa','Aïn El Melh'],'Mascara':['Mascara','Mohammadia','Sig','Tighennif','Bouhanifia'],
+  'Ouargla':['Ouargla','Hassi Messaoud','N\'Goussa','Rouissat'],
+  'Oran':['Oran','Es Sénia','Aïn El Turk','Bir El Djir','Arzew','Bethioua'],
+  'El Bayadh':['El Bayadh','Bougtoub','Rogassa','Labiodh Sidi Cheikh'],'Illizi':['Illizi','In Amenas','Debdeb'],
+  'Bordj Bou Arreridj':['Bordj Bou Arreridj','Ras El Oued','Medjana','Mansoura'],
+  'Boumerdès':['Boumerdès','Bordj Menaïel','Khemis El Khechna','Boudouaou','Dellys'],
+  'El Tarf':['El Tarf','El Kala','Bouthilda','Ben M\'Hidi'],'Tindouf':['Tindouf','Oum El Assel'],
+  'Tissemsilt':['Tissemsilt','Theniet El Had','Bordj Bou Naama','Lardjem'],
+  'El Oued':['El Oued','Guemar','Debila','Robbah'],'Khenchela':['Khenchela','Kais','Chechar','Ouled Rechache'],
+  'Souk Ahras':['Souk Ahras','Sedrata','Merahna','Mechroha'],'Tipaza':['Tipaza','Koléa','Hadjout','Cherchell','Fouka'],
+  'Mila':['Mila','Chelghoum Laïd','Téléghma','Grarem Gouga'],'Aïn Defla':['Aïn Defla','Khemis Miliana','Miliana','El Attaf'],
+  'Naâma':['Naâma','Mécheria','Aïn Sefra','Sfissifa'],'Aïn Témouchent':['Aïn Témouchent','Hammam Bou Hadjar','Beni Saf','El Malah'],
+  'Ghardaïa':['Ghardaïa','Metlili','Berriane','El Guerrara'],'Relizane':['Relizane','Oued Rhiou','Mazouna','Zemmoura'],
+  'Timimoun':['Timimoun','Aougrout','Charouine','Ouled Saïd'],'Bordj Badji Mokhtar':['Bordj Badji Mokhtar','Timiaouine'],
+  'Ouled Djellal':['Ouled Djellal','Sidi Khaled','Doucen','Ras El Miaad'],'Béni Abbès':['Béni Abbès','Igli','Kerzaz','Tamtert'],
+  'In Salah':['In Salah','Foggaret Ezzoua','In Ghar'],'In Guezzam':['In Guezzam','Tin Zaouatine'],
+  'Touggourt':['Touggourt','Nezla','Témacine','Tebesbest'],'Djanet':['Djanet','Bordj El Haouas'],
+  'El M\'Ghair':['El M\'Ghair','Djamaa','Sidi Khelil','Still'],'El Meniaa':['El Meniaa','Hassi Gara','Hassi Fehal']
+};
+const DEFAULT_SPECIALTIES = [
+  'Généraliste','Cardiologie','Dermatologie','Pédiatrie','Dentaire','Ophtalmologie',
+  'Gynécologie','Neurologie','Orthopédie','ORL','Psychiatrie','Radiologie','Urologie',
+  'Gastro-entérologie','Endocrinologie','Rhumatologie','Pneumologie','Néphrologie',
+  'Chirurgie générale','Anesthésie','Médecine du travail','Kinésithérapie','Orthophonie',
+  'Allergologie','Hématologie','Oncologie','Médecine physique'
+];
+const DAY_NAMES_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const DAY_NAMES_LONG  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+const T = {
+  fr:{brand_sub:'Plateforme médicale',nav_patient:'Espace patient',nav_doctor:'Espace médecin',nav_admin:'Administration',
+    home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dwait:"File d'attente",dprof:'Mon profil',
+    adash:'Tableau de bord',adoctors:'Médecins',aappts:'Rendez-vous',awaitlist:"File d'attente",arevenue:'Recette',alistes:'Listes',asettings:'Paramètres',
+    login:'Connexion',logout:'Déconnexion',welcome:'OmniMed',welcome_sub:'Plateforme médicale',
+    book_now:'Prendre un rendez-vous',find_doc:'Trouver un médecin',my_rdv:'Mes RDV',
+    search_ph:'Rechercher un médecin, une spécialité…',all_spec:'Toutes les spécialités',all_wilaya:'Toutes les wilayas',
+    avail_filter:'Disponibilité',morning:'Matin',afternoon:'Après-midi',doctors_found:'médecin(s) trouvé(s)',
+    select_date:'Choisir une date',select_time:'Choisir une heure',your_info:'Vos informations',
+    fullname:'Nom complet',phone:'Téléphone',email:'Email',motif:'Motif de consultation',
+    confirm:'Confirmer le rendez-vous',back:'Retour',next:'Suivant',
+    step1:'Médecin',step2:'Date & heure',step3:'Informations',step4:'Confirmation',
+    rdv_confirmed:'Rendez-vous confirmé !',rdv_code:'Code de rendez-vous',
+    status_pending:'En attente',status_confirmed:'Confirmé',status_cancelled:'Annulé',status_postponed:'Reporté',status_done:'Terminé',
+    filter_all:'Tous',filter_today:"Aujourd'hui",validate:'Valider',cancel:'Annuler',postpone:'Reporter',send_email:'Email',send_sms:'SMS',
+    note:'Note',done:'Terminer',print:'Imprimer',waitlist:"Rejoindre la file d'attente",waitlist_title:"File d'attente",
+    no_appts:'Aucun rendez-vous',no_docs:'Aucun médecin ne correspond',no_notif:'Aucune notification',
+    my_rdv_title:'Retrouver mes rendez-vous',my_rdv_sub:'Entrez votre numéro de téléphone',
+    lookup:'Rechercher',dark:'Sombre',light:'Clair',login_doc:'Connexion médecin',
+    login_sub:'Entrez votre identifiant et votre mot de passe',password:'Mot de passe',sign_in:'Se connecter',
+    identifier:'Email du médecin',identifier_ph:'ex : sofia.benali@omnimed.dz',hint_pwd:'Mot de passe démo : 1234',
+    dashboard:'Tableau de bord',total_appts:'Total RDV',confirmed_c:'Confirmés',pending_c:'En attente',cancelled_c:'Annulés',
+    today_appts:"Aujourd'hui",profile:'Profil',specialty:'Spécialité',wilaya:'Wilaya',commune:'Commune',address:'Adresse',
+    fee:'Tarif',duration:'Durée',min:'min',bio:'Présentation',send_to:'Envoyer à',subject:'Objet',message:'Message',send:'Envoyer',
+    email_sent:'Email envoyé (simulation)',sms_sent:'SMS envoyé (simulation)',reminder:'Rappel',
+    postpone_title:'Reporter le rendez-vous',new_date:'Nouvelle date',new_time:'Nouvelle heure',
+    cancel_reason:"Motif d'annulation",reason_ph:'Raison (facultatif)',confirm_delete:"Confirmer l'annulation ?",
+    my_info:'Mes informations',qr_title:'Code de check-in',appt_detail:'Détail du rendez-vous',
+    patient:'Patient',doctor:'Médecin',when:'Quand',where:'Où',notes_doctor:'Notes du médecin',
+    save:'Enregistrer',close:'Fermer',waitlist_empty:"File d'attente vide",add_waitlist:"S'inscrire",waitlist_joined:"Inscrit",
+    notif_empty:'Aucune notification',mark_read:'Tout marquer comme lu',lang:'Langue',
+    login_admin:'Connexion administrateur',login_admin_sub:'Entrez vos identifiants administrateur',
+    username:"Nom d'utilisateur",hint_admin:'Démo : admin / admin123',
+    total_doctors:'Médecins',total_patients:'Patients',waitlist_c:"En file d'attente",
+    manage_doctors:'Gestion des médecins',manage_doctors_sub:'Ajouter, modifier ou supprimer un médecin',
+    add_doctor:'Ajouter un médecin',edit_doctor:'Modifier le médecin',delete_doctor:'Supprimer le médecin',
+    delete_confirm:"Voulez-vous vraiment supprimer ce médecin ?",save_doctor:'Enregistrer le médecin',
+    avatar:'Avatar',credentials:'Identifiants de connexion',new_password:'Mot de passe',
+    password_hint:'Le médecin utilisera ce mot de passe pour se connecter',
+    all_appointments:'Tous les rendez-vous',all_waitlist:"Toute la file d'attente",
+    export_csv:'Exporter CSV',reset_data:'Réinitialiser',reset_confirm:'Réinitialiser toutes les données ?',
+    filter_doctor:'Filtrer par médecin',specialties:'Spécialités',wilayas:'Wilayas',
+    doctor_deleted:'Médecin supprimé',doctor_saved:'Médecin enregistré',admin_you:'Admin',role:'Rôle',
+    invalid_login:'Identifiants invalides',required_fields:'Champs obligatoires manquants',
+    revenue:'Recette',revenue_sub:'Suivi des commissions',commission:'Commission',commission_per_rdv:'Commission / RDV',
+    today_revenue:'Recette du jour',week_revenue:'Recette 7 jours',month_revenue:'Recette 30 jours',total_revenue:'Recette totale',
+    period:'Période',day:'Jour',week:'Semaine',month:'Mois',all_period:'Tout',
+    revenue_details:'Détail des rendez-vous facturés',report_by_doctor:'Répartition par médecin',report_by_day:'Répartition par jour',
+    print_report:'Imprimer le rapport',export_pdf:'Exporter en PDF',
+    revenue_table_date:'Date',revenue_table_time:'Heure',revenue_table_patient:'Patient',revenue_table_doctor:'Médecin',
+    revenue_table_specialty:'Spécialité',revenue_table_status:'Statut',revenue_table_commission:'Commission',
+    revenue_no_data:'Aucun rendez-vous facturable',revenue_generated:'Rapport généré le',
+    revenue_total_rdv:'Total RDV',revenue_total_amount:'Total commission',
+    revenue_note:'Seuls les RDV confirmés et terminés génèrent une commission.',
+    revenue_rate_updated:'Taux mis à jour',revenue_rdv_count:'RDV',
+    page:'Page',prev:'Précédent',next_page:'Suivant',open_notif:'Cliquez pour traiter',
+    work_days:'Jours de travail',work_days_hint:'Cliquez sur un jour : rouge = non travaillé, vert = travaillé',
+    work_hours:'Heures de travail',work_start:'Début',work_end:'Fin',
+    slot_preview:'Aperçu des créneaux générés',
+    slot_step_info:'Durée : {dur} min. Cliquez sur un créneau pour le bloquer (ex : pause déjeuner).',
+    slot_preview_hint:'🟢 Disponible · 🔴 Bloqué · Cliquez pour basculer',
+    edit_my_profile:'Modifier mon profil',my_schedule:'Mon planning',no_slots:'Aucun créneau généré',
+    profile_saved:'Profil mis à jour',account_info:'Informations du compte',
+    manage_lists:'Gestion des listes',manage_lists_sub:'Ajouter ou supprimer des spécialités, wilayas et communes',
+    specialties_list:'Spécialités',wilayas_list:'Wilayas',communes_list:'Communes',select_wilaya:'Sélectionner une wilaya',
+    add_item:'Ajouter',add_item_ph:'Nouveau nom…',delete_item_confirm:'Supprimer "{name}" ?',
+    item_exists:'Cet élément existe déjà',item_added:'Élément ajouté',item_deleted:'Élément supprimé',
+    cannot_delete_used:'Impossible : cet élément est utilisé par un médecin',list_empty:'Liste vide',
+    choose_wilaya_first:'Choisissez une wilaya',select_specialty:'Sélectionner une spécialité',
+    select_wilaya_ph:'Sélectionner une wilaya',select_commune_ph:'Sélectionner une commune',
+    disabled_slots:'Créneaux bloqués'},
+  en:{brand_sub:'Medical platform',nav_patient:'Patient area',nav_doctor:'Doctor area',nav_admin:'Administration',
+    home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dwait:'Waitlist',dprof:'My profile',
+    adash:'Dashboard',adoctors:'Doctors',aappts:'Appointments',awaitlist:'Waitlist',arevenue:'Revenue',alistes:'Lists',asettings:'Settings',
+    login:'Login',logout:'Logout',welcome:'OmniMed',welcome_sub:'Medical platform',
+    book_now:'Book an appointment',find_doc:'Find a doctor',my_rdv:'My appointments',
+    search_ph:'Search a doctor, a specialty…',all_spec:'All specialties',all_wilaya:'All wilayas',
+    avail_filter:'Availability',morning:'Morning',afternoon:'Afternoon',doctors_found:'doctor(s) found',
+    select_date:'Pick a date',select_time:'Pick a time',your_info:'Your information',
+    fullname:'Full name',phone:'Phone',email:'Email',motif:'Reason',
+    confirm:'Confirm appointment',back:'Back',next:'Next',
+    step1:'Doctor',step2:'Date & time',step3:'Information',step4:'Confirmation',
+    rdv_confirmed:'Appointment confirmed!',rdv_code:'Appointment code',
+    status_pending:'Pending',status_confirmed:'Confirmed',status_cancelled:'Cancelled',status_postponed:'Postponed',status_done:'Done',
+    filter_all:'All',filter_today:'Today',validate:'Confirm',cancel:'Cancel',postpone:'Postpone',send_email:'Email',send_sms:'SMS',
+    note:'Note',done:'Complete',print:'Print',waitlist:'Join waitlist',waitlist_title:'Waitlist',
+    no_appts:'No appointments',no_docs:'No doctor matches',no_notif:'No notification',
+    my_rdv_title:'Find my appointments',my_rdv_sub:'Enter your phone number',
+    lookup:'Search',dark:'Dark',light:'Light',login_doc:'Doctor login',
+    login_sub:'Enter your identifier and password',password:'Password',sign_in:'Sign in',
+    identifier:'Doctor email',identifier_ph:'e.g. sofia.benali@omnimed.dz',hint_pwd:'Demo password: 1234',
+    dashboard:'Dashboard',total_appts:'Total',confirmed_c:'Confirmed',pending_c:'Pending',cancelled_c:'Cancelled',
+    today_appts:'Today',profile:'Profile',specialty:'Specialty',wilaya:'Wilaya',commune:'Commune',address:'Address',
+    fee:'Fee',duration:'Duration',min:'min',bio:'About',send_to:'Send to',subject:'Subject',message:'Message',send:'Send',
+    email_sent:'Email sent (simulated)',sms_sent:'SMS sent (simulated)',reminder:'Reminder',
+    postpone_title:'Postpone appointment',new_date:'New date',new_time:'New time',
+    cancel_reason:'Cancellation reason',reason_ph:'Reason (optional)',confirm_delete:'Confirm cancellation?',
+    my_info:'My information',qr_title:'Check-in code',appt_detail:'Appointment details',
+    patient:'Patient',doctor:'Doctor',when:'When',where:'Where',notes_doctor:'Doctor notes',
+    save:'Save',close:'Close',waitlist_empty:'Waitlist empty',add_waitlist:'Join',waitlist_joined:'Added',
+    notif_empty:'No notification',mark_read:'Mark all as read',lang:'Language',
+    login_admin:'Administrator login',login_admin_sub:'Enter your admin credentials',
+    username:'Username',hint_admin:'Demo: admin / admin123',
+    total_doctors:'Doctors',total_patients:'Patients',waitlist_c:'Waitlist',
+    manage_doctors:'Manage doctors',manage_doctors_sub:'Add, edit or delete a doctor',
+    add_doctor:'Add doctor',edit_doctor:'Edit doctor',delete_doctor:'Delete doctor',
+    delete_confirm:'Really delete this doctor?',save_doctor:'Save doctor',
+    avatar:'Avatar',credentials:'Login credentials',new_password:'Password',
+    password_hint:'The doctor will use this password to log in',
+    all_appointments:'All appointments',all_waitlist:'Full waitlist',
+    export_csv:'Export CSV',reset_data:'Reset data',reset_confirm:'Reset all demo data?',
+    filter_doctor:'Filter by doctor',specialties:'Specialties',wilayas:'Wilayas',
+    doctor_deleted:'Doctor deleted',doctor_saved:'Doctor saved',admin_you:'Admin',role:'Role',
+    invalid_login:'Invalid credentials',required_fields:'Missing required fields',
+    revenue:'Revenue',revenue_sub:'Commission tracking',commission:'Commission',commission_per_rdv:'Commission / appointment',
+    today_revenue:'Today revenue',week_revenue:'7-day revenue',month_revenue:'30-day revenue',total_revenue:'Total revenue',
+    period:'Period',day:'Day',week:'Week',month:'Month',all_period:'All',
+    revenue_details:'Billed appointments detail',report_by_doctor:'Breakdown by doctor',report_by_day:'Breakdown by day',
+    print_report:'Print report',export_pdf:'Export to PDF',
+    revenue_table_date:'Date',revenue_table_time:'Time',revenue_table_patient:'Patient',revenue_table_doctor:'Doctor',
+    revenue_table_specialty:'Specialty',revenue_table_status:'Status',revenue_table_commission:'Commission',
+    revenue_no_data:'No billable appointment',revenue_generated:'Report generated on',
+    revenue_total_rdv:'Total',revenue_total_amount:'Total commission',
+    revenue_note:'Only confirmed and completed appointments generate commission.',
+    revenue_rate_updated:'Rate updated',revenue_rdv_count:'Appointments',
+    page:'Page',prev:'Previous',next_page:'Next',open_notif:'Click to process',
+    work_days:'Working days',work_days_hint:'Click a day: red = day off, green = working',
+    work_hours:'Working hours',work_start:'Start',work_end:'End',
+    slot_preview:'Generated slots preview',
+    slot_step_info:'Duration: {dur} min. Click a slot to block it (e.g. lunch break).',
+    slot_preview_hint:'🟢 Available · 🔴 Blocked · Click to toggle',
+    edit_my_profile:'Edit my profile',my_schedule:'My schedule',no_slots:'No slots generated',
+    profile_saved:'Profile updated',account_info:'Account information',
+    manage_lists:'Lists management',manage_lists_sub:'Add or remove specialties, wilayas and communes',
+    specialties_list:'Specialties',wilayas_list:'Wilayas',communes_list:'Communes',select_wilaya:'Select a wilaya',
+    add_item:'Add',add_item_ph:'New name…',delete_item_confirm:'Delete "{name}"?',
+    item_exists:'This item already exists',item_added:'Item added',item_deleted:'Item deleted',
+    cannot_delete_used:'Cannot delete: this item is used by a doctor',list_empty:'Empty list',
+    choose_wilaya_first:'Choose a wilaya first',select_specialty:'Select a specialty',
+    select_wilaya_ph:'Select a wilaya',select_commune_ph:'Select a commune',
+    disabled_slots:'Blocked slots'},
+  ar:{brand_sub:'منصة طبية',nav_patient:'فضاء المريض',nav_doctor:'فضاء الطبيب',nav_admin:'الإدارة',
+    home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dwait:'قائمة الانتظار',dprof:'ملفي',
+    adash:'لوحة التحكم',adoctors:'الأطباء',aappts:'المواعيد',awaitlist:'قائمة الانتظار',arevenue:'الإيرادات',alistes:'القوائم',asettings:'الإعدادات',
+    login:'دخول',logout:'خروج',welcome:'OmniMed',welcome_sub:'منصة طبية',
+    book_now:'احجز موعدًا',find_doc:'ابحث عن طبيب',my_rdv:'مواعيدي',
+    search_ph:'ابحث عن طبيب أو تخصص…',all_spec:'جميع التخصصات',all_wilaya:'جميع الولايات',
+    avail_filter:'التوفر',morning:'صباحًا',afternoon:'بعد الظهر',doctors_found:'طبيب/أطباء',
+    select_date:'اختر تاريخًا',select_time:'اختر وقتًا',your_info:'معلوماتك',
+    fullname:'الاسم الكامل',phone:'الهاتف',email:'البريد',motif:'سبب الاستشارة',
+    confirm:'تأكيد الموعد',back:'رجوع',next:'التالي',
+    step1:'الطبيب',step2:'التاريخ والوقت',step3:'المعلومات',step4:'التأكيد',
+    rdv_confirmed:'تم تأكيد الموعد!',rdv_code:'رمز الموعد',
+    status_pending:'قيد الانتظار',status_confirmed:'مؤكد',status_cancelled:'ملغى',status_postponed:'مؤجل',status_done:'منتهي',
+    filter_all:'الكل',filter_today:'اليوم',validate:'تأكيد',cancel:'إلغاء',postpone:'تأجيل',send_email:'بريد',send_sms:'رسالة',
+    note:'ملاحظة',done:'إنهاء',print:'طباعة',waitlist:'انضم إلى قائمة الانتظار',waitlist_title:'قائمة الانتظار',
+    no_appts:'لا مواعيد',no_docs:'لا يوجد طبيب مطابق',no_notif:'لا إشعارات',
+    my_rdv_title:'البحث عن مواعيدي',my_rdv_sub:'أدخل رقم هاتفك',
+    lookup:'بحث',dark:'داكن',light:'فاتح',login_doc:'دخول الطبيب',
+    login_sub:'أدخل معرّفك وكلمة المرور',password:'كلمة المرور',sign_in:'دخول',
+    identifier:'بريد الطبيب',identifier_ph:'مثال: sofia.benali@omnimed.dz',hint_pwd:'كلمة المرور: 1234',
+    dashboard:'لوحة التحكم',total_appts:'المجموع',confirmed_c:'مؤكدة',pending_c:'بالانتظار',cancelled_c:'ملغاة',
+    today_appts:'اليوم',profile:'الملف',specialty:'التخصص',wilaya:'الولاية',commune:'البلدية',address:'العنوان',
+    fee:'السعر',duration:'المدة',min:'دقيقة',bio:'نبذة',send_to:'إرسال إلى',subject:'الموضوع',message:'الرسالة',send:'إرسال',
+    email_sent:'تم إرسال البريد (محاكاة)',sms_sent:'تم إرسال الرسالة (محاكاة)',reminder:'تذكير',
+    postpone_title:'تأجيل الموعد',new_date:'تاريخ جديد',new_time:'وقت جديد',
+    cancel_reason:'سبب الإلغاء',reason_ph:'السبب (اختياري)',confirm_delete:'تأكيد الإلغاء؟',
+    my_info:'معلوماتي',qr_title:'رمز تسجيل الوصول',appt_detail:'تفاصيل الموعد',
+    patient:'المريض',doctor:'الطبيب',when:'متى',where:'أين',notes_doctor:'ملاحظات الطبيب',
+    save:'حفظ',close:'إغلاق',waitlist_empty:'قائمة الانتظار فارغة',add_waitlist:'انضمام',waitlist_joined:'تمت الإضافة',
+    notif_empty:'لا إشعارات',mark_read:'تحديد الكل كمقروء',lang:'اللغة',
+    login_admin:'دخول المسؤول',login_admin_sub:'أدخل بيانات المسؤول',
+    username:'اسم المستخدم',hint_admin:'تجريبي: admin / admin123',
+    total_doctors:'الأطباء',total_patients:'المرضى',waitlist_c:'في قائمة الانتظار',
+    manage_doctors:'إدارة الأطباء',manage_doctors_sub:'إضافة أو تعديل أو حذف طبيب',
+    add_doctor:'إضافة طبيب',edit_doctor:'تعديل الطبيب',delete_doctor:'حذف الطبيب',
+    delete_confirm:'هل تريد حقًا حذف هذا الطبيب؟',save_doctor:'حفظ الطبيب',
+    avatar:'الصورة',credentials:'بيانات الدخول',new_password:'كلمة المرور',
+    password_hint:'سيستخدم الطبيب كلمة المرور هذه للدخول',
+    all_appointments:'كل المواعيد',all_waitlist:'كل قائمة الانتظار',
+    export_csv:'تصدير CSV',reset_data:'إعادة تعيين',reset_confirm:'إعادة تعيين كل البيانات؟',
+    filter_doctor:'تصفية حسب الطبيب',specialties:'التخصصات',wilayas:'الولايات',
+    doctor_deleted:'تم حذف الطبيب',doctor_saved:'تم حفظ الطبيب',admin_you:'مسؤول',role:'الدور',
+    invalid_login:'بيانات غير صحيحة',required_fields:'حقول مطلوبة مفقودة',
+    revenue:'الإيرادات',revenue_sub:'متابعة العمولات',commission:'العمولة',commission_per_rdv:'العمولة / موعد',
+    today_revenue:'إيرادات اليوم',week_revenue:'إيرادات 7 أيام',month_revenue:'إيرادات 30 يومًا',total_revenue:'إجمالي الإيرادات',
+    period:'الفترة',day:'يوم',week:'أسبوع',month:'شهر',all_period:'الكل',
+    revenue_details:'تفاصيل المواعيد المفوترة',report_by_doctor:'التوزيع حسب الطبيب',report_by_day:'التوزيع حسب اليوم',
+    print_report:'طباعة التقرير',export_pdf:'تصدير PDF',
+    revenue_table_date:'التاريخ',revenue_table_time:'الوقت',revenue_table_patient:'المريض',revenue_table_doctor:'الطبيب',
+    revenue_table_specialty:'التخصص',revenue_table_status:'الحالة',revenue_table_commission:'العمولة',
+    revenue_no_data:'لا يوجد موعد قابل للفوترة',revenue_generated:'تم إنشاء التقرير في',
+    revenue_total_rdv:'المجموع',revenue_total_amount:'إجمالي العمولة',
+    revenue_note:'فقط المواعيد المؤكدة والمنتهية تُنتج عمولة.',
+    revenue_rate_updated:'تم تحديث النسبة',revenue_rdv_count:'المواعيد',
+    page:'صفحة',prev:'السابق',next_page:'التالي',open_notif:'اضغط للمعالجة',
+    work_days:'أيام العمل',work_days_hint:'انقر على يوم: أحمر = عطلة، أخضر = عمل',
+    work_hours:'ساعات العمل',work_start:'البداية',work_end:'النهاية',
+    slot_preview:'معاينة المواعيد المُنشأة',
+    slot_step_info:'المدة: {dur} دقيقة. انقر على موعد لحظره (مثل استراحة الغداء).',
+    slot_preview_hint:'🟢 متاح · 🔴 محظور · انقر للتبديل',
+    edit_my_profile:'تعديل ملفي',my_schedule:'جدولي',no_slots:'لا توجد مواعيد',
+    profile_saved:'تم تحديث الملف',account_info:'معلومات الحساب',
+    manage_lists:'إدارة القوائم',manage_lists_sub:'إضافة أو حذف التخصصات والولايات والبلديات',
+    specialties_list:'التخصصات',wilayas_list:'الولايات',communes_list:'البلديات',select_wilaya:'اختر ولاية',
+    add_item:'إضافة',add_item_ph:'اسم جديد…',delete_item_confirm:'حذف "{name}"؟',
+    item_exists:'هذا العنصر موجود مسبقًا',item_added:'تمت الإضافة',item_deleted:'تم الحذف',
+    cannot_delete_used:'لا يمكن الحذف: مستخدم من قبل طبيب',list_empty:'قائمة فارغة',
+    choose_wilaya_first:'اختر ولاية أولاً',select_specialty:'اختر تخصصًا',
+    select_wilaya_ph:'اختر ولاية',select_commune_ph:'اختر بلدية',
+    disabled_slots:'المواعيد المحظورة'}
+};
+const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
+
+const LS_KEY = 'omnimed_v8';
+const state = {
+  lang:'fr', dark:false, role:'patient', doctor:null, admin:null, view:'home',
+  search:{q:'',specialty:'',wilaya:'',commune:'',date:'',period:''},
+  booking:{doctorId:null,date:null,time:null,step:1},
+  filter:{status:'all',date:''},
+  adminFilter:{doctorId:'all',status:'all',date:''},
+  revenuePeriod:'month', apptsPage:1, listTab:'specialties', listSelectedWilaya:'Alger',
+  myPhone: localStorage.getItem('omnimed_phone')||'', notifOpen:false
+};
+const EMOJIS = ['👨‍⚕️','👩‍⚕️','🧑‍⚕️','👨‍🔬','👩‍🔬','🩺','💊','🦷','🧠','❤️'];
+function dateOffset(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+
+function seedData(){
+  return {
+    version:8,
+    specialties:[...DEFAULT_SPECIALTIES],
+    wilayas:[...WILAYAS],
+    communes: JSON.parse(JSON.stringify(COMMUNES)),
+    admin:{username:'admin', password:'admin123'},
+    settings:{commission: COMMISSION_PER_RDV},
+    doctors:[
+      {id:1,name:'Dr. Sofia Benali',specialty:'Cardiologie',wilaya:'Alger',commune:'Alger-Centre',address:'12 Rue Hassiba Ben Bouali, Alger',fee:3500,duration:30,phone:'+213660111111',email:'sofia.benali@omnimed.dz',avatar:'👩‍⚕️',password:'1234',bio:'Cardiologue depuis 12 ans.',workDays:[0,1,2,3,4],workStart:'08:00',workEnd:'17:00',disabledSlots:['12:00','12:30']},
+      {id:2,name:'Dr. Karim Boudjema',specialty:'Dermatologie',wilaya:'Oran',commune:'Oran',address:'45 Bd Emir Abdelkader, Oran',fee:3000,duration:20,phone:'+213660222222',email:'karim.boudjema@omnimed.dz',avatar:'👨‍⚕️',password:'1234',bio:'Dermatologue.',workDays:[0,1,2,3,4],workStart:'09:00',workEnd:'16:00',disabledSlots:[]},
+      {id:3,name:'Dr. Yasmine Aïtelouar',specialty:'Pédiatrie',wilaya:'Alger',commune:'Kouba',address:'8 Rue Didouche Mourad, Alger',fee:2500,duration:30,phone:'+213660333333',email:'yasmine.aitelouar@omnimed.dz',avatar:'👩‍⚕️',password:'1234',bio:'Pédiatre.',workDays:[0,1,2,3,4],workStart:'08:30',workEnd:'16:30',disabledSlots:['12:00']},
+      {id:4,name:'Dr. Omar Hamani',specialty:'Généraliste',wilaya:'Constantine',commune:'Constantine',address:'22 Rue Larbi Ben M\'hidi, Constantine',fee:2000,duration:15,phone:'+213660444444',email:'omar.hamani@omnimed.dz',avatar:'👨‍⚕️',password:'1234',bio:'Médecin généraliste.',workDays:[0,1,2,3,4,6],workStart:'07:00',workEnd:'18:00',disabledSlots:['12:00','12:15','12:30','12:45']},
+      {id:5,name:'Dr. Lina Cherifi',specialty:'Dentaire',wilaya:'Alger',commune:'Hydra',address:'3 Rue Ibn Badis, Alger',fee:4000,duration:45,phone:'+213660555555',email:'lina.cherifi@omnimed.dz',avatar:'👩‍⚕️',password:'1234',bio:'Chirurgien-dentiste.',workDays:[1,2,3,4,6],workStart:'09:00',workEnd:'18:00',disabledSlots:[]},
+      {id:6,name:'Dr. Hicham Bensalah',specialty:'Ophtalmologie',wilaya:'Annaba',commune:'Annaba',address:'17 Av. du 1er Novembre, Annaba',fee:3200,duration:25,phone:'+213660666666',email:'hicham.bensalah@omnimed.dz',avatar:'👨‍⚕️',password:'1234',bio:'Ophtalmologue.',workDays:[0,1,2,3,4],workStart:'08:00',workEnd:'15:00',disabledSlots:[]}
+    ],
+    appointments:[
+      {id:'RDV-1001',doctorId:1,patientName:'Amine Rahali',patientPhone:'0661345678',patientEmail:'amine@mail.dz',date:dateOffset(0),time:'10:00',motif:'Contrôle annuel',status:'confirmed',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1002',doctorId:1,patientName:'Sara Benkirane',patientPhone:'0661345679',patientEmail:'sara@mail.dz',date:dateOffset(0),time:'11:00',motif:'Palpitations',status:'pending',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1003',doctorId:2,patientName:'Youssef Amrani',patientPhone:'0661345680',patientEmail:'y.amrani@mail.dz',date:dateOffset(1),time:'09:40',motif:'Éruption cutanée',status:'confirmed',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1004',doctorId:3,patientName:'Nour Cherkaoui',patientPhone:'0661345681',patientEmail:'nour@mail.dz',date:dateOffset(2),time:'14:00',motif:'Vaccination',status:'pending',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1005',doctorId:1,patientName:'Imane Kabbaj',patientPhone:'0661345682',patientEmail:'imane@mail.dz',date:dateOffset(3),time:'15:00',motif:'Bilan',status:'cancelled',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1006',doctorId:4,patientName:'Réda Ould Ali',patientPhone:'0661345683',patientEmail:'reda@mail.dz',date:dateOffset(-1),time:'10:30',motif:'Suivi diabète',status:'done',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1007',doctorId:2,patientName:'Meriem Saïdi',patientPhone:'0661345684',patientEmail:'meriem@mail.dz',date:dateOffset(-3),time:'16:00',motif:'Acné',status:'done',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''},
+      {id:'RDV-1008',doctorId:5,patientName:'Walid Meziane',patientPhone:'0661345685',patientEmail:'walid@mail.dz',date:dateOffset(-5),time:'11:15',motif:'Détartrage',status:'done',createdAt:new Date().toISOString(),reminders:{h2:false},notes:''}
+    ],
+    waitlist:[], notifications:[], messages:[]
+  };
+}
+let DB;
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    DB = (parsed && parsed.version===8) ? parsed : seedData();
+  }catch(e){ DB = seedData(); }
+  if(!DB.settings) DB.settings = {commission: COMMISSION_PER_RDV};
+  if(!DB.wilayas) DB.wilayas = [...WILAYAS];
+  if(!DB.communes) DB.communes = JSON.parse(JSON.stringify(COMMUNES));
+  if(!DB.specialties || !DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
+  DB.doctors.forEach(d=>{
+    if(!d.workDays) d.workDays = [];
+    if(!d.workStart) d.workStart = '08:00';
+    if(!d.workEnd) d.workEnd = '17:00';
+    if(!d.commune) d.commune = '';
+    if(!d.disabledSlots) d.disabledSlots = [];
+  });
+}
+function saveDB(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){} }
+function getCommission(){ return (DB.settings && DB.settings.commission) || COMMISSION_PER_RDV; }
+function fmtDA(n){ return new Intl.NumberFormat(state.lang==='ar'?'ar-DZ':'fr-DZ').format(n) + ' DA'; }
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = p => p + Math.random().toString(36).slice(2,7).toUpperCase();
+const docById = id => DB.doctors.find(d=>d.id===id);
+const fmtDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.lang==='ar'?'ar-DZ':state.lang==='en'?'en-GB':'fr-FR';
+  return d.toLocaleDateString(l,{weekday:'short',day:'numeric',month:'short',year:'numeric'}); };
+const fmtLongDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.lang==='ar'?'ar-DZ':state.lang==='en'?'en-GB':'fr-FR';
+  return d.toLocaleDateString(l,{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
+const todayISO = () => new Date().toISOString().slice(0,10);
+const nowISO = () => new Date().toISOString();
+const toMin = hhmm => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
+const toHHMM = min => String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0');
+
+function toast(msg, type='info'){
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  const icons = {success:'✅',error:'⚠️',info:'ℹ️'};
+  el.innerHTML = `<span>${icons[type]||''}</span><span>${esc(msg)}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(20px)'; el.style.transition='all .3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+function openModal(title, sub, bodyHTML, actionsHTML){
+  $('#modal-root').innerHTML = `
+    <div class="modal-back" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-title">${esc(title)}</div>
+        ${sub?`<div class="modal-sub">${esc(sub)}</div>`:''}
+        <div>${bodyHTML||''}</div>
+        ${actionsHTML?`<div class="modal-actions">${actionsHTML}</div>`:''}
+      </div>
+    </div>`;
+}
+function closeModal(){ $('#modal-root').innerHTML=''; }
+function exportCSV(rows, filename){
+  const csv = rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+}
+function generateSlots(workStart, workEnd, duration){
+  const start = toMin(workStart||'08:00');
+  const end = toMin(workEnd||'17:00');
+  const step = duration||30;
+  const out = []; let cur = start;
+  while(cur + step <= end){ out.push(toHHMM(cur)); cur += step; }
+  return out;
+}
+function slotsFor(doctorId, dateISO){
+  const doc = docById(doctorId); if(!doc) return [];
+  const disabled = doc.disabledSlots || [];
+  const all = generateSlots(doc.workStart, doc.workEnd, doc.duration).filter(s=>!disabled.includes(s));
+  const taken = DB.appointments.filter(a=>a.doctorId===doctorId && a.date===dateISO && a.status!=='cancelled').map(a=>a.time);
+  return all.map(s=>({time:s, available:!taken.includes(s)}));
+}
+function next14Days(){ const out=[]; for(let i=0;i<14;i++) out.push(dateOffset(i)); return out; }
+function isWorkDay(doc, dateISO){
+  const dow = new Date(dateISO+'T00:00:00').getDay();
+  return (doc.workDays||[]).includes(dow);
+}
+function dateHasAvail(doctorId, dateISO, period){
+  const doc = docById(doctorId); if(!doc) return false;
+  if(!isWorkDay(doc, dateISO)) return false;
+  const slots = slotsFor(doctorId, dateISO).filter(s=>s.available);
+  if(!slots.length) return false;
+  if(!period) return true;
+  return slots.some(s=>{ const h=parseInt(s.time.split(':')[0],10); return period==='morning'?h<12:h>=12; });
+}
+function pushNotif(role, title, message, toDoctorId, apptId){
+  DB.notifications.unshift({id:uid('N-'), role, title, message, toDoctorId:toDoctorId||null, apptId:apptId||null, date:nowISO(), read:false});
+  DB.notifications = DB.notifications.slice(0,80); saveDB();
+}
+function unreadCount(role, doctorId){
+  return DB.notifications.filter(n=>n.role===role && (!doctorId || n.toDoctorId===doctorId) && !n.read).length;
+}
+function clearApptNotifications(apptId){
+  DB.notifications = DB.notifications.filter(n => !(n.apptId === apptId && n.role === 'doctor'));
+  saveDB();
+}
+function sendMessage(type, to, patientName, doctor, appt, custom){
+  const body = custom || defaultMsg(patientName, doctor, appt, type);
+  DB.messages.unshift({id:uid('M-'), type, to, subject: type==='email' ? 'OmniMed — Rendez-vous' : '', body, date:nowISO()});
+  DB.messages = DB.messages.slice(0,120); saveDB(); return body;
+}
+function defaultMsg(patientName, doctor, appt, type){
+  const date = fmtLongDate(appt.date);
+  if(type==='email') return `Bonjour ${patientName},\n\nVotre rendez-vous avec ${doctor.name} (${doctor.specialty}) est prévu le ${date} à ${appt.time}.\nAdresse : ${doctor.address}.\nCode : ${appt.id}\n\n— OmniMed`;
+  return `OmniMed: RDV chez ${doctor.name} le ${date} à ${appt.time}. Code: ${appt.id}.`;
+}
+function reminderMsg(patientName, doctor, appt){
+  return `OmniMed: Rappel — RDV chez ${doctor.name} dans 2 heures (${appt.time}). Code: ${appt.id}.`;
+}
+function checkReminders(){
+  const now = new Date();
+  DB.appointments.forEach(a=>{
+    if(a.status!=='confirmed') return;
+    if(a.reminders?.h2) return;
+    const dt = new Date(a.date+'T'+a.time+':00');
+    const diff = (dt - now)/3600000;
+    if(diff>0 && diff<=2){
+      const doc = docById(a.doctorId); if(!doc) return;
+      a.reminders = a.reminders||{}; a.reminders.h2 = true;
+      pushNotif('doctor', t('reminder')+' H-2', `${a.patientName} — ${a.time}`, a.doctorId, a.id);
+      pushNotif('patient', t('reminder')+' H-2', reminderMsg(a.patientName, doc, a), null, a.id);
+      sendMessage('sms', a.patientPhone, a.patientName, doc, a, reminderMsg(a.patientName, doc, a));
+    }
+  });
+  saveDB();
+}
+
+function render(){
+  const app = $('#app'); if(!app) return;
+  const isDoc = state.role==='doctor';
+  const isAdmin = state.role==='admin';
+  const nav = isAdmin ? adminNav() : isDoc ? docNav() : patientNav();
+  const title = pageTitle(); const sub = pageSub();
+  const content = isAdmin ? renderAdminView() : isDoc ? renderDoctorView() : renderPatientView();
+  const notifN = isDoc ? unreadCount('doctor', state.doctor?.id) : 0;
+  app.innerHTML = `
+    <header class="app-top">
+      <div class="brand">
+        <div class="brand-logo">🩺</div>
+        <div class="brand-text"><div class="brand-name">OmniMed</div><div class="brand-sub">${t('brand_sub')}</div></div>
+      </div>
+      <div class="title-block"><div class="page-title">${esc(title)}</div>${sub?`<div class="page-sub">${esc(sub)}</div>`:''}</div>
+      <div class="top-actions">
+        ${isDoc && state.doctor ? `<span class="tag accent">${state.doctor.avatar} ${esc(state.doctor.name)}</span>`:''}
+        ${isAdmin && state.admin ? `<span class="tag accent">🔐 ${t('admin_you')}</span>`:''}
+        ${isDoc ? `<button class="pill-btn" onclick="toggleNotifs()">🔔 ${notifN?`<span class="dot"></span>`:''}</button>`:''}
+        ${(isDoc && state.doctor) ? `<button class="pill-btn" onclick="logoutDoctor()">🚪 ${t('logout')}</button>`:''}
+        ${(isAdmin && state.admin) ? `<button class="pill-btn" onclick="logoutAdmin()">🚪 ${t('logout')}</button>`:''}
+      </div>
+    </header>
+    <nav class="app-nav">
+      <div class="nav-items">${nav}</div>
+      <div class="nav-controls">
+        <div class="role-menu">
+          <button class="role-btn ${state.role==='patient'?'active':''}" onclick="setRole('patient')">👤</button>
+          <button class="role-btn ${state.role==='doctor'?'active':''}" onclick="setRole('doctor')">🧑‍⚕️</button>
+          <button class="role-btn ${state.role==='admin'?'active':''}" onclick="setRole('admin')">🔐</button>
+        </div>
+        <div class="segmented">
+          <button class="${state.lang==='fr'?'active':''}" onclick="setLang('fr')">FR</button>
+          <button class="${state.lang==='en'?'active':''}" onclick="setLang('en')">EN</button>
+          <button class="${state.lang==='ar'?'active':''}" onclick="setLang('ar')">ع</button>
+        </div>
+        <label class="switch" title="${state.dark?t('light'):t('dark')}">
+          <input type="checkbox" ${state.dark?'checked':''} onchange="toggleDark()">
+          <span class="slider"><span class="ico ico-moon">🌙</span><span class="ico ico-sun">☀️</span></span>
+        </label>
+      </div>
+    </nav>
+    <main class="content-wrap" id="content">${content}</main>
+  `;
+  if(state.notifOpen) openNotifPanel();
+  applyDir();
+}
+function applyDir(){
+  document.body.dir = state.lang==='ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = state.lang;
+  document.body.classList.toggle('dark', state.dark);
+}
+function patientNav(){
+  const v = state.view;
+  const items = [['home','🏠',t('home')],['book','📅',t('book')],['my','📋',t('my')]];
+  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+}
+function docNav(){
+  const v = state.view;
+  const items = [['ddash','📊',t('ddash')],['dappts','📅',t('dappts')],['dwait','⏳',t('dwait')],['dprof','🧑‍⚕️',t('dprof')]];
+  const n = unreadCount('doctor', state.doctor?.id);
+  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}${id==='ddash'&&n?`<span class="badge">${n}</span>`:''}</button>`).join('');
+}
+function adminNav(){
+  const v = state.view;
+  const items = [
+    ['adash','📊',t('adash')],['adoctors','🧑‍⚕️',t('adoctors')],['arevenue','💰',t('arevenue')],
+    ['aappts','📅',t('aappts')],['awaitlist','⏳',t('awaitlist')],
+    ['alistes','📚',t('alistes')],['asettings','⚙️',t('asettings')]
+  ];
+  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+}
+function pageTitle(){
+  const map = {home:t('welcome'),book:t('book'),my:t('my'),ddash:t('dashboard'),dappts:t('dappts'),dwait:t('waitlist_title'),dprof:t('profile'),dlogin:t('login_doc'),
+    adash:t('adash'),adoctors:t('manage_doctors'),arevenue:t('revenue'),aappts:t('all_appointments'),
+    awaitlist:t('all_waitlist'),alistes:t('manage_lists'),asettings:t('asettings'),alogin:t('login_admin')};
+  if(state.role==='doctor' && !state.doctor) return t('login_doc');
+  if(state.role==='admin' && !state.admin) return t('login_admin');
+  return map[state.view]||'OmniMed';
+}
+function pageSub(){
+  const map = {home:t('welcome_sub'),book:'',my:t('my_rdv_sub'),
+    ddash:state.doctor?`${state.doctor.specialty} · ${state.doctor.wilaya}`:'',
+    dappts:'',dwait:'',dprof:'',dlogin:t('login_sub'),
+    adash:'',adoctors:t('manage_doctors_sub'),arevenue:t('revenue_sub'),
+    aappts:'',awaitlist:'',alistes:t('manage_lists_sub'),asettings:'',alogin:t('login_admin_sub')};
+  return map[state.view]||'';
+}
+function go(view){
+  state.view = view; state.apptsPage = 1;
+  if(state.role==='doctor' && !state.doctor && view.startsWith('d')) state.view='dlogin';
+  if(state.role==='admin' && !state.admin && view.startsWith('a')) state.view='alogin';
+  render();
+}
+function setRole(role){
+  state.role = role; state.apptsPage = 1;
+  if(role==='patient') state.view='home';
+  else if(role==='doctor') state.view = state.doctor ? 'ddash' : 'dlogin';
+  else state.view = state.admin ? 'adash' : 'alogin';
+  state.notifOpen = false; render();
+}
+function toggleDark(){ state.dark=!state.dark; savePrefs(); render(); }
+function setLang(l){ state.lang=l; savePrefs(); render(); }
+function savePrefs(){ try{ localStorage.setItem('omnimed_prefs', JSON.stringify({lang:state.lang,dark:state.dark})); }catch(e){} }
+function loadPrefs(){
+  try{ const p=JSON.parse(localStorage.getItem('omnimed_prefs')||'{}');
+    if(p.lang) state.lang=p.lang;
+    if(typeof p.dark==='boolean') state.dark=p.dark;
+  }catch(e){}
+}
+function toggleNotifs(){ state.notifOpen=!state.notifOpen; render(); }
+function closeNotifs(){ state.notifOpen=false; render(); }
+
+function renderPatientView(){
+  switch(state.view){
+    case 'home': return viewHome();
+    case 'book': return viewBook();
+    case 'my': return viewMy();
+    default: return viewHome();
+  }
+}
+function viewHome(){
+  const featured = DB.doctors.slice(0,3);
+  return `
+    <div class="hero"><div class="hero-content">
+      <h1>OmniMed</h1><p>${t('welcome_sub')}</p>
+      <div class="hero-actions">
+        <button class="pill-btn primary" onclick="go('book')">📅 ${t('book_now')}</button>
+        <button class="pill-btn" onclick="go('my')">📋 ${t('my_rdv')}</button>
+      </div>
+    </div></div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title">🔍 ${t('find_doc')}</div>
+      <div class="card-sub">${t('search_ph')}</div>
+      <div class="grid grid-2">
+        <input class="input" placeholder="${t('search_ph')}" value="${esc(state.search.q)}" oninput="state.search.q=this.value">
+        <select class="select" onchange="state.search.specialty=this.value">
+          <option value="">${t('all_spec')}</option>
+          ${DB.specialties.map(s=>`<option ${state.search.specialty===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="margin-top:12px">
+        <button class="pill-btn primary" onclick="state.view='book';render()">🔎 ${t('lookup')}</button>
+      </div>
+    </div>
+    <div class="card-title" style="margin:16px 0 10px">⭐ ${t('find_doc')}</div>
+    <div class="grid grid-3">${featured.map(d=>docCardHTML(d,false)).join('')}</div>
+  `;
+}
+function viewBook(){
+  const step = state.booking.step;
+  return `
+    <div class="steps">
+      ${[1,2,3,4].map(n=>`
+        <div class="step ${step===n?'active':(step>n?'done':'')}">
+          <span class="step-num">${step>n?'✓':n}</span><span>${t('step'+n)}</span>
+        </div>`).join('')}
+    </div>
+    <div id="book-body">${bookStepBody()}</div>
+  `;
+}
+function bookStepBody(){
+  const s = state.booking;
+  if(s.step===1) return bookStep1();
+  if(s.step===2) return bookStep2();
+  if(s.step===3) return bookStep3();
+  return bookStep4();
+}
+function bookStep1(){
+  const f = state.search;
+  let list = DB.doctors.filter(d=>{
+    if(f.q && !(d.name.toLowerCase().includes(f.q.toLowerCase()) || d.specialty.toLowerCase().includes(f.q.toLowerCase()))) return false;
+    if(f.specialty && d.specialty!==f.specialty) return false;
+    if(f.wilaya && d.wilaya!==f.wilaya) return false;
+    if(f.commune && d.commune!==f.commune) return false;
+    if(f.date && !dateHasAvail(d.id, f.date, f.period)) return false;
+    return true;
+  });
+  const communesForWilaya = f.wilaya ? (DB.communes[f.wilaya]||[]) : [];
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🔍 ${t('find_doc')}</div>
+      <div class="grid grid-2" style="margin-top:10px">
+        <input class="input" placeholder="${t('search_ph')}" value="${esc(f.q)}" oninput="state.search.q=this.value;render()">
+        <select class="select" onchange="state.search.specialty=this.value;render()">
+          <option value="">${t('all_spec')}</option>
+          ${DB.specialties.map(x=>`<option ${f.specialty===x?'selected':''}>${esc(x)}</option>`).join('')}
+        </select>
+        <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';render()">
+          <option value="">${t('all_wilaya')}</option>
+          ${DB.wilayas.map(x=>`<option ${f.wilaya===x?'selected':''}>${esc(x)}</option>`).join('')}
+        </select>
+        <select class="select" onchange="state.search.commune=this.value;render()" ${!f.wilaya?'disabled style="opacity:.5"':''}>
+          <option value="">${t('commune')} — ${t('filter_all')}</option>
+          ${communesForWilaya.map(x=>`<option ${f.commune===x?'selected':''}>${esc(x)}</option>`).join('')}
+        </select>
+        <input class="input" type="date" value="${f.date}" min="${todayISO()}" onchange="state.search.date=this.value;render()">
+      </div>
+      <div class="chips" style="margin-top:12px;margin-bottom:0">
+        <span style="font-size:11.5px;color:var(--text-muted);align-self:center;margin-right:6px">${t('avail_filter')}:</span>
+        <button class="chip ${!f.period?'active':''}" onclick="state.search.period='';render()">${t('filter_all')}</button>
+        <button class="chip ${f.period==='morning'?'active':''}" onclick="state.search.period='morning';render()">🌅 ${t('morning')}</button>
+        <button class="chip ${f.period==='afternoon'?'active':''}" onclick="state.search.period='afternoon';render()">🌇 ${t('afternoon')}</button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12.5px;color:var(--text-muted)">${list.length} ${t('doctors_found')}</span>
+    </div>
+    <div class="grid grid-2">
+      ${list.length?list.map(d=>docCardHTML(d, state.booking.doctorId===d.id)).join(''):
+        `<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🔍</div>${t('no_docs')}</div>`}
+    </div>
+  `;
+}
+function docCardHTML(d, selected){
+  const todayWork = isWorkDay(d, todayISO());
+  const days = (d.workDays||[]);
+  return `
+    <div class="doc-card ${selected?'selected':''}" onclick="selectDoctor(${d.id})">
+      <div class="doc-avatar">${d.avatar}</div>
+      <div class="doc-info">
+        <div class="doc-name">${esc(d.name)}</div>
+        <div class="doc-spec">${esc(d.specialty)}</div>
+        <div class="doc-meta">
+          <span>📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</span>
+          <span>💰 ${d.fee} DA</span>
+          <span>⏱️ ${d.duration} ${t('min')}</span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          ${todayWork && dateHasAvail(d.id, todayISO(), '')
+            ? `<span class="tag success">✓ ${t('today_appts')}</span>`
+            : `<span class="tag muted">⏳ ${DAY_NAMES_SHORT[(new Date()).getDay()]}</span>`}
+          ${days.length?`<span class="tag success">📅 ${days.map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`:`<span class="tag danger">📅 —</span>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function selectDoctor(id){ state.booking.doctorId=id; state.booking.date=null; state.booking.time=null; state.booking.step=2; render(); }
+function bookStep2(){
+  const s = state.booking;
+  const doc = docById(s.doctorId);
+  if(!doc) return `<div class="empty">${t('no_docs')}</div>`;
+  const days = next14Days();
+  const slots = s.date ? slotsFor(doc.id, s.date) : [];
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">${doc.avatar} ${esc(doc.name)}</div>
+      <div class="card-sub">${esc(doc.specialty)} · ${esc(doc.wilaya)}${doc.commune?' · '+esc(doc.commune):''} · ${doc.duration} ${t('min')}</div>
+      <div style="font-size:11.5px;color:var(--text-muted)">
+        🕐 ${esc(doc.workStart)} – ${esc(doc.workEnd)} · ${(doc.workDays||[]).map(i=>DAY_NAMES_SHORT[i]).join(' ')||'—'}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📅 ${t('select_date')}</div>
+      <div class="dates" style="margin-top:10px">
+        ${days.map(d=>{
+          const dt = new Date(d+'T00:00:00');
+          const day = dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3);
+          const work = isWorkDay(doc, d);
+          const hasAvail = work && slotsFor(doc.id, d).some(x=>x.available);
+          const disabled = !work || !hasAvail;
+          return `<button class="date-chip ${s.date===d?'selected':''} ${disabled?'disabled':''}"
+            ${disabled?'disabled':''}
+            onclick="if(!this.disabled){state.booking.date='${d}';state.booking.time=null;render()}">
+            <div class="d-day">${day}</div>
+            <div class="d-num">${dt.getDate()}</div>
+            <div class="d-mon">${dt.toLocaleDateString('fr-FR',{month:'short'})}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+    ${s.date ? `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">⏰ ${t('select_time')} <span style="font-weight:400;color:var(--text-muted);font-size:12px">— ${fmtLongDate(s.date)}</span></div>
+      <div class="slots" style="margin-top:12px">
+        ${slots.map(sl=>`<button class="slot ${s.time===sl.time?'selected':''}" ${!sl.available?'disabled':''} onclick="if(!this.disabled){state.booking.time='${sl.time}';render()}">${sl.time}</button>`).join('')}
+      </div>
+      ${!slots.some(x=>x.available) ? `
+        <div class="sep"></div>
+        <div style="text-align:center">
+          <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Plus de créneaux disponibles ce jour</p>
+          <button class="pill-btn" onclick="joinWaitlist(${doc.id},'${s.date}')">⏳ ${t('waitlist')}</button>
+        </div>`:''}
+    </div>`:''}
+    <div style="display:flex;justify-content:space-between;gap:8px">
+      <button class="pill-btn" onclick="state.booking.step=1;render()">← ${t('back')}</button>
+      <button class="pill-btn primary" ${!(s.date && s.time)?'disabled style="opacity:.5;cursor:not-allowed"':''} onclick="state.booking.step=3;render()">${t('next')} →</button>
+    </div>
+  `;
+}
+function bookStep3(){
+  const s = state.booking;
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📝 ${t('your_info')}</div>
+      <div class="field-row">
+        <div class="field"><label>${t('fullname')}</label><input class="input" id="pName" value="${esc(s.patientName||'')}" required></div>
+        <div class="field"><label>${t('phone')}</label><input class="input" id="pPhone" value="${esc(s.patientPhone||state.myPhone||'')}" placeholder="+213 6…" required></div>
+      </div>
+      <div class="field"><label>${t('email')}</label><input class="input" id="pEmail" type="email" value="${esc(s.patientEmail||'')}"></div>
+      <div class="field"><label>${t('motif')}</label><textarea class="textarea" id="pMotif" placeholder="Ex : douleur thoracique, contrôle…">${esc(s.motif||'')}</textarea></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px">
+      <button class="pill-btn" onclick="state.booking.step=2;render()">← ${t('back')}</button>
+      <button class="pill-btn primary" onclick="confirmBooking()">✓ ${t('confirm')}</button>
+    </div>
+  `;
+}
+function confirmBooking(){
+  const s = state.booking;
+  const name = ($('#pName')?.value||'').trim();
+  const phone = ($('#pPhone')?.value||'').trim();
+  const email = ($('#pEmail')?.value||'').trim();
+  const motif = ($('#pMotif')?.value||'').trim();
+  if(!name || !phone){ toast(t('required_fields'),'error'); return; }
+  const doc = docById(s.doctorId);
+  const clash = DB.appointments.find(a=>a.doctorId===doc.id && a.date===s.date && a.time===s.time && a.status!=='cancelled');
+  if(clash){ toast('Ce créneau vient d\'être réservé','error'); s.step=2; render(); return; }
+  const appt = {id:'RDV-'+Math.floor(1000+Math.random()*9000), doctorId:doc.id, patientName:name, patientPhone:phone, patientEmail:email,
+    date:s.date, time:s.time, motif:motif||'Consultation', status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:''};
+  DB.appointments.push(appt);
+  state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
+  pushNotif('doctor','Nouvelle demande de RDV', `${name} — ${fmtDate(s.date)} ${s.time}`, doc.id, appt.id);
+  pushNotif('patient','Demande envoyée', `En attente de validation par ${doc.name}`, null, appt.id);
+  sendMessage('email', email, name, doc, appt);
+  saveDB(); state.booking.step = 4; state.booking.lastId = appt.id; render();
+}
+function bookStep4(){
+  const appt = DB.appointments.find(a=>a.id===state.booking.lastId) || DB.appointments[DB.appointments.length-1];
+  const doc = appt ? docById(appt.doctorId) : null;
+  if(!appt||!doc) return `<div class="empty">Erreur</div>`;
+  return `
+    <div class="card" style="text-align:center;padding:30px">
+      <div style="font-size:52px;margin-bottom:8px">✅</div>
+      <div class="card-title" style="justify-content:center;font-size:20px">${t('rdv_confirmed')}</div>
+      <div class="card-sub" style="margin-bottom:20px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:15px">${appt.id}</strong></div>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:20px">
+        <div class="qr">${qrSVG(appt.id)}</div>
+        <div style="text-align:left;min-width:220px">
+          <div style="font-weight:700;font-size:15px">${esc(doc.name)}</div>
+          <div style="color:var(--accent-primary);font-size:12px;margin-bottom:8px">${esc(doc.specialty)}</div>
+          <div style="font-size:12.5px;line-height:1.8">
+            📅 <strong>${fmtLongDate(appt.date)}</strong><br>⏰ <strong>${appt.time}</strong><br>📍 ${esc(doc.address)}
+          </div>
+        </div>
+      </div>
+      <div class="card-sub">Le médecin va valider votre demande.</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="pill-btn" onclick="printAppt('${appt.id}')">🖨️ ${t('print')}</button>
+        <button class="pill-btn" onclick="state.view='my';render()">📋 ${t('my')}</button>
+        <button class="pill-btn primary" onclick="resetBooking()">+ ${t('book_now')}</button>
+      </div>
+    </div>
+  `;
+}
+function resetBooking(){ state.booking = {doctorId:null,date:null,time:null,step:1}; state.view='book'; render(); }
+function viewMy(){
+  const phone = state.myPhone || '';
+  const appts = phone ? DB.appointments.filter(a=>a.patientPhone===phone) : [];
+  const sorted = appts.slice().sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📱 ${t('my_rdv_title')}</div>
+      <div class="card-sub">${t('my_rdv_sub')}</div>
+      <div class="field-row">
+        <input class="input" id="lookupPhone" value="${esc(phone)}" placeholder="+213 6…">
+        <button class="pill-btn primary" onclick="lookupPhone()">🔎 ${t('lookup')}</button>
+      </div>
+    </div>
+    ${appts.length ? sorted.map(a=>patientApptHTML(a)).join('') : `<div class="empty"><div class="empty-ico">📋</div>${t('no_appts')}</div>`}
+  `;
+}
+function lookupPhone(){
+  const v = ($('#lookupPhone')?.value||'').trim();
+  if(!v){ toast(t('required_fields'),'error'); return; }
+  state.myPhone = v; localStorage.setItem('omnimed_phone', v); render();
+}
+function patientApptHTML(a){
+  const doc = docById(a.doctorId);
+  const canCancel = (a.status==='pending'||a.status==='confirmed') && withinCancelWindow(a);
+  return `
+    <div class="appt">
+      <div class="appt-time">
+        <div class="h">${a.time}</div>
+        <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <div class="appt-body">
+        <div class="appt-patient">${esc(doc?.name||'—')} <span style="font-weight:400;color:var(--text-muted);font-size:11.5px">· ${esc(doc?.specialty||'')}</span></div>
+        <div class="appt-meta">
+          <span>${statusTag(a.status)}</span><span>🆔 ${a.id}</span>
+          ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
+        </div>
+      </div>
+      <div class="appt-actions">
+        ${canCancel?`<button class="mini-btn no" onclick="patientCancel('${a.id}')">✕ ${t('cancel')}</button>`:''}
+      </div>
+    </div>
+  `;
+}
+function withinCancelWindow(a){
+  const dt = new Date(a.date+'T'+a.time+':00');
+  return (dt - new Date())/3600000 >= 2;
+}
+function statusTag(s){
+  const map = {pending:['warn','⏳ '+t('status_pending')],confirmed:['success','✓ '+t('status_confirmed')],
+    cancelled:['danger','✕ '+t('status_cancelled')],postponed:['accent','🔁 '+t('status_postponed')],
+    done:['muted','✅ '+t('status_done')]};
+  const [cls,lbl]=map[s]||['muted',s];
+  return `<span class="tag ${cls}">${lbl}</span>`;
+}
+function patientCancel(id){
+  openModal(t('cancel'), t('confirm_delete'), `
+    <div class="field"><label>${t('cancel_reason')}</label><input class="input" id="cancelReason" placeholder="${t('reason_ph')}"></div>
+  `, `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn primary" onclick="doCancel('${id}')">✕ ${t('cancel')}</button>`);
+}
+function doCancel(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const reason = $('#cancelReason')?.value || '';
+  a.status='cancelled'; a.cancelReason = reason;
+  const doc = docById(a.doctorId);
+  pushNotif('doctor', t('status_cancelled'), `${a.patientName} — ${a.time}`, a.doctorId, a.id);
+  pushNotif('patient', t('status_cancelled'), `RDV ${a.id}`, null, a.id);
+  sendMessage('email', a.patientEmail, a.patientName, doc, a, `Bonjour ${a.patientName},\n\nVotre rendez-vous du ${fmtLongDate(a.date)} à ${a.time} avec ${doc.name} a été annulé.\n\n— OmniMed`);
+  saveDB(); closeModal(); render(); toast('Rendez-vous annulé','info');
+}
+function joinWaitlist(doctorId, dateISO){
+  openModal(t('waitlist'), '', `
+    <div class="field"><label>${t('fullname')}</label><input class="input" id="wName"></div>
+    <div class="field"><label>${t('phone')}</label><input class="input" id="wPhone"></div>
+    <div class="field"><label>${t('email')}</label><input class="input" id="wEmail"></div>
+  `, `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn primary" onclick="doJoinWaitlist(${doctorId},'${dateISO}')">⏳ ${t('add_waitlist')}</button>`);
+}
+function doJoinWaitlist(doctorId, dateISO){
+  const name = ($('#wName')?.value||'').trim();
+  const phone = ($('#wPhone')?.value||'').trim();
+  const email = ($('#wEmail')?.value||'').trim();
+  if(!name||!phone){ toast(t('required_fields'),'error'); return; }
+  DB.waitlist.push({id:uid('W-'), doctorId, patientName:name, patientPhone:phone, patientEmail:email, preferredDate:dateISO, createdAt:nowISO()});
+  pushNotif('doctor','Nouvelle inscription file d\'attente', `${name} — ${fmtDate(dateISO)}`, doctorId, null);
+  saveDB(); closeModal(); render(); toast(t('waitlist_joined'),'success');
+}
+
+function renderDoctorView(){
+  if(!state.doctor) return viewDoctorLogin();
+  switch(state.view){
+    case 'ddash': return viewDoctorDash();
+    case 'dappts': return viewDoctorAppts();
+    case 'dwait': return viewDoctorWaitlist();
+    case 'dprof': return viewDoctorProfile();
+    default: return viewDoctorDash();
+  }
+}
+function viewDoctorLogin(){
+  return `
+    <div class="login-wrap">
+      <div class="card">
+        <div class="card-title">🧑‍⚕️ ${t('login_doc')}</div>
+        <div class="card-sub">${t('login_sub')}</div>
+        <div class="field"><label>${t('identifier')}</label>
+          <input class="input" id="loginIdent" type="text" placeholder="${t('identifier_ph')}" autocomplete="off">
+        </div>
+        <div class="field"><label>${t('password')}</label><input class="input" id="loginPwd" type="password" placeholder="••••"></div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:14px">💡 ${t('hint_pwd')}</div>
+        <button class="pill-btn primary" style="width:100%;justify-content:center" onclick="doLogin()">${t('sign_in')} →</button>
+      </div>
+    </div>
+  `;
+}
+function doLogin(){
+  const ident = ($('#loginIdent')?.value||'').trim().toLowerCase();
+  const pwd = $('#loginPwd')?.value||'';
+  const doc = DB.doctors.find(d => d.email.toLowerCase() === ident || d.name.toLowerCase() === ident);
+  if(!doc || doc.password!==pwd){ toast(t('invalid_login'),'error'); return; }
+  state.doctor = doc; state.view = 'ddash'; render();
+  toast(`Bienvenue ${doc.name}`,'success');
+}
+function logoutDoctor(){ state.doctor=null; state.view='home'; state.role='patient'; render(); }
+function viewDoctorDash(){
+  const doc = state.doctor;
+  const all = DB.appointments.filter(a=>a.doctorId===doc.id);
+  const today = all.filter(a=>a.date===todayISO() && a.status!=='cancelled');
+  const pending = all.filter(a=>a.status==='pending');
+  const confirmed = all.filter(a=>a.status==='confirmed');
+  const cancelled = all.filter(a=>a.status==='cancelled');
+  const waitN = DB.waitlist.filter(w=>w.doctorId===doc.id).length;
+  const notifs = DB.notifications.filter(n=>n.role==='doctor' && n.toDoctorId===doc.id).slice(0,8);
+  const todaySorted = today.sort((a,b)=>a.time.localeCompare(b.time));
+  return `
+    <div class="grid grid-4" style="margin-bottom:18px">
+      <div class="stat"><div class="stat-ico">📊</div><div><div class="stat-val">${all.length}</div><div class="stat-lbl">${t('total_appts')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed.length}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending.length}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--danger-bg);color:var(--danger)">✕</div><div><div class="stat-val">${cancelled.length}</div><div class="stat-lbl">${t('cancelled_c')}</div></div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title" style="font-size:17px">🔔 ${t('dnotif')} <span class="tag accent">${notifs.length}</span>
+        <span style="font-size:11.5px;font-weight:400;color:var(--text-muted);margin-left:auto">${t('open_notif')}</span>
+      </div>
+      ${waitN?`<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">⏳ ${waitN} patient(s) en file d'attente</div>`:''}
+      <div style="margin-top:12px">
+        ${notifs.length ? notifs.map(n=>{
+          const a = n.apptId ? DB.appointments.find(x=>x.id===n.apptId) : null;
+          const doc2 = a ? docById(a.doctorId) : null;
+          const ico = n.apptId ? '📅' : '📩';
+          const time = new Date(n.date).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+          return `
+            <div class="notif-action ${n.read?'':'unread'}" onclick="openNotifDetail('${n.id}')">
+              <div class="na-ico">${ico}</div>
+              <div class="na-body">
+                <div class="na-title">${esc(n.title)}</div>
+                <div class="na-msg">${esc(n.message)}</div>
+                ${a?`<div class="na-msg" style="color:var(--accent-primary);margin-top:3px">${doc2?.avatar||''} ${esc(doc2?.name||'')} · ${fmtDate(a.date)} ${a.time}</div>`:''}
+                <div class="na-time">${time}</div>
+              </div>
+              <div class="na-arrow">›</div>
+            </div>`;
+        }).join('') : `<div class="empty" style="padding:30px"><div class="empty-ico">🔔</div>${t('no_notif')}</div>`}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="font-size:17px">📅 ${t('today_appts')} <span class="tag accent">${todaySorted.length}</span></div>
+      <div style="margin-top:14px">
+        ${todaySorted.length ? todaySorted.map(a=>doctorApptHTML(a)).join('') : `<div class="empty" style="padding:30px"><div class="empty-ico">🌤️</div>${t('no_appts')}</div>`}
+      </div>
+    </div>
+  `;
+}
+function viewDoctorAppts(){
+  const doc = state.doctor;
+  const f = state.filter;
+  let list = DB.appointments.filter(a=>a.doctorId===doc.id);
+  if(f.status!=='all') list = list.filter(a=>a.status===f.status);
+  if(f.date) list = list.filter(a=>a.date===f.date);
+  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const totalPages = Math.max(1, Math.ceil(list.length / APPTS_PER_PAGE));
+  const page = Math.min(state.apptsPage || 1, totalPages);
+  const slice = list.slice((page-1)*APPTS_PER_PAGE, page*APPTS_PER_PAGE);
+  const chip = (v,lbl) => `<button class="chip ${f.status===v?'active':''}" onclick="state.filter.status='${v}';state.apptsPage=1;render()">${lbl}</button>`;
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="grid grid-2">
+        <input class="input" type="date" value="${f.date}" onchange="state.filter.date=this.value;state.apptsPage=1;render()">
+        <button class="pill-btn" onclick="state.filter={status:'all',date:''};state.apptsPage=1;render()">Réinitialiser</button>
+      </div>
+      <div class="chips" style="margin-top:12px;margin-bottom:0">
+        ${chip('all',t('filter_all'))}${chip('pending','⏳ '+t('status_pending'))}${chip('confirmed','✓ '+t('status_confirmed'))}${chip('cancelled','✕ '+t('status_cancelled'))}${chip('done','✅ '+t('status_done'))}
+      </div>
+    </div>
+    ${slice.length ? slice.map(a=>doctorApptHTML(a)).join('') : `<div class="empty"><div class="empty-ico">📅</div>${t('no_appts')}</div>`}
+    ${list.length > APPTS_PER_PAGE ? renderPagination(page, totalPages, list.length) : ''}
+  `;
+}
+function renderPagination(page, totalPages, totalItems){
+  const maxBtns = 7;
+  let start = Math.max(1, page - 3);
+  let end = Math.min(totalPages, start + maxBtns - 1);
+  if(end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+  const btns = [];
+  if(start > 1) btns.push(`<button class="page-btn" onclick="state.apptsPage=1;render()">1</button>`, start>2?`<span class="page-info">…</span>`:'');
+  for(let p=start; p<=end; p++) btns.push(`<button class="page-btn ${p===page?'active':''}" onclick="state.apptsPage=${p};render()">${p}</button>`);
+  if(end < totalPages) btns.push(end<totalPages-1?`<span class="page-info">…</span>`:'', `<button class="page-btn" onclick="state.apptsPage=${totalPages};render()">${totalPages}</button>`);
+  return `
+    <div class="pagination">
+      <button class="page-btn" ${page===1?'disabled':''} onclick="state.apptsPage=${page-1};render()">‹ ${t('prev')}</button>
+      ${btns.join('')}
+      <button class="page-btn" ${page===totalPages?'disabled':''} onclick="state.apptsPage=${page+1};render()">${t('next_page')} ›</button>
+      <span class="page-info">${page} / ${totalPages} · ${totalItems} RDV</span>
+    </div>
+  `;
+}
+function doctorApptHTML(a){
+  return `
+    <div class="appt">
+      <div class="appt-time">
+        <div class="h">${a.time}</div>
+        <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <div class="appt-body">
+        <div class="appt-patient">${esc(a.patientName)}</div>
+        <div class="appt-meta">
+          <span>${statusTag(a.status)}</span><span>📞 ${esc(a.patientPhone)}</span>
+          ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
+        </div>
+      </div>
+      <div class="appt-actions">
+        ${a.status==='pending'?`
+          <button class="mini-btn ok" onclick="docAction('${a.id}','confirm')">✓ ${t('validate')}</button>
+          <button class="mini-btn no" onclick="docAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
+        `:''}
+        ${(a.status==='confirmed'||a.status==='pending')?`
+          <button class="mini-btn warn" onclick="postponeModal('${a.id}')">🔁</button>
+          <button class="mini-btn" onclick="messageModal('${a.id}','email')">✉️</button>
+          <button class="mini-btn" onclick="messageModal('${a.id}','sms')">💬</button>
+          ${a.status==='confirmed'?`<button class="mini-btn ok" onclick="docAction('${a.id}','done')">✅</button>`:''}
+        `:''}
+        <button class="mini-btn" onclick="noteModal('${a.id}')">📝</button>
+      </div>
+    </div>
+  `;
+}
+function docAction(id, action){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const doc = docById(a.doctorId); if(!doc) return;
+  if(action==='confirm'){
+    a.status='confirmed';
+    pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${doc.name} est confirmé`, null, a.id);
+    sendMessage('email', a.patientEmail, a.patientName, doc, a, `Bonjour ${a.patientName},\n\nVotre rendez-vous avec ${doc.name} du ${fmtLongDate(a.date)} à ${a.time} est CONFIRMÉ.\n\n— OmniMed`);
+    sendMessage('sms', a.patientPhone, a.patientName, doc, a);
+    toast('Rendez-vous confirmé','success');
+  } else if(action==='cancel'){
+    a.status='cancelled';
+    pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé par le médecin`, null, a.id);
+    sendMessage('email', a.patientEmail, a.patientName, doc, a, `Bonjour ${a.patientName},\n\nVotre rendez-vous a été annulé.\n\n— OmniMed`);
+    toast('Rendez-vous annulé','info');
+  } else if(action==='done'){
+    a.status='done';
+    pushNotif('patient','Consultation terminée', `Merci d'avoir consulté ${doc.name}`, null, a.id);
+    toast('Consultation terminée','success');
+  }
+  clearApptNotifications(a.id);
+  saveDB(); closeModal(); render();
+}
+function postponeModal(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const doc = docById(a.doctorId);
+  const days = next14Days();
+  const slots = a.date ? slotsFor(a.doctorId, a.date) : [];
+  window._postponeDate = a.date; window._postponeTime = null;
+  const body = `
+    <div class="field"><label>${t('new_date')}</label>
+      <div class="dates">
+        ${days.map(d=>{
+          const dt=new Date(d+'T00:00:00');
+          const work = isWorkDay(doc, d);
+          const disabled = !work;
+          return `<button class="date-chip ${a.date===d?'selected':''} ${disabled?'disabled':''}"
+            ${disabled?'disabled':''}
+            onclick="if(!this.disabled){document.querySelectorAll('.date-chip').forEach(x=>x.classList.remove('selected'));this.classList.add('selected');window._postponeDate='${d}';refreshPostponeSlots('${id}')}">
+            <div class="d-day">${dt.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3)}</div>
+            <div class="d-num">${dt.getDate()}</div>
+            <div class="d-mon">${dt.toLocaleDateString('fr-FR',{month:'short'})}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="field"><label>${t('new_time')}</label>
+      <div class="slots" id="postponeSlots">
+        ${slots.map(s=>{
+          const isOriginal = (s.time===a.time && a.date===window._postponeDate);
+          const disabled = !s.available && !isOriginal;
+          return `<button class="slot" ${disabled?'disabled':''} onclick="if(!this.disabled){document.querySelectorAll('#postponeSlots .slot').forEach(x=>x.classList.remove('selected'));this.classList.add('selected');window._postponeTime='${s.time}'}">${s.time}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+  openModal(t('postpone_title'), `${a.patientName} — ${fmtDate(a.date)} ${a.time}`, body, `
+    <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+    <button class="pill-btn primary" onclick="doPostpone('${id}')">🔁 ${t('postpone')}</button>
+  `);
+}
+function refreshPostponeSlots(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const slots = slotsFor(a.doctorId, window._postponeDate);
+  const cont = document.querySelector('#postponeSlots'); if(!cont) return;
+  cont.innerHTML = slots.map(s=>{
+    const isOriginal = (s.time===a.time && a.date===window._postponeDate);
+    const disabled = !s.available && !isOriginal;
+    return `<button class="slot" ${disabled?'disabled':''} onclick="if(!this.disabled){document.querySelectorAll('#postponeSlots .slot').forEach(x=>x.classList.remove('selected'));this.classList.add('selected');window._postponeTime='${s.time}'}">${s.time}</button>`;
+  }).join('');
+}
+function doPostpone(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const nd = window._postponeDate, nt = window._postponeTime;
+  if(!nd || !nt){ toast('Choisissez une date et une heure','error'); return; }
+  const clash = DB.appointments.find(x=>x.id!==id && x.doctorId===a.doctorId && x.date===nd && x.time===nt && x.status!=='cancelled');
+  if(clash){ toast('Créneau déjà pris','error'); return; }
+  const oldDate = a.date, oldTime = a.time;
+  a.date = nd; a.time = nt;
+  a.status = a.status==='pending' ? 'pending' : 'confirmed';
+  a.rescheduledFrom = {date:oldDate, time:oldTime};
+  const doc = docById(a.doctorId);
+  pushNotif('patient','RDV reporté', `${fmtDate(nd)} ${nt}`, null, a.id);
+  sendMessage('email', a.patientEmail, a.patientName, doc, a, `Bonjour ${a.patientName},\n\nVotre rendez-vous a été REPORTÉ :\nAncien : ${fmtLongDate(oldDate)} à ${oldTime}\nNouveau : ${fmtLongDate(nd)} à ${nt}\n\n— OmniMed`);
+  sendMessage('sms', a.patientPhone, a.patientName, doc, a, `OmniMed: RDV reporté au ${fmtLongDate(nd)} à ${nt} chez ${doc.name}.`);
+  clearApptNotifications(a.id);
+  saveDB(); closeModal(); render(); toast('Rendez-vous reporté','success');
+}
+function noteModal(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  openModal(t('notes_doctor'), a.patientName, `
+    <div class="field"><label>${t('note')}</label><textarea class="textarea" id="noteTxt">${esc(a.notes||'')}</textarea></div>
+  `, `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn primary" onclick="saveNote('${id}')">${t('save')}</button>`);
+}
+function saveNote(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  a.notes = $('#noteTxt').value; saveDB(); closeModal(); render();
+  toast('Note enregistrée','success');
+}
+function messageModal(id, type){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const doc = docById(a.doctorId);
+  const to = type==='email' ? a.patientEmail : a.patientPhone;
+  const defaultBody = defaultMsg(a.patientName, doc, a, type);
+  openModal(type==='email'?'✉️ '+t('send_email'):'💬 '+t('send_sms'), `${t('send_to')}: ${to||'—'}`, `
+    ${type==='email'?`<div class="field"><label>${t('subject')}</label><input class="input" id="msgSubject" value="OmniMed — Votre rendez-vous"></div>`:''}
+    <div class="field"><label>${t('message')}</label><textarea class="textarea" id="msgBody" style="min-height:140px">${esc(defaultBody)}</textarea></div>
+  `, `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn primary" onclick="doSendMsg('${id}','${type}')">📤 ${t('send')}</button>`);
+}
+function doSendMsg(id, type){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const to = type==='email' ? a.patientEmail : a.patientPhone;
+  const body = $('#msgBody').value;
+  const subject = $('#msgSubject')?.value || '';
+  DB.messages.unshift({id:uid('M-'), type, to, subject, body, date:nowISO()});
+  DB.messages = DB.messages.slice(0,120);
+  saveDB(); closeModal();
+  toast(type==='email'?t('email_sent'):t('sms_sent'),'success');
+}
+function viewDoctorWaitlist(){
+  const doc = state.doctor;
+  const list = DB.waitlist.filter(w=>w.doctorId===doc.id).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">⏳ ${t('waitlist_title')} <span class="tag accent">${list.length}</span></div>
+      <div class="card-sub">Patients en attente d'un créneau disponible</div>
+    </div>
+    ${list.length ? list.map(w=>`
+      <div class="appt">
+        <div class="appt-time" style="background:var(--warn-bg);color:var(--warn)">⏳</div>
+        <div class="appt-body">
+          <div class="appt-patient">${esc(w.patientName)}</div>
+          <div class="appt-meta">
+            <span>📞 ${esc(w.patientPhone)}</span><span>📅 ${fmtDate(w.preferredDate)}</span>
+            ${w.patientEmail?`<span>✉️ ${esc(w.patientEmail)}</span>`:''}
+          </div>
+        </div>
+        <div class="appt-actions">
+          <button class="mini-btn" onclick="waitlistContact('${w.id}','email')">✉️</button>
+          <button class="mini-btn" onclick="waitlistContact('${w.id}','sms')">💬</button>
+          <button class="mini-btn no" onclick="removeWait('${w.id}')">✕</button>
+        </div>
+      </div>`).join('') : `<div class="empty"><div class="empty-ico">⏳</div>${t('waitlist_empty')}</div>`}
+  `;
+}
+function waitlistContact(wid, type){
+  const w = DB.waitlist.find(x=>x.id===wid); if(!w) return;
+  const to = type==='email'? w.patientEmail : w.patientPhone;
+  const body = type==='email' ? `Bonjour ${w.patientName},\n\nUn créneau s'est libéré prochainement.\n\n— OmniMed` : `OmniMed: Un créneau est disponible.`;
+  DB.messages.unshift({id:uid('M-'), type, to, subject:type==='email'?'OmniMed — Créneau disponible':'', body, date:nowISO()});
+  saveDB(); toast(type==='email'?t('email_sent'):t('sms_sent'),'success');
+}
+function removeWait(wid){
+  DB.waitlist = DB.waitlist.filter(x=>x.id!==wid);
+  saveDB(); render(); toast('Retiré de la file','info');
+}
+function viewDoctorProfile(){
+  const d = state.doctor;
+  const workDaysLbl = (d.workDays||[]).length ? (d.workDays||[]).map(i=>DAY_NAMES_LONG[i]).join(', ') : '—';
+  const allSlots = generateSlots(d.workStart, d.workEnd, d.duration);
+  const disabled = d.disabledSlots || [];
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div class="doc-avatar" style="width:72px;height:72px;font-size:34px">${d.avatar}</div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:20px;font-weight:700">${esc(d.name)}</div>
+          <div style="color:var(--accent-primary);font-weight:500">${esc(d.specialty)}</div>
+          <div style="color:var(--text-muted);font-size:12.5px;margin-top:4px">
+            📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''} · 💰 ${d.fee} DA · ⏱️ ${d.duration} ${t('min')}
+          </div>
+        </div>
+        <button class="pill-btn primary" onclick="openDoctorForm(${d.id}, true)">✏️ ${t('edit_my_profile')}</button>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">📋 ${t('profile')}</div>
+        <div style="margin-top:10px;font-size:13px;line-height:1.9">
+          <div><strong>${t('address')} :</strong> ${esc(d.address)}</div>
+          <div><strong>${t('phone')} :</strong> ${esc(d.phone)}</div>
+          <div><strong>${t('email')} :</strong> ${esc(d.email)}</div>
+        </div>
+        <div class="sep"></div>
+        <div style="font-size:13px"><strong>${t('bio')} :</strong><br>${esc(d.bio)}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🗓️ ${t('my_schedule')}</div>
+        <div style="margin-top:10px;font-size:13px;line-height:1.9">
+          <div><strong>${t('work_days')} :</strong> ${workDaysLbl}</div>
+          <div><strong>${t('work_hours')} :</strong> ${esc(d.workStart)} – ${esc(d.workEnd)}</div>
+          <div><strong>${t('duration')} :</strong> ${d.duration} ${t('min')}</div>
+        </div>
+        <div class="sep"></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${t('slot_preview')} :</div>
+        <div class="slot-preview">
+          ${allSlots.map(s=>`<span class="pv-slot ${disabled.includes(s)?'off':''}">${s}</span>`).join('') || `<span style="color:var(--text-muted);font-size:12px">${t('no_slots')}</span>`}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">🔒 ${t('new_password')}</div>
+      <div class="card-sub">Modifier votre mot de passe</div>
+      <div class="field-row">
+        <div class="field"><label>${t('new_password')}</label><input class="input" type="password" id="newPwd"></div>
+        <div class="field" style="justify-content:flex-end"><button class="pill-btn primary" onclick="changePwd()">${t('save')}</button></div>
+      </div>
+    </div>
+  `;
+}
+function changePwd(){
+  const v = $('#newPwd').value;
+  if(!v || v.length<4){ toast('4 caractères minimum','error'); return; }
+  const doc = DB.doctors.find(x=>x.id===state.doctor.id);
+  if(doc) doc.password = v;
+  state.doctor.password = v; saveDB();
+  toast('Mot de passe mis à jour','success');
+}
+function openDoctorForm(id, isSelf){
+  isSelf = !!isSelf;
+  const isEdit = !!id;
+  const d = isEdit ? docById(id) : {
+    name:'', specialty: '', wilaya: '', commune:'', address:'',
+    fee:2000, duration:30, phone:'', email:'', avatar:'👨‍⚕️', password:'1234', bio:'',
+    workDays:[], workStart:'08:00', workEnd:'17:00', disabledSlots:[]
+  };
+  if(!d) return;
+  if(!d.workDays) d.workDays = [];
+  if(!d.workStart) d.workStart = '08:00';
+  if(!d.workEnd) d.workEnd = '17:00';
+  if(!d.disabledSlots) d.disabledSlots = [];
+
+  window._pickedAvatar = d.avatar;
+  window._workDays = [...d.workDays];
+  window._disabledSlots = [...d.disabledSlots];
+
+  const communes = (DB.communes[d.wilaya] || []);
+  const body = `
+    <div class="section-title">👤 ${t('profile')}</div>
+    <div class="field-row">
+      <div class="field"><label>${t('fullname')} *</label><input class="input" id="fName" value="${esc(d.name)}"></div>
+      <div class="field">
+        <label>${t('specialty')} *</label>
+        <select class="select" id="fSpec">
+          <option value="">${t('select_specialty')}</option>
+          ${DB.specialties.map(s=>`<option ${d.specialty===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>${t('wilaya')} *</label>
+        <select class="select" id="fWilaya" onchange="onWilayaChange()">
+          <option value="">${t('select_wilaya_ph')}</option>
+          ${DB.wilayas.map(w=>`<option ${d.wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>${t('commune')} *</label>
+        <select class="select" id="fCommune" ${!d.wilaya?'disabled style="opacity:.5"':''}>
+          <option value="">${t('select_commune_ph')}</option>
+          ${communes.map(c=>`<option ${d.commune===c?'selected':''}>${esc(c)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>${t('address')}</label><input class="input" id="fAddr" value="${esc(d.address)}"></div>
+    <div class="field-row">
+      <div class="field"><label>${t('phone')}</label><input class="input" id="fPhone" value="${esc(d.phone)}" placeholder="+2136…"></div>
+      <div class="field"><label>${t('email')}</label><input class="input" id="fEmail" type="email" value="${esc(d.email)}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${t('fee')} (DA)</label><input class="input" id="fFee" type="number" value="${d.fee}"></div>
+      <div class="field"><label>${t('duration')} (${t('min')})</label>
+        <input class="input" id="fDur" type="number" min="5" step="5" value="${d.duration}" oninput="updateSlotPreview()">
+      </div>
+    </div>
+    <div class="field">
+      <label>${t('avatar')}</label>
+      <div class="chips" id="avatarPicker" style="margin:0">
+        ${EMOJIS.map(e=>`<button type="button" class="chip ${d.avatar===e?'active':''}" onclick="document.querySelectorAll('#avatarPicker .chip').forEach(x=>x.classList.remove('active'));this.classList.add('active');window._pickedAvatar='${e}'">${e}</button>`).join('')}
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="section-title">🗓️ ${t('my_schedule')}</div>
+    <div class="field">
+      <label>${t('work_days')}</label>
+      <div class="chips" id="workDaysPicker" style="margin:0">
+        ${DAY_NAMES_SHORT.map((lbl,i)=>{
+          const on = (window._workDays||[]).includes(i);
+          return `<button type="button" class="wday ${on?'on':''}" data-day="${i}" onclick="toggleWorkDay(${i}, this)">${lbl}</button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${t('work_days_hint')}</div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${t('work_start')}</label>
+        <input class="input" id="fStart" type="time" value="${d.workStart}" oninput="updateSlotPreview()">
+      </div>
+      <div class="field"><label>${t('work_end')}</label>
+        <input class="input" id="fEnd" type="time" value="${d.workEnd}" oninput="updateSlotPreview()">
+      </div>
+    </div>
+    <div class="field">
+      <label>${t('slot_preview')}</label>
+      <div class="slot-preview" id="slotPreview"></div>
+      <div class="pv-hint">${t('slot_preview_hint')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${t('slot_step_info').replace('{dur}', d.duration)}</div>
+    </div>
+    <div class="sep"></div>
+    <div class="section-title">🔑 ${t('account_info')}</div>
+    <div class="field">
+      <label>${t('new_password')} *</label>
+      <input class="input" id="fPwd" value="${esc(d.password)}">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t('password_hint')}</div>
+    </div>
+    <div class="field"><label>${t('bio')}</label><textarea class="textarea" id="fBio">${esc(d.bio)}</textarea></div>
+  `;
+  openModal(isEdit ? (isSelf ? t('edit_my_profile') : t('edit_doctor')) : t('add_doctor'), d.name||'', body, `
+    <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+    <button class="pill-btn primary" onclick="saveDoctor(${id||'null'}, ${isSelf})">💾 ${isSelf ? t('save') : t('save_doctor')}</button>
+  `);
+  setTimeout(updateSlotPreview, 20);
+}
+function onWilayaChange(){
+  const w = ($('#fWilaya')?.value||'').trim();
+  const list = DB.communes[w] || [];
+  const sel = $('#fCommune'); if(!sel) return;
+  sel.disabled = !w;
+  sel.style.opacity = w ? '1' : '.5';
+  sel.innerHTML = `<option value="">${t('select_commune_ph')}</option>` + list.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+function toggleWorkDay(day, btn){
+  const idx = window._workDays.indexOf(day);
+  if(idx >= 0){ window._workDays.splice(idx, 1); btn.classList.remove('on'); }
+  else { window._workDays.push(day); btn.classList.add('on'); }
+}
+function updateSlotPreview(){
+  const dur = parseInt($('#fDur')?.value,10)||30;
+  const start = $('#fStart')?.value || '08:00';
+  const end = $('#fEnd')?.value || '17:00';
+  const slots = generateSlots(start, end, dur);
+  const disabled = window._disabledSlots || [];
+  const cont = document.querySelector('#slotPreview'); if(!cont) return;
+  cont.innerHTML = slots.length
+    ? slots.map(s=>{
+        const off = disabled.includes(s);
+        return `<button type="button" class="pv-slot ${off?'off':''}" onclick="togglePreviewSlot('${s}')">${s}</button>`;
+      }).join('')
+    : `<span style="color:var(--text-muted);font-size:12px">${t('no_slots')}</span>`;
+}
+function togglePreviewSlot(time){
+  window._disabledSlots = window._disabledSlots || [];
+  const idx = window._disabledSlots.indexOf(time);
+  if(idx >= 0) window._disabledSlots.splice(idx,1);
+  else window._disabledSlots.push(time);
+  updateSlotPreview();
+}
+function saveDoctor(id, isSelf){
+  isSelf = !!isSelf;
+  const name = ($('#fName')?.value||'').trim();
+  const specialty = ($('#fSpec')?.value||'').trim();
+  const wilaya = ($('#fWilaya')?.value||'').trim();
+  const commune = ($('#fCommune')?.value||'').trim();
+  const address = ($('#fAddr')?.value||'').trim();
+  const phone = ($('#fPhone')?.value||'').trim();
+  const email = ($('#fEmail')?.value||'').trim();
+  const fee = parseInt($('#fFee')?.value,10)||0;
+  const duration = parseInt($('#fDur')?.value,10)||30;
+  const pwd = ($('#fPwd')?.value||'').trim();
+  const bio = ($('#fBio')?.value||'').trim();
+  const avatar = window._pickedAvatar || '👨‍⚕️';
+  const workStart = $('#fStart')?.value || '08:00';
+  const workEnd = $('#fEnd')?.value || '17:00';
+  const workDays = [...(window._workDays || [])].sort((a,b)=>a-b);
+  const disabledSlots = [...(window._disabledSlots || [])];
+
+  if(!name || !specialty || !wilaya || !commune || !pwd){ toast(t('required_fields'),'error'); return; }
+  if(toMin(workStart) >= toMin(workEnd)){ toast('Heure de fin doit être après le début','error'); return; }
+  if(!workDays.length){ toast('Sélectionnez au moins un jour de travail','error'); return; }
+
+  if(!DB.specialties.includes(specialty)) DB.specialties.push(specialty);
+  if(!DB.wilayas.includes(wilaya)) DB.wilayas.push(wilaya);
+  if(!DB.communes[wilaya]) DB.communes[wilaya] = [];
+  if(commune && !DB.communes[wilaya].includes(commune)) DB.communes[wilaya].push(commune);
+
+  if(id){
+    const d = DB.doctors.find(x=>x.id===id); if(!d) return;
+    const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, avatar, workDays, workStart, workEnd, disabledSlots};
+    if(isSelf){ Object.assign(d, commonFields, {password: pwd}); }
+    else { Object.assign(d, commonFields, {fee, duration, password: pwd}); }
+    if(state.doctor && state.doctor.id===id) state.doctor = d;
+  } else {
+    const newId = Math.max(0, ...DB.doctors.map(x=>x.id)) + 1;
+    DB.doctors.push({id:newId, name, specialty, wilaya, commune, address, phone, email, fee, duration, password:pwd, bio, avatar, workDays, workStart, workEnd, disabledSlots});
+  }
+  saveDB(); closeModal(); render();
+  toast(isSelf ? t('profile_saved') : t('doctor_saved'),'success');
+}
+function confirmDeleteDoctor(id){
+  const d = docById(id); if(!d) return;
+  const apptsN = DB.appointments.filter(a=>a.doctorId===id).length;
+  const waitN = DB.waitlist.filter(w=>w.doctorId===id).length;
+  openModal('🗑️ '+t('delete_doctor'), `${d.avatar} ${d.name}`,
+    `<div style="font-size:13.5px;line-height:1.7">${t('delete_confirm')}</div>
+     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+       <span class="tag danger">📅 ${apptsN} RDV</span><span class="tag warn">⏳ ${waitN} en attente</span>
+     </div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="deleteDoctor(${id})">🗑️ ${t('delete_doctor')}</button>`);
+}
+function deleteDoctor(id){
+  DB.doctors = DB.doctors.filter(d=>d.id!==id);
+  DB.appointments = DB.appointments.filter(a=>a.doctorId!==id);
+  DB.waitlist = DB.waitlist.filter(w=>w.doctorId!==id);
+  DB.notifications = DB.notifications.filter(n=>n.toDoctorId!==id);
+  if(state.doctor && state.doctor.id===id) state.doctor = null;
+  saveDB(); closeModal(); render();
+  toast(t('doctor_deleted'),'success');
+}
+function openNotifDetail(notifId){
+  const n = DB.notifications.find(x=>x.id===notifId); if(!n) return;
+  n.read = true; saveDB();
+  if(!n.apptId){ state.notifOpen = false; render(); return; }
+  const a = DB.appointments.find(x=>x.id===n.apptId);
+  if(!a){ DB.notifications = DB.notifications.filter(x=>x.id!==notifId); saveDB(); state.notifOpen=false; render(); return; }
+  state.notifOpen = false;
+  const doc = docById(a.doctorId);
+  const body = `
+    <div style="font-size:13px;line-height:2">
+      <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div>
+      <div><strong>${t('phone')} :</strong> ${esc(a.patientPhone)}</div>
+      ${a.patientEmail?`<div><strong>${t('email')} :</strong> ${esc(a.patientEmail)}</div>`:''}
+      <div><strong>${t('doctor')} :</strong> ${esc(doc?.name||'—')}</div>
+      <div><strong>${t('when')} :</strong> ${fmtLongDate(a.date)} — ${a.time}</div>
+      <div><strong>${t('motif')} :</strong> ${esc(a.motif)}</div>
+      <div style="margin-top:6px"><strong>Statut :</strong> ${statusTag(a.status)}</div>
+    </div>
+  `;
+  let actionsHTML = '';
+  if(a.status==='pending'){
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      <button class="pill-btn danger" onclick="docAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
+      <button class="pill-btn" onclick="closeModal();postponeModal('${a.id}')">🔁 ${t('postpone')}</button>
+      <button class="pill-btn primary" onclick="docAction('${a.id}','confirm')">✓ ${t('validate')}</button>
+    `;
+  } else if(a.status==='confirmed'){
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      <button class="pill-btn danger" onclick="docAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
+      <button class="pill-btn" onclick="closeModal();postponeModal('${a.id}')">🔁 ${t('postpone')}</button>
+      <button class="pill-btn primary" onclick="docAction('${a.id}','done')">✅ ${t('done')}</button>
+    `;
+  } else { actionsHTML = `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`; }
+  openModal(n.title, n.message, body, actionsHTML);
+}
+function openNotifPanel(){
+  const role = state.role;
+  const docId = role==='doctor' ? state.doctor?.id : null;
+  const list = DB.notifications.filter(n=>n.role===role && (!docId || n.toDoctorId===docId));
+  const html = list.length ? list.slice(0,30).map(n=>{
+    const a = n.apptId ? DB.appointments.find(x=>x.id===n.apptId) : null;
+    const ico = n.apptId ? '📅' : '📩';
+    return `
+      <div class="notif-action ${n.read?'':'unread'}" onclick="openNotifDetail('${n.id}')">
+        <div class="na-ico">${ico}</div>
+        <div class="na-body">
+          <div class="na-title">${esc(n.title)}</div>
+          <div class="na-msg">${esc(n.message)}</div>
+          ${a?`<div class="na-msg" style="color:var(--accent-primary);margin-top:3px">${fmtDate(a.date)} ${a.time}</div>`:''}
+          <div class="na-time">${new Date(n.date).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        <div class="na-arrow">›</div>
+      </div>`;
+  }).join('') : `<div class="empty" style="padding:30px">${t('no_notif')}</div>`;
+  $('#modal-root').innerHTML = `
+    <div class="modal-back" onclick="if(event.target===this){closeNotifs()}">
+      <div class="modal" style="max-width:560px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="modal-title">🔔 ${t('dnotif')}</div>
+          <button class="mini-btn" onclick="markAllRead()">${t('mark_read')}</button>
+        </div>
+        <div style="max-height:65vh;overflow-y:auto">${html}</div>
+        <div class="modal-actions"><button class="pill-btn" onclick="closeNotifs()">${t('close')}</button></div>
+      </div>
+    </div>`;
+}
+function markAllRead(){
+  const role = state.role;
+  const docId = role==='doctor'?state.doctor?.id:null;
+  DB.notifications.forEach(n=>{ if(n.role===role && (!docId || n.toDoctorId===docId)) n.read=true; });
+  saveDB(); state.notifOpen=false; render();
+}
+
+function renderAdminView(){
+  if(!state.admin) return viewAdminLogin();
+  switch(state.view){
+    case 'adash': return viewAdminDash();
+    case 'adoctors': return viewAdminDoctors();
+    case 'arevenue': return viewAdminRevenue();
+    case 'aappts': return viewAdminAppts();
+    case 'awaitlist': return viewAdminWaitlist();
+    case 'alistes': return viewAdminListes();
+    case 'asettings': return viewAdminSettings();
+    default: return viewAdminDash();
+  }
+}
+function viewAdminLogin(){
+  return `
+    <div class="login-wrap">
+      <div class="card">
+        <div class="card-title">🔐 ${t('login_admin')}</div>
+        <div class="card-sub">${t('login_admin_sub')}</div>
+        <div class="field"><label>${t('username')}</label><input class="input" id="adminUser" value="admin"></div>
+        <div class="field"><label>${t('password')}</label><input class="input" id="adminPwd" type="password" placeholder="••••"></div>
+        <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:14px">💡 ${t('hint_admin')}</div>
+        <button class="pill-btn primary" style="width:100%;justify-content:center" onclick="doAdminLogin()">${t('sign_in')} →</button>
+      </div>
+    </div>
+  `;
+}
+function doAdminLogin(){
+  const u = $('#adminUser').value.trim();
+  const p = $('#adminPwd').value;
+  if(u === DB.admin.username && p === DB.admin.password){
+    state.admin = {username:u}; state.view='adash'; render();
+    toast('Bienvenue Admin','success');
+  } else toast(t('invalid_login'),'error');
+}
+function logoutAdmin(){ state.admin=null; state.role='patient'; state.view='home'; render(); }
+
+function viewAdminListes(){
+  const tab = state.listTab || 'specialties';
+  const tabs = `
+    <div class="chips" style="margin-bottom:16px">
+      <button class="chip ${tab==='specialties'?'active':''}" onclick="state.listTab='specialties';render()">🩺 ${t('specialties_list')} <span class="tag muted" style="margin-left:4px">${DB.specialties.length}</span></button>
+      <button class="chip ${tab==='wilayas'?'active':''}" onclick="state.listTab='wilayas';render()">🗺️ ${t('wilayas_list')} <span class="tag muted" style="margin-left:4px">${DB.wilayas.length}</span></button>
+      <button class="chip ${tab==='communes'?'active':''}" onclick="state.listTab='communes';render()">🏙️ ${t('communes_list')}</button>
+    </div>
+  `;
+  if(tab==='specialties') return tabs + renderSpecialtiesManager();
+  if(tab==='wilayas') return tabs + renderWilayasManager();
+  return tabs + renderCommunesManager();
+}
+function renderSpecialtiesManager(){
+  return `
+    <div class="card">
+      <div class="card-title">🩺 ${t('specialties_list')} <span class="tag accent">${DB.specialties.length}</span></div>
+      <div class="card-sub">${t('manage_lists_sub')}</div>
+      <div class="field" style="margin-bottom:16px">
+        <div class="input-with-btn">
+          <input class="input" id="newSpecialty" placeholder="${t('add_item_ph')}" onkeydown="if(event.key==='Enter')addSpecialtyAdmin()">
+          <button type="button" class="pill-btn primary" onclick="addSpecialtyAdmin()">+ ${t('add_item')}</button>
+        </div>
+      </div>
+      <div class="list-box">
+        ${DB.specialties.length ? DB.specialties.map((s,i)=>`
+          <div class="list-item">
+            <span class="tag muted" style="min-width:24px;justify-content:center">${i+1}</span>
+            <span class="li-name">${esc(s)}</span>
+            <button class="mini-btn no" onclick="deleteSpecialty('${esc(s).replace(/'/g,"\\'")}')">🗑️</button>
+          </div>`).join('') : `<div class="empty">${t('list_empty')}</div>`}
+      </div>
+    </div>
+  `;
+}
+function renderWilayasManager(){
+  return `
+    <div class="card">
+      <div class="card-title">🗺️ ${t('wilayas_list')} <span class="tag accent">${DB.wilayas.length}</span></div>
+      <div class="card-sub">${t('manage_lists_sub')}</div>
+      <div class="field" style="margin-bottom:16px">
+        <div class="input-with-btn">
+          <input class="input" id="newWilaya" placeholder="${t('add_item_ph')}" onkeydown="if(event.key==='Enter')addWilayaAdmin()">
+          <button type="button" class="pill-btn primary" onclick="addWilayaAdmin()">+ ${t('add_item')}</button>
+        </div>
+      </div>
+      <div class="list-box">
+        ${DB.wilayas.length ? DB.wilayas.map((w,i)=>{
+          const cnt = (DB.communes[w]||[]).length;
+          return `
+          <div class="list-item">
+            <span class="tag muted" style="min-width:24px;justify-content:center">${i+1}</span>
+            <span class="li-name">${esc(w)}</span>
+            <span class="tag accent">${cnt} 🏙️</span>
+            <button class="mini-btn no" onclick="deleteWilaya('${esc(w).replace(/'/g,"\\'")}')">🗑️</button>
+          </div>`;
+        }).join('') : `<div class="empty">${t('list_empty')}</div>`}
+      </div>
+    </div>
+  `;
+}
+function renderCommunesManager(){
+  const w = state.listSelectedWilaya || DB.wilayas[0] || '';
+  const list = DB.communes[w] || [];
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🏙️ ${t('communes_list')} — <span class="tag accent">${esc(w)}</span> <span class="tag muted">${list.length}</span></div>
+      <div class="field-row" style="margin-top:12px">
+        <div class="field">
+          <label>${t('select_wilaya')}</label>
+          <select class="select" onchange="state.listSelectedWilaya=this.value;render()">
+            ${DB.wilayas.map(x=>`<option ${w===x?'selected':''}>${esc(x)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="input-with-btn">
+          <input class="input" id="newCommune" placeholder="${t('add_item_ph')}" onkeydown="if(event.key==='Enter')addCommuneAdmin()">
+          <button type="button" class="pill-btn primary" onclick="addCommuneAdmin()">+ ${t('add_item')}</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="list-box">
+        ${list.length ? list.map((c,i)=>`
+          <div class="list-item">
+            <span class="tag muted" style="min-width:24px;justify-content:center">${i+1}</span>
+            <span class="li-name">${esc(c)}</span>
+            <button class="mini-btn no" onclick="deleteCommune('${esc(w).replace(/'/g,"\\'")}','${esc(c).replace(/'/g,"\\'")}')">🗑️</button>
+          </div>`).join('') : `<div class="empty">${t('list_empty')}</div>`}
+      </div>
+    </div>
+  `;
+}
+function addSpecialtyAdmin(){
+  const inp = $('#newSpecialty'); if(!inp) return;
+  const v = inp.value.trim();
+  if(!v){ toast(t('required_fields'),'error'); return; }
+  if(DB.specialties.includes(v)){ toast(t('item_exists'),'info'); return; }
+  DB.specialties.push(v); saveDB(); render(); toast(t('item_added'),'success');
+}
+function deleteSpecialty(name){
+  const used = DB.doctors.some(d=>d.specialty===name);
+  if(used){ toast(t('cannot_delete_used'),'error'); return; }
+  openModal('🗑️ '+t('specialties_list'), t('delete_item_confirm').replace('{name}', name), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="doDeleteSpecialty('${name.replace(/'/g,"\\'")}')">🗑️</button>`);
+}
+function doDeleteSpecialty(name){
+  DB.specialties = DB.specialties.filter(s=>s!==name);
+  saveDB(); closeModal(); render(); toast(t('item_deleted'),'success');
+}
+function addWilayaAdmin(){
+  const inp = $('#newWilaya'); if(!inp) return;
+  const v = inp.value.trim();
+  if(!v){ toast(t('required_fields'),'error'); return; }
+  if(DB.wilayas.includes(v)){ toast(t('item_exists'),'info'); return; }
+  DB.wilayas.push(v); if(!DB.communes[v]) DB.communes[v] = [];
+  saveDB(); render(); toast(t('item_added'),'success');
+}
+function deleteWilaya(name){
+  const used = DB.doctors.some(d=>d.wilaya===name);
+  if(used){ toast(t('cannot_delete_used'),'error'); return; }
+  openModal('🗑️ '+t('wilayas_list'), t('delete_item_confirm').replace('{name}', name), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="doDeleteWilaya('${name.replace(/'/g,"\\'")}')">🗑️</button>`);
+}
+function doDeleteWilaya(name){
+  DB.wilayas = DB.wilayas.filter(w=>w!==name);
+  delete DB.communes[name];
+  if(state.listSelectedWilaya === name) state.listSelectedWilaya = DB.wilayas[0] || '';
+  saveDB(); closeModal(); render(); toast(t('item_deleted'),'success');
+}
+function addCommuneAdmin(){
+  const w = state.listSelectedWilaya; if(!w) return;
+  const inp = $('#newCommune'); if(!inp) return;
+  const v = inp.value.trim();
+  if(!v){ toast(t('required_fields'),'error'); return; }
+  if(!DB.communes[w]) DB.communes[w] = [];
+  if(DB.communes[w].includes(v)){ toast(t('item_exists'),'info'); return; }
+  DB.communes[w].push(v); saveDB(); render(); toast(t('item_added'),'success');
+}
+function deleteCommune(w, c){
+  const used = DB.doctors.some(d=>d.wilaya===w && d.commune===c);
+  if(used){ toast(t('cannot_delete_used'),'error'); return; }
+  openModal('🗑️ '+t('communes_list'), t('delete_item_confirm').replace('{name}', c), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="doDeleteCommune('${w.replace(/'/g,"\\'")}','${c.replace(/'/g,"\\'")}')">🗑️</button>`);
+}
+function doDeleteCommune(w, c){
+  if(DB.communes[w]) DB.communes[w] = DB.communes[w].filter(x=>x!==c);
+  saveDB(); closeModal(); render(); toast(t('item_deleted'),'success');
+}
+function viewAdminDash(){
+  const totalDocs = DB.doctors.length;
+  const totalAppts = DB.appointments.length;
+  const pending = DB.appointments.filter(a=>a.status==='pending').length;
+  const confirmed = DB.appointments.filter(a=>a.status==='confirmed').length;
+  const cancelled = DB.appointments.filter(a=>a.status==='cancelled').length;
+  const waitlistN = DB.waitlist.length;
+  const patients = new Set(DB.appointments.map(a=>a.patientPhone)).size;
+  const todayAppts = DB.appointments.filter(a=>a.date===todayISO() && a.status!=='cancelled');
+  const docStats = DB.doctors.map(d=>({d, n: DB.appointments.filter(a=>a.doctorId===d.id).length})).sort((a,b)=>b.n-a.n).slice(0,5);
+  const commission = getCommission();
+  const billable = DB.appointments.filter(a=>a.status==='confirmed'||a.status==='done').length;
+  const totalRev = billable * commission;
+  const todayRev = DB.appointments.filter(a=>a.date===todayISO() && (a.status==='confirmed'||a.status==='done')).length * commission;
+  return `
+    <div class="grid grid-4" style="margin-bottom:18px">
+      <div class="stat"><div class="stat-ico">🧑‍⚕️</div><div><div class="stat-val">${totalDocs}</div><div class="stat-lbl">${t('total_doctors')}</div></div></div>
+      <div class="stat"><div class="stat-ico">👥</div><div><div class="stat-val">${patients}</div><div class="stat-lbl">${t('total_patients')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">📅</div><div><div class="stat-val">${totalAppts}</div><div class="stat-lbl">${t('total_appts')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${waitlistN}</div><div class="stat-lbl">${t('waitlist_c')}</div></div></div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:18px">
+      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(todayRev)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
+      <div class="stat money"><div class="stat-ico">💵</div><div><div class="stat-val">${fmtDA(totalRev)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">⚙️</div><div><div class="stat-val">${commission} DA</div><div class="stat-lbl">${t('commission_per_rdv')}</div></div></div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:18px">
+      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--danger-bg);color:var(--danger)">✕</div><div><div class="stat-val">${cancelled}</div><div class="stat-lbl">${t('cancelled_c')}</div></div></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">📅 ${t('today_appts')} <span class="tag accent">${todayAppts.length}</span></div>
+        <div style="margin-top:12px">
+          ${todayAppts.length ? todayAppts.sort((a,b)=>a.time.localeCompare(b.time)).slice(0,6).map(a=>{
+            const doc = docById(a.doctorId);
+            return `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--glass-border);font-size:12.5px">
+              <strong style="min-width:44px;color:var(--accent-primary)">${a.time}</strong>
+              <span style="flex:1;font-weight:500">${esc(a.patientName)}</span>
+              <span style="font-size:11px;color:var(--text-muted)">${esc(doc?.name||'')}</span>
+              ${statusTag(a.status)}
+            </div>`;
+          }).join('') : `<div class="empty" style="padding:20px"><div class="empty-ico">🌤️</div>${t('no_appts')}</div>`}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏆 Top médecins</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+          ${docStats.map(({d,n})=>{
+            const max = Math.max(1, docStats[0].n);
+            return `
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-light);display:grid;place-items:center;font-size:16px">${d.avatar}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div>
+                <div class="bar" style="margin-top:4px"><div class="bar-fill" style="width:${(n/max)*100}%"></div></div>
+              </div>
+              <span style="font-weight:700;min-width:24px;text-align:right">${n}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function viewAdminRevenue(){
+  const p = state.revenuePeriod || 'month';
+  const commission = getCommission();
+  const today = todayISO();
+  const weekStart = dateOffset(-6); const monthStart = dateOffset(-29);
+  const billable = DB.appointments.filter(a=>a.status==='confirmed'||a.status==='done');
+  const cntToday = billable.filter(a=>a.date===today).length;
+  const cntWeek  = billable.filter(a=>a.date>=weekStart && a.date<=today).length;
+  const cntMonth = billable.filter(a=>a.date>=monthStart && a.date<=today).length;
+  const cntAll   = billable.length;
+  let filtered = billable.slice();
+  if(p==='day')   filtered = billable.filter(a=>a.date===today);
+  if(p==='week')  filtered = billable.filter(a=>a.date>=weekStart && a.date<=today);
+  if(p==='month') filtered = billable.filter(a=>a.date>=monthStart && a.date<=today);
+  filtered.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const amount = filtered.length * commission;
+  const byDoc = {};
+  filtered.forEach(a=>{ byDoc[a.doctorId] = (byDoc[a.doctorId]||0)+1; });
+  const docRows = Object.entries(byDoc).map(([id,n])=>{ const d = docById(parseInt(id,10)); return {d, n, amount:n*commission}; }).sort((a,b)=>b.n-a.n);
+  const byDay = {};
+  filtered.forEach(a=>{ byDay[a.date] = (byDay[a.date]||0)+1; });
+  const dayRows = Object.entries(byDay).map(([date,n])=>({date, n, amount:n*commission})).sort((a,b)=>b.date.localeCompare(a.date));
+  const chips = `
+    <button class="chip ${p==='day'?'active':''}" onclick="setRevenuePeriod('day')">${t('day')}</button>
+    <button class="chip ${p==='week'?'active':''}" onclick="setRevenuePeriod('week')">${t('week')}</button>
+    <button class="chip ${p==='month'?'active':''}" onclick="setRevenuePeriod('month')">${t('month')}</button>
+    <button class="chip ${p==='all'?'active':''}" onclick="setRevenuePeriod('all')">${t('all_period')}</button>
+  `;
+  return `
+    <div class="grid grid-4" style="margin-bottom:18px">
+      <div class="stat money"><div class="stat-ico">📅</div><div><div class="stat-val">${fmtDA(cntToday*commission)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
+      <div class="stat money"><div class="stat-ico">📆</div><div><div class="stat-val">${fmtDA(cntWeek*commission)}</div><div class="stat-lbl">${t('week_revenue')}</div></div></div>
+      <div class="stat money"><div class="stat-ico">🗓️</div><div><div class="stat-val">${fmtDA(cntMonth*commission)}</div><div class="stat-lbl">${t('month_revenue')}</div></div></div>
+      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(cntAll*commission)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="card-title">💰 ${t('revenue_details')} <span class="tag money">${fmtDA(amount)}</span></div>
+          <div class="card-sub" style="margin-bottom:0">${t('revenue_note')} — <strong>${commission} DA / RDV</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="pill-btn" onclick="openCommissionRateModal()">⚙️ ${t('commission_per_rdv')}</button>
+          <button class="pill-btn" onclick="printRevenueReport()">🖨️ ${t('print_report')}</button>
+          <button class="pill-btn primary" onclick="printRevenueReport()">📄 ${t('export_pdf')}</button>
+        </div>
+      </div>
+      <div class="chips" style="margin-top:14px;margin-bottom:0">
+        <span style="font-size:11.5px;color:var(--text-muted);align-self:center;margin-right:6px">${t('period')}:</span>
+        ${chips}
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr>
+          <th style="width:36px">#</th><th>${t('revenue_table_date')}</th><th>${t('revenue_table_time')}</th>
+          <th>${t('revenue_table_patient')}</th><th>${t('revenue_table_doctor')}</th>
+          <th>${t('revenue_table_specialty')}</th><th>${t('revenue_table_status')}</th>
+          <th class="num">${t('revenue_table_commission')}</th>
+        </tr></thead>
+        <tbody>
+          ${filtered.length ? filtered.map((a,i)=>{
+            const doc = docById(a.doctorId);
+            return `
+            <tr>
+              <td>${i+1}</td><td>${fmtDate(a.date)}</td><td><strong>${a.time}</strong></td>
+              <td>${esc(a.patientName)}<div style="font-size:11px;color:var(--text-muted)">${esc(a.patientPhone)}</div></td>
+              <td>${esc(doc?.name||'—')}</td><td>${esc(doc?.specialty||'—')}</td>
+              <td>${statusTag(a.status)}</td>
+              <td class="num"><strong style="color:#059669">+${commission} DA</strong></td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="8"><div class="empty" style="padding:30px"><div class="empty-ico">💰</div>${t('revenue_no_data')}</div></td></tr>`}
+        </tbody>
+        ${filtered.length ? `<tfoot><tr>
+          <td colspan="6">${t('revenue_total_rdv')} : <strong>${filtered.length}</strong></td>
+          <td style="text-align:right">${t('revenue_total_amount')}</td>
+          <td class="num" style="color:#059669;font-size:14px">${fmtDA(amount)}</td>
+        </tr></tfoot>`:''}
+      </table>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-title">🧑‍⚕️ ${t('report_by_doctor')}</div>
+        <div style="margin-top:12px">
+          ${docRows.length ? docRows.map(({d,n,amount})=>{
+            const max = Math.max(1, docRows[0].n);
+            return `
+            <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--glass-border)">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-light);display:grid;place-items:center;font-size:16px">${d?.avatar||'?'}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d?.name||'—')}</div>
+                <div class="bar" style="margin-top:4px"><div class="bar-fill" style="width:${(n/max)*100}%"></div></div>
+              </div>
+              <div style="text-align:right;min-width:90px">
+                <div style="font-weight:700;color:#059669">${fmtDA(amount)}</div>
+                <div style="font-size:10.5px;color:var(--text-muted)">${n} ${t('revenue_rdv_count')}</div>
+              </div>
+            </div>`;
+          }).join('') : `<div class="empty" style="padding:20px">${t('revenue_no_data')}</div>`}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📆 ${t('report_by_day')}</div>
+        <div style="margin-top:12px;max-height:320px;overflow-y:auto">
+          ${dayRows.length ? dayRows.map(({date,n,amount})=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--glass-border);font-size:12.5px">
+              <span>${fmtDate(date)}</span>
+              <span style="color:var(--text-muted)">${n} ${t('revenue_rdv_count')}</span>
+              <strong style="color:#059669">${fmtDA(amount)}</strong>
+            </div>`).join('') : `<div class="empty" style="padding:20px">${t('revenue_no_data')}</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function setRevenuePeriod(p){ state.revenuePeriod = p; render(); }
+function openCommissionRateModal(){
+  const current = getCommission();
+  openModal(t('commission_per_rdv'), '50 DA par défaut', `
+    <div class="field"><label>${t('commission_per_rdv')} (DA)</label>
+      <input class="input" id="commRate" type="number" min="0" step="5" value="${current}">
+    </div>
+  `, `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn primary" onclick="saveCommissionRate()">${t('save')}</button>`);
+}
+function saveCommissionRate(){
+  const v = parseInt($('#commRate').value,10);
+  if(isNaN(v) || v<0){ toast('Valeur invalide','error'); return; }
+  DB.settings = DB.settings || {}; DB.settings.commission = v;
+  saveDB(); closeModal(); render(); toast(t('revenue_rate_updated'),'success');
+}
+function printRevenueReport(){
+  const p = state.revenuePeriod || 'month';
+  const commission = getCommission();
+  const today = todayISO(); const weekStart = dateOffset(-6); const monthStart = dateOffset(-29);
+  const billable = DB.appointments.filter(a=>a.status==='confirmed'||a.status==='done');
+  let filtered = billable.slice();
+  if(p==='day')   filtered = billable.filter(a=>a.date===today);
+  if(p==='week')  filtered = billable.filter(a=>a.date>=weekStart && a.date<=today);
+  if(p==='month') filtered = billable.filter(a=>a.date>=monthStart && a.date<=today);
+  filtered.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const amount = filtered.length * commission;
+  const cntToday = billable.filter(a=>a.date===today).length;
+  const cntWeek  = billable.filter(a=>a.date>=weekStart && a.date<=today).length;
+  const cntMonth = billable.filter(a=>a.date>=monthStart && a.date<=today).length;
+  const cntAll   = billable.length;
+  const byDoc = {};
+  filtered.forEach(a=>{ byDoc[a.doctorId] = (byDoc[a.doctorId]||0)+1; });
+  const docRows = Object.entries(byDoc).map(([id,n])=>{ const d = docById(parseInt(id,10)); return {d, n, amount:n*commission}; }).sort((a,b)=>b.n-a.n);
+  const byDay = {};
+  filtered.forEach(a=>{ byDay[a.date] = (byDay[a.date]||0)+1; });
+  const dayRows = Object.entries(byDay).map(([date,n])=>({date, n, amount:n*commission})).sort((a,b)=>b.date.localeCompare(a.date));
+  const periodLabel = p==='day' ? 'Jour' : p==='week' ? '7 derniers jours' : p==='month' ? '30 derniers jours' : 'Tout';
+  const now = new Date().toLocaleString('fr-FR');
+  const statusLabels = {pending:'En attente', confirmed:'Confirmé', cancelled:'Annulé', postponed:'Reporté', done:'Terminé'};
+  const rowsHTML = filtered.map((a,i)=>{
+    const doc = docById(a.doctorId);
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${fmtDate(a.date)}</td>
+      <td style="text-align:center;font-weight:600">${a.time}</td>
+      <td>${esc(a.patientName)}<br><span style="color:#6b7280;font-size:10px">${esc(a.patientPhone)}</span></td>
+      <td>${esc(doc?.name||'—')}</td>
+      <td>${esc(doc?.specialty||'—')}</td>
+      <td>${statusLabels[a.status]||a.status}</td>
+      <td style="text-align:right;color:#059669;font-weight:700">+${commission} DA</td>
+    </tr>`;
+  }).join('');
+  const docRowsHTML = docRows.map(({d,n,amount},i)=>`
+    <tr><td style="text-align:center">${i+1}</td><td>${esc(d?.name||'—')}</td><td>${esc(d?.specialty||'—')}</td>
+    <td style="text-align:center">${n}</td><td style="text-align:right;font-weight:700;color:#059669">${fmtDA(amount)}</td></tr>`).join('');
+  const dayRowsHTML = dayRows.map(({date,n,amount})=>`
+    <tr><td>${fmtDate(date)}</td><td style="text-align:center">${n}</td><td style="text-align:right;font-weight:700;color:#059669">${fmtDA(amount)}</td></tr>`).join('');
+  const w = window.open('', '_blank', 'width=1000,height=800');
+  w.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>OmniMed — Rapport de recette (${periodLabel})</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;color:#1f2937;padding:32px;background:#fff;font-size:12px}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #8b5cf6;padding-bottom:14px;margin-bottom:22px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:26px}
+  h1{font-size:22px;color:#8b5cf6;margin-bottom:2px;letter-spacing:-.3px}
+  .sub{color:#6b7280;font-size:11px}
+  .meta{text-align:right;font-size:11px;color:#6b7280;line-height:1.7}
+  .meta strong{color:#1f2937}
+  h2{font-size:14px;color:#8b5cf6;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+  .kpi .box{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:linear-gradient(135deg,#f8fafc,#f1f5f9)}
+  .kpi .lbl{font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:.5px;margin-bottom:4px}
+  .kpi .val{font-size:16px;font-weight:800;color:#059669}
+  .kpi .val small{font-size:10px;color:#6b7280;font-weight:500;display:block;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px}
+  thead th{background:#f3f4f6;color:#374151;padding:8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #e5e7eb}
+  tbody td{padding:7px 8px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+  tbody tr:nth-child(even){background:#fafafa}
+  tfoot td{padding:10px 8px;font-weight:700;background:#f3f4f6;border-top:2px solid #e5e7eb}
+  .total-badge{display:inline-block;background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;padding:8px 16px;border-radius:9999px;font-size:14px;font-weight:800;margin-top:6px}
+  .footer{margin-top:30px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
+  .print-btn{position:fixed;top:20px;right:20px;background:#8b5cf6;color:#fff;border:none;padding:10px 18px;border-radius:9999px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 10px 20px rgba(139,92,246,.35);font-family:inherit}
+  .print-btn:hover{background:#7c3aed}
+  @media print{.print-btn{display:none}body{padding:14px}}
+</style></head>
+<body>
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimer / PDF</button>
+  <div class="head">
+    <div class="brand">
+      <div class="logo">🩺</div>
+      <div><h1>OmniMed — Rapport de recette</h1>
+      <div class="sub">Période : <strong>${periodLabel}</strong> · Commission : <strong>${commission} DA / RDV</strong></div></div>
+    </div>
+    <div class="meta">
+      <div>${t('revenue_generated')} <strong>${now}</strong></div>
+      <div>Admin : <strong>${esc(DB.admin.username)}</strong></div>
+      <div>Rapport N° <strong>REC-${Date.now().toString().slice(-6)}</strong></div>
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="box"><div class="lbl">Recette du jour</div><div class="val">${fmtDA(cntToday*commission)}<small>${cntToday} RDV</small></div></div>
+    <div class="box"><div class="lbl">Recette 7 jours</div><div class="val">${fmtDA(cntWeek*commission)}<small>${cntWeek} RDV</small></div></div>
+    <div class="box"><div class="lbl">Recette 30 jours</div><div class="val">${fmtDA(cntMonth*commission)}<small>${cntMonth} RDV</small></div></div>
+    <div class="box"><div class="lbl">Recette totale</div><div class="val">${fmtDA(cntAll*commission)}<small>${cntAll} RDV</small></div></div>
+  </div>
+  <h2>📋 Détail des rendez-vous facturés (${filtered.length})</h2>
+  ${filtered.length ? `
+  <table>
+    <thead><tr>
+      <th style="width:28px;text-align:center">#</th>
+      <th>Date</th><th style="text-align:center">Heure</th><th>Patient</th>
+      <th>Médecin</th><th>Spécialité</th><th>Statut</th>
+      <th style="text-align:right">Commission</th>
+    </tr></thead>
+    <tbody>${rowsHTML}</tbody>
+    <tfoot><tr>
+      <td colspan="7">${t('revenue_total_rdv')} : ${filtered.length}</td>
+      <td style="text-align:right;color:#059669;font-size:12px">${fmtDA(amount)}</td>
+    </tr></tfoot>
+  </table>` : `<p style="color:#6b7280;padding:20px;text-align:center;background:#fafafa;border-radius:12px">${t('revenue_no_data')}</p>`}
+  ${docRows.length ? `
+  <h2>🧑‍⚕️ Répartition par médecin</h2>
+  <table>
+    <thead><tr><th style="width:28px;text-align:center">#</th><th>Médecin</th><th>Spécialité</th><th style="text-align:center">RDV</th><th style="text-align:right">Montant</th></tr></thead>
+    <tbody>${docRowsHTML}</tbody>
+  </table>` : ''}
+  ${dayRows.length ? `
+  <h2>📆 Répartition par jour</h2>
+  <table>
+    <thead><tr><th>Date</th><th style="text-align:center">RDV</th><th style="text-align:right">Montant</th></tr></thead>
+    <tbody>${dayRowsHTML}</tbody>
+  </table>` : ''}
+  <div style="text-align:right;margin-top:18px">
+    <div>${t('revenue_total_amount')}</div>
+    <div class="total-badge">💰 ${fmtDA(amount)}</div>
+  </div>
+  <div class="footer">
+    <div>OmniMed — Plateforme médicale · Algérie</div>
+    <div>Document généré automatiquement · ${now}</div>
+  </div>
+</body></html>`);
+  w.document.close();
+}
+function viewAdminDoctors(){
+  return `
+    <div class="card" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div class="card-title" style="margin-bottom:0">🧑‍⚕️ ${t('manage_doctors')} <span class="tag accent">${DB.doctors.length}</span></div>
+        <div class="card-sub" style="margin:4px 0 0">${t('manage_doctors_sub')}</div>
+      </div>
+      <button class="pill-btn primary" onclick="openDoctorForm()">+ ${t('add_doctor')}</button>
+    </div>
+    ${DB.doctors.length ? DB.doctors.map(d=>{
+      const apptCount = DB.appointments.filter(a=>a.doctorId===d.id).length;
+      const waitCount = DB.waitlist.filter(w=>w.doctorId===d.id).length;
+      const days = (d.workDays||[]);
+      const dis = (d.disabledSlots||[]).length;
+      return `
+        <div class="admin-doc-row">
+          <div class="doc-avatar">${d.avatar}</div>
+          <div style="flex:1;min-width:220px">
+            <div class="doc-name">${esc(d.name)}</div>
+            <div class="doc-spec">${esc(d.specialty)} · ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
+            <div class="doc-meta" style="margin-top:4px">
+              <span>📞 ${esc(d.phone)}</span><span>✉️ ${esc(d.email)}</span>
+              <span>💰 ${d.fee} DA</span><span>⏱️ ${d.duration} ${t('min')}</span>
+            </div>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <span class="tag">📅 ${apptCount} RDV</span>
+              ${waitCount?`<span class="tag warn">⏳ ${waitCount}</span>`:''}
+              <span class="tag muted">🔑 ${esc(d.password)}</span>
+              ${days.length?`<span class="tag success">🗓️ ${days.map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`:`<span class="tag danger">🗓️ —</span>`}
+              <span class="tag success">🕐 ${esc(d.workStart||'08:00')}–${esc(d.workEnd||'17:00')}</span>
+              ${dis?`<span class="tag warn">🔴 ${dis} ${t('disabled_slots')}</span>`:''}
+            </div>
+          </div>
+          <div class="appt-actions">
+            <button class="mini-btn" onclick="openDoctorForm(${d.id})">✏️ ${t('edit_doctor')}</button>
+            <button class="mini-btn no" onclick="confirmDeleteDoctor(${d.id})">🗑️ ${t('delete_doctor')}</button>
+          </div>
+        </div>`;
+    }).join('') : `<div class="empty"><div class="empty-ico">🧑‍⚕️</div>${t('no_docs')}</div>`}
+  `;
+}
+function viewAdminAppts(){
+  const f = state.adminFilter;
+  let list = DB.appointments.slice();
+  if(f.doctorId!=='all') list = list.filter(a=>a.doctorId===parseInt(f.doctorId,10));
+  if(f.status!=='all') list = list.filter(a=>a.status===f.status);
+  if(f.date) list = list.filter(a=>a.date===f.date);
+  list.sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const chip = (v,lbl) => `<button class="chip ${f.status===v?'active':''}" onclick="state.adminFilter.status='${v}';render()">${lbl}</button>`;
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="grid grid-3">
+        <select class="select" onchange="state.adminFilter.doctorId=this.value;render()">
+          <option value="all">${t('filter_doctor')} — ${t('filter_all')}</option>
+          ${DB.doctors.map(d=>`<option value="${d.id}" ${f.doctorId==d.id?'selected':''}>${esc(d.name)}</option>`).join('')}
+        </select>
+        <input class="input" type="date" value="${f.date}" onchange="state.adminFilter.date=this.value;render()">
+        <button class="pill-btn" onclick="state.adminFilter={doctorId:'all',status:'all',date:''};render()">Réinitialiser</button>
+      </div>
+      <div class="chips" style="margin-top:12px;margin-bottom:0">
+        ${chip('all',t('filter_all'))}${chip('pending','⏳ '+t('status_pending'))}${chip('confirmed','✓ '+t('status_confirmed'))}${chip('cancelled','✕ '+t('status_cancelled'))}${chip('done','✅ '+t('status_done'))}
+      </div>
+    </div>
+    ${list.length ? list.map(a=>adminApptRow(a)).join('') : `<div class="empty"><div class="empty-ico">📅</div>${t('no_appts')}</div>`}
+  `;
+}
+function adminApptRow(a){
+  const doc = docById(a.doctorId);
+  return `
+    <div class="appt">
+      <div class="appt-time"><div class="h">${a.time}</div>
+        <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <div class="appt-body">
+        <div class="appt-patient">${esc(a.patientName)} <span style="font-weight:400;color:var(--text-muted);font-size:11.5px">→ ${esc(doc?.name||'—')}</span></div>
+        <div class="appt-meta">
+          <span>${statusTag(a.status)}</span><span>📞 ${esc(a.patientPhone)}</span>
+          ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}<span>🆔 ${a.id}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function viewAdminWaitlist(){
+  const list = DB.waitlist.slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">⏳ ${t('all_waitlist')} <span class="tag accent">${list.length}</span></div>
+      <div class="card-sub">Toutes les entrées en file d'attente</div>
+    </div>
+    ${list.length ? list.map(w=>{
+      const doc = docById(w.doctorId);
+      return `
+      <div class="appt">
+        <div class="appt-time" style="background:var(--warn-bg);color:var(--warn)">⏳</div>
+        <div class="appt-body">
+          <div class="appt-patient">${esc(w.patientName)} <span style="font-weight:400;color:var(--text-muted);font-size:11.5px">→ ${esc(doc?.name||'—')}</span></div>
+          <div class="appt-meta">
+            <span>📞 ${esc(w.patientPhone)}</span><span>📅 ${fmtDate(w.preferredDate)}</span>
+            ${w.patientEmail?`<span>✉️ ${esc(w.patientEmail)}</span>`:''}
+          </div>
+        </div>
+        <div class="appt-actions">
+          <button class="mini-btn no" onclick="removeWait('${w.id}')">✕</button>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty"><div class="empty-ico">⏳</div>${t('waitlist_empty')}</div>`}
+  `;
+}
+function viewAdminSettings(){
+  return `
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">📤 ${t('export_csv')}</div>
+        <div class="card-sub">Exporter les données</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="pill-btn" onclick="exportApptsCSV()">📅 Exporter les rendez-vous</button>
+          <button class="pill-btn" onclick="exportDocsCSV()">🧑‍⚕️ Exporter les médecins</button>
+          <button class="pill-btn" onclick="exportWaitCSV()">⏳ Exporter la file d'attente</button>
+          <button class="pill-btn" onclick="exportRevenueCSV()">💰 Exporter la recette</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ ${t('asettings')}</div>
+        <div class="card-sub">Informations système</div>
+        <div style="font-size:13px;line-height:1.9">
+          <div><strong>Version :</strong> OmniMed v8 (Algérie)</div>
+          <div><strong>Devise :</strong> Dinar Algérien (DA)</div>
+          <div><strong>Stockage :</strong> localStorage</div>
+          <div><strong>Commission :</strong> ${getCommission()} DA / RDV</div>
+          <div><strong>Médecins :</strong> ${DB.doctors.length}</div>
+          <div><strong>Spécialités :</strong> ${DB.specialties.length}</div>
+          <div><strong>Wilayas :</strong> ${DB.wilayas.length}</div>
+          <div><strong>RDV :</strong> ${DB.appointments.length}</div>
+          <div><strong>Messages :</strong> ${DB.messages.length}</div>
+        </div>
+        <div class="sep"></div>
+        <button class="pill-btn danger" onclick="confirmReset()">🗑️ ${t('reset_data')}</button>
+      </div>
+    </div>
+  `;
+}
+function confirmReset(){
+  openModal(t('reset_data'), t('reset_confirm'), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="doReset()">🗑️ ${t('reset_data')}</button>`);
+}
+function doReset(){
+  DB = seedData(); saveDB(); closeModal(); render(); toast('Données réinitialisées','info');
+}
+function exportApptsCSV(){
+  const rows = [['ID','Patient','Téléphone','Email','Médecin','Date','Heure','Motif','Statut']];
+  DB.appointments.forEach(a=>{ const d = docById(a.doctorId); rows.push([a.id, a.patientName, a.patientPhone, a.patientEmail, d?.name||'', a.date, a.time, a.motif, a.status]); });
+  exportCSV(rows, 'omnimed_rdv.csv'); toast('Export CSV','success');
+}
+function exportDocsCSV(){
+  const rows = [['ID','Nom','Spécialité','Wilaya','Commune','Adresse','Téléphone','Email','Tarif (DA)','Durée','Jours','Début','Fin','Bloqués','Mot de passe']];
+  DB.doctors.forEach(d=>rows.push([d.id,d.name,d.specialty,d.wilaya,d.commune||'',d.address,d.phone,d.email,d.fee,d.duration,(d.workDays||[]).map(i=>DAY_NAMES_SHORT[i]).join(' '),d.workStart,d.workEnd,(d.disabledSlots||[]).join(' '),d.password]));
+  exportCSV(rows, 'omnimed_medecins.csv'); toast('Export CSV','success');
+}
+function exportWaitCSV(){
+  const rows = [['ID','Patient','Téléphone','Email','Médecin','Date souhaitée']];
+  DB.waitlist.forEach(w=>{ const d = docById(w.doctorId); rows.push([w.id, w.patientName, w.patientPhone, w.patientEmail, d?.name||'', w.preferredDate]); });
+  exportCSV(rows, 'omnimed_waitlist.csv'); toast('Export CSV','success');
+}
+function exportRevenueCSV(){
+  const commission = getCommission();
+  const rows = [['ID','Date','Heure','Patient','Téléphone','Médecin','Spécialité','Statut','Commission (DA)']];
+  DB.appointments.filter(a=>a.status==='confirmed'||a.status==='done').forEach(a=>{
+    const d = docById(a.doctorId);
+    rows.push([a.id, a.date, a.time, a.patientName, a.patientPhone, d?.name||'', d?.specialty||'', a.status, commission]);
+  });
+  exportCSV(rows, 'omnimed_recette.csv'); toast('Export CSV','success');
+}
+function printAppt(id){
+  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
+  const doc = docById(a.doctorId);
+  const w = window.open('', '_blank', 'width=520,height=640');
+  w.document.write(`
+    <html><head><title>OmniMed — ${a.id}</title>
+    <style>body{font-family:system-ui,sans-serif;padding:30px;color:#1f2937}
+    h1{color:#8b5cf6;margin-bottom:4px}
+    .box{border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-top:14px}
+    .lbl{color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+    </style></head><body>
+    <h1>OmniMed</h1>
+    <div style="color:#6b7280">Confirmation de rendez-vous</div>
+    <div class="box">
+      <div class="lbl">Code</div><div style="font-size:18px;font-weight:700;color:#8b5cf6">${a.id}</div>
+      <div class="lbl" style="margin-top:10px">Patient</div><div>${esc(a.patientName)} — ${esc(a.patientPhone)}</div>
+      <div class="lbl" style="margin-top:10px">Médecin</div><div>${esc(doc.name)} (${esc(doc.specialty)})</div>
+      <div class="lbl" style="margin-top:10px">Date & heure</div><div>${fmtLongDate(a.date)} à ${a.time}</div>
+      <div class="lbl" style="margin-top:10px">Adresse</div><div>${esc(doc.address)}</div>
+      <div class="lbl" style="margin-top:10px">Motif</div><div>${esc(a.motif)}</div>
+    </div>
+    </body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(), 300);
+}
+function qrSVG(seed){
+  let h=0; for(const c of String(seed)) h=(h*31+c.charCodeAt(0))>>>0;
+  const n=21; const cells=[];
+  const rand=()=>{ h=(h*1664525+1013904223)>>>0; return h/4294967296; };
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+    const finder = (x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
+    let on;
+    if(finder){
+      const lx = x>=n-7 ? x-(n-7) : x;
+      const ly = y>=n-7 ? y-(n-7) : y;
+      on = (lx===0||lx===6||ly===0||ly===6) || (lx>=2&&lx<=4&&ly>=2&&ly<=4);
+    } else on = rand()>0.55;
+    if(on) cells.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="#1f2937"/>`);
+  }
+  return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${cells.join('')}</svg>`;
+}
+function init(){ loadDB(); loadPrefs(); checkReminders(); applyDir(); render(); }
+window.addEventListener('DOMContentLoaded', init);
+Object.assign(window, {
+  go, setRole, toggleDark, setLang, toggleNotifs, closeNotifs, markAllRead,
+  selectDoctor, confirmBooking, resetBooking, lookupPhone, patientCancel, doCancel,
+  joinWaitlist, doJoinWaitlist, doLogin, logoutDoctor, docAction, postponeModal, refreshPostponeSlots,
+  doPostpone, noteModal, saveNote, messageModal, doSendMsg, waitlistContact, removeWait,
+  changePwd, printAppt, closeModal, openNotifDetail,
+  doAdminLogin, logoutAdmin, openDoctorForm, saveDoctor, confirmDeleteDoctor, deleteDoctor,
+  confirmReset, doReset, exportApptsCSV, exportDocsCSV, exportWaitCSV, exportRevenueCSV,
+  setRevenuePeriod, printRevenueReport, openCommissionRateModal, saveCommissionRate,
+  toggleWorkDay, updateSlotPreview, togglePreviewSlot, onWilayaChange,
+  addSpecialtyAdmin, deleteSpecialty, doDeleteSpecialty,
+  addWilayaAdmin, deleteWilaya, doDeleteWilaya,
+  addCommuneAdmin, deleteCommune, doDeleteCommune,
+  generateSlots, state
+});
+</script>
+</body>
+</html>
