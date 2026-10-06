@@ -1042,8 +1042,8 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
    SUPABASE — CONFIG
    ⚠️ REMPLACE CES 2 VALEURS PAR LES TIENNES
    ============================================================ */
-const SUPABASE_URL = 'TON_URL_SUPABASE';
-const SUPABASE_ANON_KEY = 'TON_ANON_KEY';
+const SUPABASE_URL = 'https://sgwdjhodwexyvpifkqdo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnd2RqaG9kd2V4eXZwaWZrcWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4ODMyNzEsImV4cCI6MjEwNjQ1OTI3MX0.VmCruDrFfBJyzmcCov13qm-12wCp9_6oGl-keCXFBfA';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   realtime: { params: { eventsPerSecond: 10 } }
 });
