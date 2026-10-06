@@ -1,1 +1,1 @@
-# omniMed
+# OmniMed
