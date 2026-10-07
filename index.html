@@ -4038,7 +4038,7 @@ function logoutAccount(){
 }
 function patientNav(){
   const v = state.view;
-  const items = [['home','🏠',t('home')]];
+  const items = [['home','🏠',t('home')],['myhealth','🩺',t('myhealth')]];
   return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
 }
 function docNav(){
@@ -4149,6 +4149,7 @@ function renderPatientView(){
     case 'home': return viewHome();
     case 'book': return viewBook();
     case 'my': return viewMy();
+    case 'myhealth': return viewMyHealth();
     case 'login': return viewLogin();
     default: return viewHome();
   }
@@ -4186,6 +4187,7 @@ function viewHome(){
         <div class="home-buttons">
           <button class="pill-btn primary home-btn-lg" onclick="go('book')">📅 ${t('book_now')}</button>
           <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('my')">📋 ${t('my')}</button>
+          <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('myhealth')">🩺 ${t('myhealth')}</button>
         </div>
         <div class="home-search-row">
           <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
@@ -4734,6 +4736,7 @@ function viewMy(){
         <input class="input" id="lookupPhone" type="tel" inputmode="tel" value="${esc(phone)}" placeholder="+213 6…" style="flex:1;min-width:180px">
         <button class="pill-btn primary" onclick="lookupPhone()">🔎 ${t('lookup')}</button>
         <button class="pill-btn success" onclick="go('book')">📅 ${t('book_now')}</button>
+        <button class="pill-btn" onclick="go('myhealth')">🩺 ${t('myhealth')}</button>
       </div>
       ${sorted.length ? `<div class="sep"></div><div style="font-size:11.5px;color:var(--text-muted);text-align:center">💡 ${t('tap_for_details')}</div>`:''}
     </div>
@@ -8216,54 +8219,196 @@ function renderDMPTabs(context, phone, patient, opts){
     ['profil','📋',t('dmp_profile')],
     ['constantes','📊',t('dmp_constantes')],
     ['ordonnances','💊',t('dmp_ordonnances')],
-    ['vaccins','💉',t('dmp_vaccins')]
+    ['vaccins','💉',t('dmp_vaccins')],
+    ['certificats','📄',t('dmp_certificats')],
+    ['timeline','📜',t('dmp_timeline')]
   ];
-  const tabsHTML = tabs.map(function(item){
-    const id = item[0], ico = item[1], lbl = item[2];
-    const activeCls = tab === id ? 'active' : '';
-    const onclickStr = 'state.dmpTab=\'' + id + '\';render()';
-    return '<button class="chip ' + activeCls + '" onclick="' + onclickStr + '">' + ico + ' ' + lbl + '</button>';
-  }).join('');
+  const tabsHTML = tabs.map(([id,ico,lbl])=>`<button class="chip ${tab===id?'active':''}" onclick="state.dmpTab='${id}';render()">${ico} ${lbl}</button>`).join('');
   let body = '';
-  if(tab === 'profil') body = renderDMPProfil(phone, patient, canEditProfile);
-  else if(tab === 'constantes') body = renderDMPConstantes(phone, opts);
-  else if(tab === 'ordonnances') body = renderDMPRecordsList(phone, 'ordonnance', opts);
-  else if(tab === 'vaccins') body = renderDMPRecordsList(phone, 'vaccin', opts);
-  return '<div class="card" style="margin-bottom:14px">' +
-           '<div class="chips" style="margin:0">' + tabsHTML + '</div>' +
-         '</div>' +
-         body;
+  if(tab==='profil') body = renderDMPProfil(phone, patient, canEditProfile);
+  else if(tab==='constantes') body = renderDMPConstantes(phone, opts);
+  else if(tab==='ordonnances') body = renderDMPRecordsList(phone, 'ordonnance', opts);
+  else if(tab==='vaccins') body = renderDMPRecordsList(phone, 'vaccin', opts);
+  else if(tab==='certificats') body = renderDMPRecordsList(phone, 'certificat', opts);
+  else if(tab==='timeline') body = renderDMPTimeline(phone, opts);
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="chips" style="margin:0">${tabsHTML}</div>
+    </div>
+    ${body}`;
 }
 
-function renderDMPRecordsTable(list, type){
-  if(type !== 'constante') return '';
-  const canDelete = !!state.doctor;
-  const headActions = canDelete
-    ? '<th style="width:44px;text-align:center">Actions</th>'
-    : '';
-  const rows = list.map(function(r){
-    const d = r.data || {};
-    const delCell = canDelete
-      ? '<td style="text-align:center"><button class="mini-btn out-red" onclick="confirmDeleteRecord(\'' + r.id + '\')" title="Supprimer cette mesure">🗑️</button></td>'
-      : '';
-    return '<tr>' +
-      '<td>' + fmtDateFR(r.date) + '</td>' +
-      '<td class="num">' + esc(d.ta||'—') + '</td>' +
-      '<td class="num">' + esc(d.glycemie||'—') + '</td>' +
-      '<td class="num">' + esc(d.temperature||'—') + '</td>' +
-      '<td class="num">' + esc(d.fc||'—') + '</td>' +
-      '<td class="num">' + esc(d.spo2||'—') + '</td>' +
-      '<td class="num">' + esc(d.poids||'—') + '</td>' +
-      delCell +
-    '</tr>';
+/* ============================================================
+   DMP — PROFIL
+   ============================================================ */
+function renderDMPProfil(phone, patient, canEdit){
+  const p = patient || getPatientByPhone(phone) || {};
+  const imc = computeIMC(p.weight, p.height);
+  if(!canEdit){
+    const bloodVal = p.bloodType ? esc(p.bloodType) : '—';
+    const heightVal = p.height ? esc(p.height) + ' cm' : '—';
+    const weightVal = p.weight ? esc(p.weight) + ' kg' : '—';
+    const imcVal = imc != null ? esc(imc) : '—';
+    return `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">📋 ${t('dmp_profile')}</div>
+        <div class="info-compact" style="margin-top:10px">
+          <div class="ic-item"><div class="ic-lbl">🩸 ${t('dmp_blood_type')}</div><div class="ic-val">${bloodVal}</div></div>
+          <div class="ic-item"><div class="ic-lbl">📏 ${t('dmp_height')}</div><div class="ic-val">${heightVal}</div></div>
+          <div class="ic-item"><div class="ic-lbl">⚖️ ${t('dmp_weight')}</div><div class="ic-val">${weightVal}</div></div>
+          <div class="ic-item"><div class="ic-lbl">📐 ${t('dmp_imc')}</div><div class="ic-val">${imcVal}</div></div>
+          <div class="ic-item" style="grid-column:span 2"><div class="ic-lbl">⚠️ ${t('dmp_allergies')}</div><div class="ic-val wrap">${esc(p.allergies||'—')}</div></div>
+          <div class="ic-item" style="grid-column:span 3"><div class="ic-lbl">📜 ${t('dmp_antecedents')}</div><div class="ic-val wrap">${esc(p.antecedents||'—')}</div></div>
+          <div class="ic-item" style="grid-column:span 3"><div class="ic-lbl">👪 ${t('dmp_antecedents_familiaux')}</div><div class="ic-val wrap">${esc(p.antecedentsFamiliaux||'—')}</div></div>
+          <div class="ic-item" style="grid-column:span 3"><div class="ic-lbl">💊 ${t('dmp_traitements')}</div><div class="ic-val wrap">${esc(p.traitements||'—')}</div></div>
+        </div>
+      </div>`;
+  }
+  const bloodOptions = ['','A+','A-','B+','B-','AB+','AB-','O+','O-'].map(b=>{
+    const sel = p.bloodType===b ? 'selected' : '';
+    const label = b || '—';
+    return `<option value="${b}" ${sel}>${label}</option>`;
   }).join('');
-  return '<div class="tbl-wrap"><table class="tbl"><thead><tr>' +
-           '<th>Date</th><th>Tension</th><th>Glycémie</th><th>Temp.</th><th>FC</th><th>SpO₂</th><th>Poids</th>' +
-           headActions +
-         '</tr></thead><tbody>' +
-           rows +
-         '</tbody></table></div>';
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">📋 ${t('dmp_profile')}</div>
+      <div class="field-row-3">
+        <div class="field"><label>👤 ${t('fullname')}</label><input class="input" id="dmpFullName" value="${esc(p.fullName||'')}"></div>
+        <div class="field"><label>🩸 ${t('dmp_blood_type')}</label>
+          <select class="select" id="dmpBloodType">${bloodOptions}</select>
+        </div>
+        <div class="field"><label>📐 ${t('dmp_imc')}</label><input class="input" readonly value="${imc!=null?imc:''}" style="opacity:.7"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>📏 ${t('dmp_height')}</label><input class="input" id="dmpHeight" type="number" min="30" max="250" value="${p.height||''}"></div>
+        <div class="field"><label>⚖️ ${t('dmp_weight')}</label><input class="input" id="dmpWeight" type="number" min="1" max="400" value="${p.weight||''}"></div>
+      </div>
+      <div class="field"><label>⚠️ ${t('dmp_allergies')}</label><textarea class="textarea" id="dmpAllergies" placeholder="${t('dmp_allergies_ph')}">${esc(p.allergies||'')}</textarea></div>
+      <div class="field"><label>📜 ${t('dmp_antecedents')}</label><textarea class="textarea" id="dmpAntecedents" placeholder="${t('dmp_antecedents_ph')}">${esc(p.antecedents||'')}</textarea></div>
+      <div class="field"><label>👪 ${t('dmp_antecedents_familiaux')}</label><textarea class="textarea" id="dmpAntecedentsF" placeholder="${t('dmp_antecedents_familiaux_ph')}">${esc(p.antecedentsFamiliaux||'')}</textarea></div>
+      <div class="field"><label>💊 ${t('dmp_traitements')}</label><textarea class="textarea" id="dmpTraitements">${esc(p.traitements||'')}</textarea></div>
+      <div class="field"><label>📝 ${t('dmp_notes')}</label><textarea class="textarea" id="dmpNotes">${esc(p.notes||'')}</textarea></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="pill-btn primary" onclick="saveDMPProfil('${jsStr(phone)}')">💾 ${t('dmp_save_profile')}</button>
+      </div>
+    </div>`;
 }
+function saveDMPProfil(phone){
+  const norm = normPhone(phone);
+  const p = ensurePatient(norm, '');
+  if(!p) return;
+  p.fullName = ($('#dmpFullName')?.value||'').trim();
+  p.bloodType = ($('#dmpBloodType')?.value||'').trim();
+  const h = parseInt($('#dmpHeight')?.value,10);
+  const w = parseInt($('#dmpWeight')?.value,10);
+  p.height = isNaN(h)?null:h;
+  p.weight = isNaN(w)?null:w;
+  p.allergies = ($('#dmpAllergies')?.value||'').trim();
+  p.antecedents = ($('#dmpAntecedents')?.value||'').trim();
+  p.antecedentsFamiliaux = ($('#dmpAntecedentsF')?.value||'').trim();
+  p.traitements = ($('#dmpTraitements')?.value||'').trim();
+  p.notes = ($('#dmpNotes')?.value||'').trim();
+  addMedicalRecord(norm, p.fullName, 'antecedent', {
+    summary: 'Mise à jour du profil médical',
+    allergies: p.allergies,
+    antecedents: p.antecedents,
+    antecedentsFamiliaux: p.antecedentsFamiliaux,
+    traitements: p.traitements
+  });
+  saveDB();
+  render();
+  toast(t('dmp_profile_saved'),'success');
+}
+
+/* ============================================================
+   DMP — CONSTANTES
+   ============================================================ */
+function renderDMPConstantes(phone, opts){
+  opts = opts || {};
+  const list = getPatientRecords(phone, {type:'constante', visibleOnly: opts.visibleOnly});
+  const latest = list[0];
+  const canAdd = state.doctor || opts.canEdit;
+  const addBtn = canAdd
+    ? `<button class="pill-btn primary" onclick="openConstanteForm('${jsStr(phone)}')">+ ${t('dmp_new_constante')}</button>`
+    : '';
+  let latestBlock = `<div class="empty" style="padding:20px"><div class="empty-ico">📊</div>${t('dmp_no_records')}</div>`;
+  if(latest){
+    const d = latest.data;
+    const cells = [
+      d.ta ? `<div class="const-card"><div class="c-lbl">🩸 ${t('dmp_ta')}</div><div class="c-val">${esc(d.ta)}</div></div>` : '',
+      d.glycemie ? `<div class="const-card"><div class="c-lbl">🍬 ${t('dmp_glycemie')}</div><div class="c-val">${esc(d.glycemie)} <small>g/L</small></div></div>` : '',
+      d.temperature ? `<div class="const-card"><div class="c-lbl">🌡️ ${t('dmp_temperature')}</div><div class="c-val">${esc(d.temperature)} <small>°C</small></div></div>` : '',
+      d.fc ? `<div class="const-card"><div class="c-lbl">❤️ ${t('dmp_fc')}</div><div class="c-val">${esc(d.fc)} <small>bpm</small></div></div>` : '',
+      d.spo2 ? `<div class="const-card"><div class="c-lbl">🫁 ${t('dmp_spo2')}</div><div class="c-val">${esc(d.spo2)} <small>%</small></div></div>` : '',
+      d.poids ? `<div class="const-card"><div class="c-lbl">⚖️ ${t('dmp_poids')}</div><div class="c-val">${esc(d.poids)} <small>kg</small></div></div>` : ''
+    ].filter(Boolean).join('');
+    latestBlock = `
+      <div class="constante-grid" style="margin-top:12px">${cells}</div>
+      <div class="card-sub" style="margin-top:8px">${t('dmp_latest_constante')} — ${fmtDateFR(latest.date)}</div>`;
+  }
+  const chartBlock = list.length > 1 ? renderConstanteChart(list) : '';
+  const tableBlock = list.length ? renderDMPRecordsTable(list, 'constante') : '';
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="card-title" style="margin:0">📊 ${t('dmp_constantes')} <span class="tag accent">${list.length}</span></div>
+        ${addBtn}
+      </div>
+      ${latestBlock}
+    </div>
+    ${chartBlock}
+    ${tableBlock}`;
+}
+function renderConstanteChart(list){
+  const data = list.slice(0,12).reverse();
+  const fields = [
+    {key:'poids', label:'⚖️ '+t('dmp_poids'), unit:'kg'},
+    {key:'glycemie', label:'🍬 '+t('dmp_glycemie'), unit:'g/L'}
+  ];
+  return fields.map(f=>{
+    const values = data.map(r=>parseFloat(r.data[f.key])).filter(v=>!isNaN(v));
+    if(!values.length) return '';
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const bars = data.map(r=>{
+      const v = parseFloat(r.data[f.key]);
+      if(isNaN(v)) return '';
+      const h = 20 + ((v-min)/range)*80;
+      return `<div class="chart-bar-item" title="${fmtDateFR(r.date)} : ${v} ${f.unit}">
+        <div class="bar-col" style="height:${h}%"></div>
+        <div class="bar-lbl">${r.date.slice(5)}</div>
+      </div>`;
+    }).join('');
+    return `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">📈 ${esc(f.label)} — ${t('dmp_evolution')}</div>
+        <div class="chart-bars">${bars}</div>
+      </div>`;
+  }).join('');
+}
+function renderDMPRecordsTable(list, type){
+  if(type === 'constante'){
+    return `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+      <th>Date</th><th>Tension</th><th>Glycémie</th><th>Temp.</th><th>FC</th><th>SpO₂</th><th>Poids</th>
+    </tr></thead><tbody>
+    ${list.map(r=>`<tr>
+      <td>${fmtDateFR(r.date)}</td>
+      <td class="num">${esc(r.data.ta||'—')}</td>
+      <td class="num">${esc(r.data.glycemie||'—')}</td>
+      <td class="num">${esc(r.data.temperature||'—')}</td>
+      <td class="num">${esc(r.data.fc||'—')}</td>
+      <td class="num">${esc(r.data.spo2||'—')}</td>
+      <td class="num">${esc(r.data.poids||'—')}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+  return '';
+}
+
+/* ============================================================
+   DMP — LISTES (ordonnances, vaccins, certificats)
+   ============================================================ */
 function renderDMPRecordsList(phone, type, opts){
   opts = opts || {};
   const list = getPatientRecords(phone, {type, visibleOnly: opts.visibleOnly});
@@ -8288,7 +8433,7 @@ function renderDMPRecordsList(phone, type, opts){
 }
 function renderRecordCard(r, type, showDelete){
   const doc = r.doctorId && r.doctorId !== 'admin' && r.doctorId !== 'patient' ? docById(r.doctorId) : null;
-  const canDelete = showDelete && !!state.doctor;
+  const canDelete = showDelete && state.doctor && doc && String(doc.id) === String(state.doctor.id);
   const typeIcons = {ordonnance:'💊', vaccin:'💉', certificat:'📄', constante:'📊'};
   let inner = '';
   if(type === 'ordonnance'){
