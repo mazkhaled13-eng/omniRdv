@@ -873,6 +873,24 @@ const WILAYAS = ['Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa',
   'Annaba','Guelma','Constantine','Médéa','Mostaganem',"M'Sila",'Mascara','Ouargla','Oran','El Bayadh','Illizi','Bordj Bou Arreridj',
   'Boumerdès','El Tarf','Tindouf','Tissemsilt','El Oued','Khenchela','Souk Ahras','Tipaza','Mila','Aïn Defla','Naâma','Aïn Témouchent',
   'Ghardaïa','Relizane','Timimoun','Bordj Badji Mokhtar','Ouled Djellal','Béni Abbès','In Salah','In Guezzam','Touggourt','Djanet',"El M'Ghair",'El Meniaa'];
+
+// Retourne "01 - Adrar", "02 - Chlef"… en se basant sur l'ordre officiel.
+// La valeur interne reste le nom simple (pas de numéro) pour compatibilité.
+function wilayaLabel(name){
+  if(!name) return '';
+  const idx = WILAYAS.indexOf(name);
+  if(idx < 0) return name;
+  return String(idx + 1).padStart(2,'0') + ' - ' + name;
+}
+function wilayaOptionsHTML(selected, placeholder){
+  const parts = [];
+  if(placeholder !== undefined) parts.push(`<option value="">${esc(placeholder)}</option>`);
+  WILAYAS.forEach(w => {
+    const sel = (selected === w) ? 'selected' : '';
+    parts.push(`<option value="${esc(w)}" ${sel}>${esc(wilayaLabel(w))}</option>`);
+  });
+  return parts.join('');
+}
 const COMMUNES = {
   'Adrar':['Adrar','Reggane','Aoulef','Fenoughil'],'Chlef':['Chlef','Ténès','Boukadir','Ouled Fares','Abou El Hassan'],
   'Laghouat':['Laghouat','Aflou',"Hassi R'Mel",'Ksar El Hirane'],'Oum El Bouaghi':['Oum El Bouaghi','Aïn Beïda',"Aïn M'lila",'Meskiana'],
@@ -4196,8 +4214,7 @@ function viewHome(){
         </div>
         <div class="home-search-row">
           <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';render()">
-            <option value="">${t('all_wilaya')}</option>
-            ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+            ${wilayaOptionsHTML(wilaya, t('all_wilaya'))}
           </select>
           <select class="select" onchange="state.search.commune=this.value;render()" ${!wilaya?'disabled style="opacity:.5"':''}>
             <option value="">${t('commune')} — ${t('filter_all')}</option>
@@ -4426,8 +4443,7 @@ function bookStep1(){
           ${DB.specialties.map(x=>`<option ${f.specialty===x?'selected':''}>${esc(x)}</option>`).join('')}
         </select>
         <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';refreshBookDoctorList()">
-          <option value="">${t('all_wilaya')}</option>
-          ${DB.wilayas.map(x=>`<option ${f.wilaya===x?'selected':''}>${esc(x)}</option>`).join('')}
+          ${wilayaOptionsHTML(f.wilaya, t('all_wilaya'))}
         </select>
         <select class="select" onchange="state.search.commune=this.value;refreshBookDoctorList()" ${!f.wilaya?'disabled style="opacity:.5"':''}>
           <option value="">${t('commune')} — ${t('filter_all')}</option>
@@ -4568,8 +4584,7 @@ function bookStep3(){
         <div class="field"><label>${t('fullname')}</label><input class="input" id="pName" value="${esc(s.patientName||'')}" oninput="state.booking.patientName=this.value" required></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" id="pWilaya" onchange="state.booking.patientWilaya=this.value">
-            <option value="">${t('patient_wilaya_ph')}</option>
-            ${DB.wilayas.map(w=>`<option ${s.patientWilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+            ${wilayaOptionsHTML(s.patientWilaya, t('patient_wilaya_ph'))}
           </select>
         </div>
         <div class="field"><label>${t('age')}</label><input class="input" id="pAge" type="number" min="0" max="130" inputmode="numeric" value="${esc(s.patientAge||'')}" oninput="state.booking.patientAge=this.value" placeholder="${t('age_ph')}"></div>
@@ -5131,8 +5146,7 @@ function viewDoctorInternal(){
           <input class="input" id="intName" value="${esc(f.patientName)}" placeholder="${t('internal_name_ph')}" oninput="state.internalForm.patientName=this.value"></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" id="intWilaya" onchange="state.internalForm.patientWilaya=this.value">
-            <option value="">${t('patient_wilaya_ph')}</option>
-            ${DB.wilayas.map(w=>`<option ${f.patientWilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+            ${wilayaOptionsHTML(f.patientWilaya, t('patient_wilaya_ph'))}
           </select>
         </div>
         <div class="field"><label>${t('age')}</label>
@@ -6118,8 +6132,7 @@ function openDoctorForm(id, isSelf){
     <div class="field-row">
       <div class="field"><label>${t('wilaya')} *</label>
         <select class="select" id="fWilaya" onchange="onWilayaChange()">
-          <option value="">${t('select_wilaya_ph')}</option>
-          ${DB.wilayas.map(w=>`<option ${d.wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+          ${wilayaOptionsHTML(d.wilaya, t('select_wilaya_ph'))}
         </select>
       </div>
       <div class="field"><label>${t('commune')}</label>
@@ -6595,9 +6608,10 @@ function renderSpecialtiesManager(){
 }
 function renderWilayasManager(){
   const listBlock = DB.wilayas.length
-    ? DB.wilayas.map((w)=>{
+    ? DB.wilayas.map((w,i)=>{
         const cnt = (DB.communes[w]||[]).length;
         return `<div class="list-item">
+          <span class="tag muted" style="min-width:24px;justify-content:center">${String(i+1).padStart(2,'0')}</span>
           <span class="li-name">${esc(w)}</span>
           <span class="tag accent">${cnt} 🏙️</span>
           <button class="mini-btn out-red" onclick="deleteWilaya('${jsStr(w)}')">🗑️</button>
