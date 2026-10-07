@@ -6595,10 +6595,9 @@ function renderSpecialtiesManager(){
 }
 function renderWilayasManager(){
   const listBlock = DB.wilayas.length
-    ? DB.wilayas.map((w,i)=>{
+    ? DB.wilayas.map((w)=>{
         const cnt = (DB.communes[w]||[]).length;
         return `<div class="list-item">
-          <span class="tag muted" style="min-width:24px;justify-content:center">${i+1}</span>
           <span class="li-name">${esc(w)}</span>
           <span class="tag accent">${cnt} 🏙️</span>
           <button class="mini-btn out-red" onclick="deleteWilaya('${jsStr(w)}')">🗑️</button>
