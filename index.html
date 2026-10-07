@@ -8209,16 +8209,16 @@ function lookupPhoneForDMP(){
    ============================================================ */
 function renderDMPTabs(context, phone, patient, opts){
   opts = opts || {};
-  const tab = state.dmpTab || 'profil';
+  const validTabs = ['profil','constantes','ordonnances','vaccins'];
+  let tab = state.dmpTab || 'profil';
+  if(!validTabs.includes(tab)) tab = 'profil';
   const isPatient = context === 'patient';
   const canEditProfile = isPatient || (state.doctor && opts.canEdit);
   const tabs = [
     ['profil','📋',t('dmp_profile')],
     ['constantes','📊',t('dmp_constantes')],
     ['ordonnances','💊',t('dmp_ordonnances')],
-    ['vaccins','💉',t('dmp_vaccins')],
-    ['certificats','📄',t('dmp_certificats')],
-    ['timeline','📜',t('dmp_timeline')]
+    ['vaccins','💉',t('dmp_vaccins')]
   ];
   const tabsHTML = tabs.map(([id,ico,lbl])=>`<button class="chip ${tab===id?'active':''}" onclick="state.dmpTab='${id}';render()">${ico} ${lbl}</button>`).join('');
   let body = '';
@@ -8226,8 +8226,6 @@ function renderDMPTabs(context, phone, patient, opts){
   else if(tab==='constantes') body = renderDMPConstantes(phone, opts);
   else if(tab==='ordonnances') body = renderDMPRecordsList(phone, 'ordonnance', opts);
   else if(tab==='vaccins') body = renderDMPRecordsList(phone, 'vaccin', opts);
-  else if(tab==='certificats') body = renderDMPRecordsList(phone, 'certificat', opts);
-  else if(tab==='timeline') body = renderDMPTimeline(phone, opts);
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="chips" style="margin:0">${tabsHTML}</div>
@@ -8387,7 +8385,7 @@ function renderConstanteChart(list){
 function renderDMPRecordsTable(list, type){
   if(type === 'constante'){
     return `<div class="tbl-wrap"><table class="tbl"><thead><tr>
-      <th>Date</th><th>Tension</th><th>Glycémie</th><th>Temp.</th><th>FC</th><th>SpO₂</th><th>Poids</th>
+      <th>Date</th><th>Tension</th><th>Glycémie</th><th>Temp.</th><th>FC</th><th>SpO₂</th><th>Poids</th><th style="text-align:center">Actions</th>
     </tr></thead><tbody>
     ${list.map(r=>`<tr>
       <td>${fmtDateFR(r.date)}</td>
@@ -8397,6 +8395,7 @@ function renderDMPRecordsTable(list, type){
       <td class="num">${esc(r.data.fc||'—')}</td>
       <td class="num">${esc(r.data.spo2||'—')}</td>
       <td class="num">${esc(r.data.poids||'—')}</td>
+      <td style="text-align:center"><button class="mini-btn out-red" onclick="confirmDeleteRecord('${r.id}')" title="${t('delete')}">🗑️</button></td>
     </tr>`).join('')}
     </tbody></table></div>`;
   }
@@ -8430,7 +8429,7 @@ function renderDMPRecordsList(phone, type, opts){
 }
 function renderRecordCard(r, type, showDelete){
   const doc = r.doctorId && r.doctorId !== 'admin' && r.doctorId !== 'patient' ? docById(r.doctorId) : null;
-  const canDelete = showDelete && state.doctor && doc && String(doc.id) === String(state.doctor.id);
+  const canDelete = showDelete !== false;
   const typeIcons = {ordonnance:'💊', vaccin:'💉', certificat:'📄', constante:'📊'};
   let inner = '';
   if(type === 'ordonnance'){
