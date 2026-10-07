@@ -868,42 +868,73 @@ const RECENT_PER_PAGE = 15;
 const QUICK_REV_PER_PAGE = 10;
 
 // Wilayas d'Algérie — ordre officiel (01 → 58)
-const WILAYAS = ['Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa','Biskra','Béchar','Blida','Bouira',
-  'Tamanrasset','Tébessa','Tlemcen','Tiaret','Tizi Ouzou','Alger','Djelfa','Jijel','Sétif','Saïda','Skikda','Sidi Bel Abbès',
-  'Annaba','Guelma','Constantine','Médéa','Mostaganem',"M'Sila",'Mascara','Ouargla','Oran','El Bayadh','Illizi','Bordj Bou Arreridj',
-  'Boumerdès','El Tarf','Tindouf','Tissemsilt','El Oued','Khenchela','Souk Ahras','Tipaza','Mila','Aïn Defla','Naâma','Aïn Témouchent',
-  'Ghardaïa','Relizane','Timimoun','Bordj Badji Mokhtar','Ouled Djellal','Béni Abbès','In Salah','In Guezzam','Touggourt','Djanet',"El M'Ghair",'El Meniaa'];
+const WILAYAS = [
+  'Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa','Biskra','Béchar','Blida','Bouira',
+  'Tamanrasset','Tébessa','Tlemcen','Tiaret','Tizi Ouzou','Alger','Djelfa','Jijel','Sétif','Saïda',
+  'Skikda','Sidi Bel Abbès','Annaba','Guelma','Constantine','Médéa','Mostaganem',"M'Sila",'Mascara','Ouargla',
+  'Oran','El Bayadh','Illizi','Bordj Bou Arreridj','Boumerdès','El Tarf','Tindouf','Tissemsilt','El Oued','Khenchela',
+  'Souk Ahras','Tipaza','Mila','Aïn Defla','Naâma','Aïn Témouchent','Ghardaïa','Relizane',
+  'Timimoun','Bordj Badji Mokhtar','Ouled Djellal','Béni Abbès','In Salah','In Guezzam','Touggourt','Djanet',"El M'Ghair",'El Meniaa'
+];
 const COMMUNES = {
-  'Adrar':['Adrar','Reggane','Aoulef','Fenoughil'],'Chlef':['Chlef','Ténès','Boukadir','Ouled Fares','Abou El Hassan'],
-  'Laghouat':['Laghouat','Aflou',"Hassi R'Mel",'Ksar El Hirane'],'Oum El Bouaghi':['Oum El Bouaghi','Aïn Beïda',"Aïn M'lila",'Meskiana'],
-  'Batna':['Batna','Barika','Merouana',"N'Gaous",'Aïn Touta'],'Béjaïa':['Béjaïa','Akbou','Kherrata','Sidi Aïch','Amizour'],
-  'Biskra':['Biskra','Tolga','Sidi Okba','Zeribet El Oued'],'Béchar':['Béchar','Kenadsa','Abadla','Taghit'],
-  'Blida':['Blida','Boufarik','Larbaâ','Mouzaïa','Ouled Yaïch'],'Bouira':['Bouira','Lakhdaria','Sour El Ghozlane','Aïn Bessem'],
-  'Tamanrasset':['Tamanrasset','Abalessa','Idles'],'Tébessa':['Tébessa','Bir El Ater','Cheria','El Aouinet'],
-  'Tlemcen':['Tlemcen','Maghnia','Remchi','Ghazaouet','Chetouani'],'Tiaret':['Tiaret','Sougueur','Frenda','Ksar Chellala'],
-  'Tizi Ouzou':['Tizi Ouzou','Azazga','Draâ Ben Khedda','Larbaâ Nath Irathen','Tigzirt'],
-  'Alger':['Alger-Centre','Bab El Oued','Hydra','Bir Mourad Raïs','Kouba','Hussein Dey','El Harrach','Dar El Beïda','Chéraga'],
-  'Djelfa':['Djelfa','Aïn Oussera','Messaad','Hassi Bahbah'],'Jijel':['Jijel','Taher','El Milia','Chekfa'],
-  'Sétif':['Sétif','El Eulma','Aïn Oulmene','Bougaa','Aïn Arnat'],'Saïda':['Saïda','Aïn El Hadjar','Ouled Brahim','Youb'],
-  'Skikda':['Skikda','Azzaba','Collo','El Harrouch','Tamalous'],'Sidi Bel Abbès':['Sidi Bel Abbès','Telagh','Sfisef','Aïn El Berd'],
-  'Annaba':['Annaba','El Bouni','El Hadjar','Sidi Amar','Berrahal'],'Guelma':['Guelma','Oued Zenati','Héliopolis','Bouchegouf'],
-  'Constantine':['Constantine','El Khroub','Aïn Smara','Hamma Bouziane','Didouche Mourad'],'Médéa':['Médéa','Berrouaghia','Ksar El Boukhari','Tablat'],
-  'Mostaganem':['Mostaganem','Aïn Tédeles','Hassi Mameche','Sidi Ali'],"M'Sila":["M'Sila",'Bou Saâda','Sidi Aïssa','Aïn El Melh'],
-  'Mascara':['Mascara','Mohammadia','Sig','Tighennif','Bouhanifia'],'Ouargla':['Ouargla','Hassi Messaoud',"N'Goussa",'Rouissat'],
-  'Oran':['Oran','Es Sénia','Aïn El Turk','Bir El Djir','Arzew','Bethioua'],'El Bayadh':['El Bayadh','Bougtoub','Rogassa','Labiodh Sidi Cheikh'],
-  'Illizi':['Illizi','In Amenas','Debdeb'],'Bordj Bou Arreridj':['Bordj Bou Arreridj','Ras El Oued','Medjana','Mansoura'],
-  'Boumerdès':['Boumerdès','Bordj Menaïel','Khemis El Khechna','Boudouaou','Dellys'],'El Tarf':['El Tarf','El Kala','Bouthilda',"Ben M'Hidi"],
-  'Tindouf':['Tindouf','Oum El Assel'],'Tissemsilt':['Tissemsilt','Theniet El Had','Bordj Bou Naama','Lardjem'],
-  'El Oued':['El Oued','Guemar','Debila','Robbah'],'Khenchela':['Khenchela','Kais','Chechar','Ouled Rechache'],
-  'Souk Ahras':['Souk Ahras','Sedrata','Merahna','Mechroha'],'Tipaza':['Tipaza','Koléa','Hadjout','Cherchell','Fouka'],
-  'Mila':['Mila','Chelghoum Laïd','Téléghma','Grarem Gouga'],'Aïn Defla':['Aïn Defla','Khemis Miliana','Miliana','El Attaf'],
-  'Naâma':['Naâma','Mécheria','Aïn Sefra','Sfissifa'],'Aïn Témouchent':['Aïn Témouchent','Hammam Bou Hadjar','Beni Saf','El Malah'],
-  'Ghardaïa':['Ghardaïa','Metlili','Berriane','El Guerrara'],'Relizane':['Relizane','Oued Rhiou','Mazouna','Zemmoura'],
-  'Timimoun':['Timimoun','Aougrout','Charouine','Ouled Saïd'],'Bordj Badji Mokhtar':['Bordj Badji Mokhtar','Timiaouine'],
-  'Ouled Djellal':['Ouled Djellal','Sidi Khaled','Doucen','Ras El Miaad'],'Béni Abbès':['Béni Abbès','Igli','Kerzaz','Tamtert'],
-  'In Salah':['In Salah','Foggaret Ezzoua','In Ghar'],'In Guezzam':['In Guezzam','Tin Zaouatine'],
-  'Touggourt':['Touggourt','Nezla','Témacine','Tebesbest'],'Djanet':['Djanet','Bordj El Haouas'],
-  "El M'Ghair":["El M'Ghair",'Djamaa','Sidi Khelil','Still'],'El Meniaa':['El Meniaa','Hassi Gara','Hassi Fehal']
+  '01 - Adrar':['Adrar','Reggane','Aoulef','Fenoughil'],
+  '02 - Chlef':['Chlef','Ténès','Boukadir','Ouled Fares','Abou El Hassan'],
+  '03 - Laghouat':['Laghouat','Aflou',"Hassi R'Mel",'Ksar El Hirane'],
+  '04 - Oum El Bouaghi':['Oum El Bouaghi','Aïn Beïda',"Aïn M'lila",'Meskiana'],
+  '05 - Batna':['Batna','Barika','Merouana',"N'Gaous",'Aïn Touta'],
+  '06 - Béjaïa':['Béjaïa','Akbou','Kherrata','Sidi Aïch','Amizour'],
+  '07 - Biskra':['Biskra','Tolga','Sidi Okba','Zeribet El Oued'],
+  '08 - Béchar':['Béchar','Kenadsa','Abadla','Taghit'],
+  '09 - Blida':['Blida','Boufarik','Larbaâ','Mouzaïa','Ouled Yaïch'],
+  '10 - Bouira':['Bouira','Lakhdaria','Sour El Ghozlane','Aïn Bessem'],
+  '11 - Tamanrasset':['Tamanrasset','Abalessa','Idles'],
+  '12 - Tébessa':['Tébessa','Bir El Ater','Cheria','El Aouinet'],
+  '13 - Tlemcen':['Tlemcen','Maghnia','Remchi','Ghazaouet','Chetouani'],
+  '14 - Tiaret':['Tiaret','Sougueur','Frenda','Ksar Chellala'],
+  '15 - Tizi Ouzou':['Tizi Ouzou','Azazga','Draâ Ben Khedda','Larbaâ Nath Irathen','Tigzirt'],
+  '16 - Alger':['Alger-Centre','Bab El Oued','Hydra','Bir Mourad Raïs','Kouba','Hussein Dey','El Harrach','Dar El Beïda','Chéraga'],
+  '17 - Djelfa':['Djelfa','Aïn Oussera','Messaad','Hassi Bahbah'],
+  '18 - Jijel':['Jijel','Taher','El Milia','Chekfa'],
+  '19 - Sétif':['Sétif','El Eulma','Aïn Oulmene','Bougaa','Aïn Arnat'],
+  '20 - Saïda':['Saïda','Aïn El Hadjar','Ouled Brahim','Youb'],
+  '21 - Skikda':['Skikda','Azzaba','Collo','El Harrouch','Tamalous'],
+  '22 - Sidi Bel Abbès':['Sidi Bel Abbès','Telagh','Sfisef','Aïn El Berd'],
+  '23 - Annaba':['Annaba','El Bouni','El Hadjar','Sidi Amar','Berrahal'],
+  '24 - Guelma':['Guelma','Oued Zenati','Héliopolis','Bouchegouf'],
+  '25 - Constantine':['Constantine','El Khroub','Aïn Smara','Hamma Bouziane','Didouche Mourad'],
+  '26 - Médéa':['Médéa','Berrouaghia','Ksar El Boukhari','Tablat'],
+  '27 - Mostaganem':['Mostaganem','Aïn Tédeles','Hassi Mameche','Sidi Ali'],
+  "28 - M'Sila":["M'Sila",'Bou Saâda','Sidi Aïssa','Aïn El Melh'],
+  '29 - Mascara':['Mascara','Mohammadia','Sig','Tighennif','Bouhanifia'],
+  '30 - Ouargla':['Ouargla','Hassi Messaoud',"N'Goussa",'Rouissat'],
+  '31 - Oran':['Oran','Es Sénia','Aïn El Turk','Bir El Djir','Arzew','Bethioua'],
+  '32 - El Bayadh':['El Bayadh','Bougtoub','Rogassa','Labiodh Sidi Cheikh'],
+  '33 - Illizi':['Illizi','In Amenas','Debdeb'],
+  '34 - Bordj Bou Arreridj':['Bordj Bou Arreridj','Ras El Oued','Medjana','Mansoura'],
+  '35 - Boumerdès':['Boumerdès','Bordj Menaïel','Khemis El Khechna','Boudouaou','Dellys'],
+  '36 - El Tarf':['El Tarf','El Kala','Bouthilda',"Ben M'Hidi"],
+  '37 - Tindouf':['Tindouf','Oum El Assel'],
+  '38 - Tissemsilt':['Tissemsilt','Theniet El Had','Bordj Bou Naama','Lardjem'],
+  '39 - El Oued':['El Oued','Guemar','Debila','Robbah'],
+  '40 - Khenchela':['Khenchela','Kais','Chechar','Ouled Rechache'],
+  '41 - Souk Ahras':['Souk Ahras','Sedrata','Merahna','Mechroha'],
+  '42 - Tipaza':['Tipaza','Koléa','Hadjout','Cherchell','Fouka'],
+  '43 - Mila':['Mila','Chelghoum Laïd','Téléghma','Grarem Gouga'],
+  '44 - Aïn Defla':['Aïn Defla','Khemis Miliana','Miliana','El Attaf'],
+  '45 - Naâma':['Naâma','Mécheria','Aïn Sefra','Sfissifa'],
+  '46 - Aïn Témouchent':['Aïn Témouchent','Hammam Bou Hadjar','Beni Saf','El Malah'],
+  '47 - Ghardaïa':['Ghardaïa','Metlili','Berriane','El Guerrara'],
+  '48 - Relizane':['Relizane','Oued Rhiou','Mazouna','Zemmoura'],
+  '49 - Timimoun':['Timimoun','Aougrout','Charouine','Ouled Saïd'],
+  '50 - Bordj Badji Mokhtar':['Bordj Badji Mokhtar','Timiaouine'],
+  '51 - Ouled Djellal':['Ouled Djellal','Sidi Khaled','Doucen','Ras El Miaad'],
+  '52 - Béni Abbès':['Béni Abbès','Igli','Kerzaz','Tamtert'],
+  '53 - In Salah':['In Salah','Foggaret Ezzoua','In Ghar'],
+  '54 - In Guezzam':['In Guezzam','Tin Zaouatine'],
+  '55 - Touggourt':['Touggourt','Nezla','Témacine','Tebesbest'],
+  '56 - Djanet':['Djanet','Bordj El Haouas'],
+  "57 - El M'Ghair":["El M'Ghair",'Djamaa','Sidi Khelil','Still'],
+  '58 - El Meniaa':['El Meniaa','Hassi Gara','Hassi Fehal']
 };
 const DEFAULT_SPECIALTIES = ['Généraliste','Cardiologie','Dermatologie','Pédiatrie','Dentaire','Ophtalmologie',
   'Gynécologie','Neurologie','Orthopédie','ORL','Psychiatrie','Radiologie','Urologie','Gastro-entérologie','Endocrinologie',
@@ -8216,9 +8247,7 @@ function renderDMPTabs(context, phone, patient, opts){
     ['profil','📋',t('dmp_profile')],
     ['constantes','📊',t('dmp_constantes')],
     ['ordonnances','💊',t('dmp_ordonnances')],
-    ['vaccins','💉',t('dmp_vaccins')],
-    ['certificats','📄',t('dmp_certificats')],
-    ['timeline','📜',t('dmp_timeline')]
+    ['vaccins','💉',t('dmp_vaccins')]
   ];
   const tabsHTML = tabs.map(([id,ico,lbl])=>`<button class="chip ${tab===id?'active':''}" onclick="state.dmpTab='${id}';render()">${ico} ${lbl}</button>`).join('');
   let body = '';
@@ -8226,8 +8255,6 @@ function renderDMPTabs(context, phone, patient, opts){
   else if(tab==='constantes') body = renderDMPConstantes(phone, opts);
   else if(tab==='ordonnances') body = renderDMPRecordsList(phone, 'ordonnance', opts);
   else if(tab==='vaccins') body = renderDMPRecordsList(phone, 'vaccin', opts);
-  else if(tab==='certificats') body = renderDMPRecordsList(phone, 'certificat', opts);
-  else if(tab==='timeline') body = renderDMPTimeline(phone, opts);
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="chips" style="margin:0">${tabsHTML}</div>
@@ -8386,8 +8413,10 @@ function renderConstanteChart(list){
 }
 function renderDMPRecordsTable(list, type){
   if(type === 'constante'){
+    const canDelete = !!state.doctor;
     return `<div class="tbl-wrap"><table class="tbl"><thead><tr>
       <th>Date</th><th>Tension</th><th>Glycémie</th><th>Temp.</th><th>FC</th><th>SpO₂</th><th>Poids</th>
+      ${canDelete ? '<th style="width:44px;text-align:center">Actions</th>' : ''}
     </tr></thead><tbody>
     ${list.map(r=>`<tr>
       <td>${fmtDateFR(r.date)}</td>
@@ -8397,6 +8426,7 @@ function renderDMPRecordsTable(list, type){
       <td class="num">${esc(r.data.fc||'—')}</td>
       <td class="num">${esc(r.data.spo2||'—')}</td>
       <td class="num">${esc(r.data.poids||'—')}</td>
+      ${canDelete ? `<td style="text-align:center"><button class="mini-btn out-red" onclick="confirmDeleteRecord('${r.id}')" title="Supprimer cette mesure">🗑️</button></td>` : ''}
     </tr>`).join('')}
     </tbody></table></div>`;
   }
@@ -8428,9 +8458,7 @@ function renderDMPRecordsList(phone, type, opts){
     </div>
     ${listBlock}`;
 }
-function renderRecordCard(r, type, showDelete){
-  const doc = r.doctorId && r.doctorId !== 'admin' && r.doctorId !== 'patient' ? docById(r.doctorId) : null;
-  const canDelete = showDelete && state.doctor && doc && String(doc.id) === String(state.doctor.id);
+  const canDelete = showDelete && !!state.doctor;
   const typeIcons = {ordonnance:'💊', vaccin:'💉', certificat:'📄', constante:'📊'};
   let inner = '';
   if(type === 'ordonnance'){
@@ -8706,7 +8734,7 @@ function viewDoctorPatients(){
     const bloodTag = patient.bloodType ? `<span class="tag danger">🩸 ${esc(patient.bloodType)}</span>` : '';
     return `
       <div class="card" style="margin-bottom:14px">
-        <button class="pill-btn" onclick="state.dmpPatientPhone=null;state.dmpTab='profil';render()">← ${t('dmp_my_files')}</button>
+        <button class="pill-btn primary" onclick="state.dmpPatientPhone=null;state.dmpTab='profil';render()">← ${t('dmp_my_files')}</button>
       </div>
       <div class="card" style="margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
