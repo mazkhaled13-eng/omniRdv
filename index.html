@@ -838,6 +838,21 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
   alter table medical_records enable row level security;
   create policy "anon_all" on patients for all using (true) with check (true);
   create policy "anon_all" on medical_records for all using (true) with check (true);
+
+  -- ============================================================
+  -- 🔴 SYNCHRONISATION TEMPS RÉEL — OBLIGATOIRE POUR LA SYNC INSTANTANÉE
+  -- ============================================================
+  -- Sans ces lignes, Realtime ne diffuse AUCUN événement et la synchro
+  -- se fait uniquement via le polling de secours (toutes les ~4 secondes).
+  -- À exécuter une seule fois dans le SQL Editor de Supabase :
+  -- ============================================================
+  alter publication supabase_realtime add table doctors;
+  alter publication supabase_realtime add table appointments;
+  alter publication supabase_realtime add table services;
+  alter publication supabase_realtime add table messages;
+  alter publication supabase_realtime add table settings;
+  alter publication supabase_realtime add table patients;
+  alter publication supabase_realtime add table medical_records;
   ============================================================
 -->
 <div class="app" id="app"></div>
@@ -866,6 +881,11 @@ const APPTS_PER_PAGE = 25;
 const DOCTORS_PER_PAGE = 10;
 const RECENT_PER_PAGE = 15;
 const QUICK_REV_PER_PAGE = 10;
+// ⏱️ Timings de synchronisation temps réel
+const SAVE_DEBOUNCE_MS = 200;         // Push local → Supabase (était 500)
+const REALTIME_DEBOUNCE_MS = 80;      // Rafraîchissement sur événement distant (était 350)
+const FALLBACK_POLL_MS = 4000;        // Polling de secours si Realtime indisponible
+const REALTIME_RECONNECT_MS = 3000;   // Reconnexion auto après erreur
 
 // Wilayas d'Algérie — ordre officiel (01 → 58)
 const WILAYAS = ['Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa','Biskra','Béchar','Blida','Bouira',
@@ -874,8 +894,6 @@ const WILAYAS = ['Adrar','Chlef','Laghouat','Oum El Bouaghi','Batna','Béjaïa',
   'Boumerdès','El Tarf','Tindouf','Tissemsilt','El Oued','Khenchela','Souk Ahras','Tipaza','Mila','Aïn Defla','Naâma','Aïn Témouchent',
   'Ghardaïa','Relizane','Timimoun','Bordj Badji Mokhtar','Ouled Djellal','Béni Abbès','In Salah','In Guezzam','Touggourt','Djanet',"El M'Ghair",'El Meniaa'];
 
-// Retourne "01 - Adrar", "02 - Chlef"… en se basant sur l'ordre officiel.
-// La valeur interne reste le nom simple (pas de numéro) pour compatibilité.
 function wilayaLabel(name){
   if(!name) return '';
   const idx = WILAYAS.indexOf(name);
@@ -931,7 +949,6 @@ const DAY_NAMES_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const DAY_NAMES_LONG  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
-// ⬇️ FIN DE LA PARTIE 1/4 — La PARTIE 2/4 commence juste après cette ligne
 /* ============================================================
    TRADUCTIONS (FR / EN / AR)
    ============================================================ */
@@ -1315,7 +1332,7 @@ const T = {
     json_invalid_version:'Version de sauvegarde incompatible',
     json_last_size:'Taille du dernier export',
     admin_settings_section:'Paramètres système',
-    // ====== DMP (Dossier Médical Patient) ======
+    // ====== DMP ======
     dmp_title:'Dossier Médical',
     dmp_profile:'Profil médical',
     dmp_constantes:'Constantes vitales',
@@ -1756,7 +1773,6 @@ const T = {
     json_invalid_version:'Incompatible backup version',
     json_last_size:'Last export size',
     admin_settings_section:'System settings',
-    // ====== DMP ======
     dmp_title:'Medical Record',
     dmp_profile:'Medical profile',
     dmp_constantes:'Vital signs',
@@ -2487,7 +2503,6 @@ function savePendingDeletes(){
   try { localStorage.setItem(LS_PENDING, JSON.stringify(_pendingDeletes)); } catch(e){}
 }
 
-// ⬇️ FIN DE LA PARTIE 2/4 — La PARTIE 3/4 commence juste après cette ligne
 /* ============================================================
    DB — LOAD depuis Supabase
    ============================================================ */
@@ -2634,7 +2649,7 @@ function saveDB(){
   _syncTimer = setTimeout(async () => {
     _syncTimer = null;
     await pushToSupabase();
-  }, 500);
+  }, SAVE_DEBOUNCE_MS);
 }
 
 async function pushToSupabase(){
@@ -2701,7 +2716,7 @@ async function pushToSupabase(){
         documents:a.documents||[], status:a.status, internal:!!a.internal,
         rating:a.rating||0, notes:a.notes||'', cancel_reason:a.cancelReason||null,
         reminders:a.reminders||{h2:false},
-        updated_at: new Date().toISOString(),
+        updated_at:new Date().toISOString(),
         deleted_at:a.status==='deleted'?new Date().toISOString():null
       }));
       for(let i=0;i<rows.length;i+=100) await sb.from('appointments').upsert(rows.slice(i,i+100));
@@ -2770,13 +2785,26 @@ function markSyncBadge(ok){
 }
 
 /* ============================================================
-   REALTIME (tables filtrées)
+   REALTIME — Synchronisation temps réel multi-clients
+   ------------------------------------------------------------
+   ✅ Reçoit les changements de TOUS les clients (médecins, patients,
+      admin) et rafraîchit automatiquement l'écran — sans recharger
+      la page.
+   ✅ Reconnexion automatique en cas de déconnexion.
+   ✅ Polling de secours si Realtime n'est pas activé côté Supabase.
    ============================================================ */
 let _realtimeChannel = null;
 let _realtimeDebounce = null;
+let _realtimeReconnectTimer = null;
+let _fallbackPollTimer = null;
+let _lastRealtimeEvent = 0;
+let _refreshInProgress = false;
 
 function subscribeRealtime(){
-  if(_realtimeChannel) return;
+  if(_realtimeChannel){
+    try { sb.removeChannel(_realtimeChannel); } catch(e){}
+    _realtimeChannel = null;
+  }
   _realtimeChannel = sb.channel('omnimed-changes')
     .on('postgres_changes', {event:'*', schema:'public', table:'doctors'}, handleRealtimeChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'appointments'}, handleRealtimeChange)
@@ -2786,40 +2814,86 @@ function subscribeRealtime(){
     .on('postgres_changes', {event:'*', schema:'public', table:'patients'}, handleRealtimeChange)
     .on('postgres_changes', {event:'*', schema:'public', table:'medical_records'}, handleRealtimeChange)
     .subscribe((status)=>{
-      state.realtimeConnected = status === 'SUBSCRIBED';
-      markSyncBadge(status === 'SUBSCRIBED');
+      const ok = status === 'SUBSCRIBED';
+      state.realtimeConnected = ok;
+      markSyncBadge(ok);
+      if(ok){
+        if(_realtimeReconnectTimer){ clearTimeout(_realtimeReconnectTimer); _realtimeReconnectTimer = null; }
+        stopFallbackPolling();
+      } else if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
+        scheduleRealtimeReconnect();
+        startFallbackPolling();
+      }
     });
+  // Filet de sécurité : si la connexion Realtime ne s'établit jamais
+  // (publication non activée côté Supabase), basculer en polling.
+  setTimeout(()=>{ if(!state.realtimeConnected) startFallbackPolling(); }, 5000);
+}
+
+function scheduleRealtimeReconnect(){
+  if(_realtimeReconnectTimer) return;
+  _realtimeReconnectTimer = setTimeout(()=>{
+    _realtimeReconnectTimer = null;
+    subscribeRealtime();
+  }, REALTIME_RECONNECT_MS);
+}
+
+function startFallbackPolling(){
+  if(_fallbackPollTimer) return;
+  _fallbackPollTimer = setInterval(()=>{
+    if(_syncTimer) return;
+    if(_isApplyingRemote) return;
+    if(Date.now() - _lastRealtimeEvent < FALLBACK_POLL_MS) return;
+    refreshFromServer();
+  }, FALLBACK_POLL_MS);
+}
+
+function stopFallbackPolling(){
+  if(_fallbackPollTimer){ clearInterval(_fallbackPollTimer); _fallbackPollTimer = null; }
 }
 
 function handleRealtimeChange(){
-  if(_syncTimer) return;
+  _lastRealtimeEvent = Date.now();
   if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
-  _realtimeDebounce = setTimeout(async () => {
-    _isApplyingRemote = true;
-    try{
-      const activeEl = document.activeElement;
-      const activeId = activeEl?.id;
-      let selStart = null;
-      if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
-        try{ selStart = activeEl.selectionStart; }catch(e){}
-      }
-      await loadDB();
-      if(state.doctor){
-        const refreshed = DB.doctors.find(d=>String(d.id)===String(state.doctor.id));
-        if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
-      }
-      render();
-      refreshOpenApptModal();
-      setTimeout(()=>{
-        if(activeId){
-          const el = document.getElementById(activeId);
-          if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
-        }
-      }, 50);
-    } finally {
-      _isApplyingRemote = false;
+  _realtimeDebounce = setTimeout(()=>{
+    _realtimeDebounce = null;
+    refreshFromServer();
+  }, REALTIME_DEBOUNCE_MS);
+}
+
+async function refreshFromServer(){
+  if(_isApplyingRemote || _refreshInProgress) return;
+  _refreshInProgress = true;
+  _isApplyingRemote = true;
+  try{
+    const activeEl = document.activeElement;
+    const activeId = activeEl?.id;
+    let selStart = null;
+    if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
+      try{ selStart = activeEl.selectionStart; }catch(e){}
     }
-  }, 350);
+    // Conserver la modale ouverte (ex: détail RDV) pour la rafraîchir après
+    const modalMeta = state.activeModal;
+    await loadDB();
+    if(state.doctor){
+      const refreshed = DB.doctors.find(d=>String(d.id)===String(state.doctor.id));
+      if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
+    }
+    render();
+    if(modalMeta) state.activeModal = modalMeta;
+    // Rafraîchir la modale de détail RDV si elle est ouverte :
+    // c'est ici que le patient voit sa confirmation "en direct"
+    refreshOpenApptModal();
+    setTimeout(()=>{
+      if(activeId){
+        const el = document.getElementById(activeId);
+        if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
+      }
+    }, 50);
+  } finally {
+    _isApplyingRemote = false;
+    _refreshInProgress = false;
+  }
 }
 
 function saveHidden(){ try { localStorage.setItem(LS_HIDDEN, JSON.stringify(state.hiddenAppts)); } catch(e){} }
@@ -4142,7 +4216,6 @@ async function checkRecettePassword(){
   } else toast(t('invalid_login'),'error');
 }
 
-// ⬇️ FIN DE LA PARTIE 3/4 — La PARTIE 4/4 commence juste après cette ligne
 /* ============================================================
    GÉNÉRATION ID RDV
    ============================================================ */
@@ -4230,9 +4303,6 @@ function viewHome(){
       ${recentBlock}
     </div>`;
 }
-  /* ============================================================
-   PROFIL MÉDECIN (modale) — côté patient
-   ============================================================ */
 function openDoctorProfile(id){
   const d = docById(id); if(!d) return;
   const todayWork = isWorkDay(d, todayISO());
@@ -5894,7 +5964,6 @@ function openNotifDetail(notifId){
   openModal(n.title, n.message, body, actionsHTML);
 }
 
-// ⬇️ FIN DE LA PARTIE 3bis — La PARTIE 3ter commence juste après cette ligne
 /* ============================================================
    PROFIL MÉDECIN + FORMULAIRE
    ============================================================ */
@@ -7069,7 +7138,6 @@ function printQuickRevenueDetails(){
 </table></body></html>`);
 }
 
-// ⬇️ FIN DE LA PARTIE 3ter — La PARTIE 3quater arrive ensuite
 /* ============================================================
    ADMIN — Médecins, RDV, Paramètres
    ============================================================ */
@@ -8110,7 +8178,6 @@ function qrSVG(seed){
   return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${cells.join('')}</svg>`;
 }
 
-// ⬇️ FIN DE LA PARTIE 3quater — La PARTIE 4 (finale) commence juste après cette ligne
 /* ============================================================
    DOSSIER MÉDICAL PATIENT (DMP)
    ============================================================ */
@@ -8902,7 +8969,7 @@ Object.assign(window, {
   // Documents
   openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
   // Realtime
-  subscribeRealtime,
+  subscribeRealtime, refreshFromServer, startFallbackPolling, stopFallbackPolling,
   // DMP
   viewMyHealth, lookupPhoneForDMP, saveDMPProfil,
   openConstanteForm, saveConstante,
