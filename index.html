@@ -4038,7 +4038,7 @@ function logoutAccount(){
 }
 function patientNav(){
   const v = state.view;
-  const items = [['home','🏠',t('home')],['myhealth','🩺',t('myhealth')]];
+  const items = [['home','🏠',t('home')]];
   return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
 }
 function docNav(){
@@ -4149,7 +4149,6 @@ function renderPatientView(){
     case 'home': return viewHome();
     case 'book': return viewBook();
     case 'my': return viewMy();
-    case 'myhealth': return viewMyHealth();
     case 'login': return viewLogin();
     default: return viewHome();
   }
@@ -4187,7 +4186,6 @@ function viewHome(){
         <div class="home-buttons">
           <button class="pill-btn primary home-btn-lg" onclick="go('book')">📅 ${t('book_now')}</button>
           <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('my')">📋 ${t('my')}</button>
-          <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('myhealth')">🩺 ${t('myhealth')}</button>
         </div>
         <div class="home-search-row">
           <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
@@ -4736,7 +4734,6 @@ function viewMy(){
         <input class="input" id="lookupPhone" type="tel" inputmode="tel" value="${esc(phone)}" placeholder="+213 6…" style="flex:1;min-width:180px">
         <button class="pill-btn primary" onclick="lookupPhone()">🔎 ${t('lookup')}</button>
         <button class="pill-btn success" onclick="go('book')">📅 ${t('book_now')}</button>
-        <button class="pill-btn" onclick="go('myhealth')">🩺 ${t('myhealth')}</button>
       </div>
       ${sorted.length ? `<div class="sep"></div><div style="font-size:11.5px;color:var(--text-muted);text-align:center">💡 ${t('tap_for_details')}</div>`:''}
     </div>
