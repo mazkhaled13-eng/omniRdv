@@ -1039,7 +1039,12 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 const SUPABASE_URL = 'https://cbvzfkntznlrffyacmil.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNidnpma250em5scmZmeWFjbWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTExNzQsImV4cCI6MjEwNzAyNzE3NH0.slHetHt0OhRAWJHZU4I6Mm-X1W4jc-03kVliEWhHkAM';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  realtime: { params: { eventsPerSecond: 10 } }
+  realtime: {
+    params: {
+      eventsPerSecond: 50,
+      heartbeatIntervalMs: 15000
+    }
+  }
 });
 
 /* ============================================================
@@ -2782,33 +2787,69 @@ function subscribeRealtime(){
   const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry'];
   let chan = sb.channel('omnimed-changes');
   const handler = () => {
-    if(_syncTimer) return;                 // on est en train de pusher
+    // On ne bloque plus : on laisse la synchro entrante se faire,
+    // même si on est en train de pusher nos propres changements.
+    // Le flag _isApplyingRemote évite les boucles infinies.
+    if(_isApplyingRemote) return;
     if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
     _realtimeDebounce = setTimeout(async () => {
       _isApplyingRemote = true;
       try{
         const activeEl = document.activeElement;
         const activeId = activeEl?.id;
-        let selStart = null;
+        let selStart = null, selEnd = null;
         if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
-          try{ selStart = activeEl.selectionStart; }catch(e){}
+          try{ selStart = activeEl.selectionStart; selEnd = activeEl.selectionEnd; }catch(e){}
         }
         await loadDB();
         if(state.doctor){
           const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
           if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
         }
+        // Sauvegarde des valeurs non commitées du formulaire de réservation
+        // pour ne pas perdre la saisie du patient pendant le refresh
+        const bookingSnapshot = {
+          patientName: state.booking.patientName,
+          patientAge: state.booking.patientAge,
+          patientPhone: state.booking.patientPhone,
+          patientEmail: state.booking.patientEmail,
+          patientWilaya: state.booking.patientWilaya,
+          patientPassword: state.booking.patientPassword,
+          motif: state.booking.motif,
+          internalForm: { ...state.internalForm }
+        };
         render();
+        // Restauration des valeurs (car render() reconstruit les inputs vides)
+        const r = state.booking;
+        if(r){
+          if(bookingSnapshot.patientName) r.patientName = bookingSnapshot.patientName;
+          if(bookingSnapshot.patientAge) r.patientAge = bookingSnapshot.patientAge;
+          if(bookingSnapshot.patientPhone) r.patientPhone = bookingSnapshot.patientPhone;
+          if(bookingSnapshot.patientEmail) r.patientEmail = bookingSnapshot.patientEmail;
+          if(bookingSnapshot.patientWilaya) r.patientWilaya = bookingSnapshot.patientWilaya;
+          if(bookingSnapshot.patientPassword) r.patientPassword = bookingSnapshot.patientPassword;
+          if(bookingSnapshot.motif) r.motif = bookingSnapshot.motif;
+        }
+        if(state.internalForm){
+          state.internalForm = { ...state.internalForm, ...bookingSnapshot.internalForm };
+        }
         setTimeout(()=>{
           if(activeId){
             const el = document.getElementById(activeId);
-            if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
+            if(el){
+              try{
+                el.focus({preventScroll:true});
+                if(selStart != null && el.setSelectionRange){
+                  el.setSelectionRange(selStart, selEnd != null ? selEnd : selStart);
+                }
+              }catch(e){}
+            }
           }
-        }, 50);
+        }, 20);
       } finally {
         _isApplyingRemote = false;
       }
-    }, 350);
+    }, 120);
   };
   tables.forEach(tbl => {
     chan = chan.on('postgres_changes', {event:'*', schema:'public', table: tbl}, handler);
@@ -2818,9 +2859,47 @@ function subscribeRealtime(){
     const el = document.getElementById('syncBadge');
     if(el) markSyncBadge(status === 'SUBSCRIBED');
     console.log('Realtime:', status);
+
+    // Auto-reconnexion en cas de perte
+    if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
+      console.warn('Realtime déconnecté, reconnexion dans 2s…');
+      setTimeout(() => {
+        if(_realtimeChannel){
+          try { sb.removeChannel(_realtimeChannel); } catch(e){}
+          _realtimeChannel = null;
+          subscribeRealtime();
+        }
+      }, 2000);
+    }
   });
 }
-
+/* ---- Resync au retour de focus/visibilité ---- */
+function setupVisibilityResync(){
+  let lastResync = 0;
+  const triggerResync = () => {
+    const now = Date.now();
+    if(now - lastResync < 1500) return;  // anti-spam
+    lastResync = now;
+    if(_isApplyingRemote) return;
+    _isApplyingRemote = true;
+    (async () => {
+      try {
+        await loadDB();
+        if(state.doctor){
+          const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
+          if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
+        }
+        render();
+      } finally {
+        _isApplyingRemote = false;
+      }
+    })();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') triggerResync();
+  });
+  window.addEventListener('focus', triggerResync);
+}
 function saveHidden(){ try { localStorage.setItem(LS_HIDDEN, JSON.stringify(state.hiddenAppts)); } catch(e){} }
 
 function n2(v){
@@ -9324,8 +9403,26 @@ async function init(){
   state.quickRevVisible = QUICK_REV_PER_PAGE;
   loadPrefs(); checkReminders();
   setInterval(checkReminders, 5 * 60 * 1000);
+  // Filet de sécurité : resync complète toutes les 60s
+  // (utile si Realtime a raté un event pendant une micro-coupure réseau)
+  setInterval(async () => {
+    if(_isApplyingRemote) return;
+    if(document.visibilityState !== 'visible') return;
+    _isApplyingRemote = true;
+    try {
+      await loadDB();
+      if(state.doctor){
+        const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
+        if(refreshed) state.doctor = refreshed;
+      }
+      render();
+    } finally {
+      _isApplyingRemote = false;
+    }
+  }, 60000);
   applyDir(); render();
   subscribeRealtime();
+  setupVisibilityResync();
 }
 window.addEventListener('DOMContentLoaded', init);
 Object.assign(window, {
