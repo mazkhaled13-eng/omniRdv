@@ -4243,6 +4243,8 @@ async function checkRecettePassword(){
   if(!doc){ closeModal(); return; }
   const stored = doc.recettePassword || DEFAULT_PWD;
   if(v && await verifyPassword(v, stored)){
+    // On NE réécrit PAS le hash ici — seul l'admin peut le faire.
+    // Le hash est mis à jour uniquement si c'était un mot de passe en clair historique.
     if(!/^[0-9a-f]{64}$/i.test(stored)){
       doc.recettePassword = await hashPassword(v);
       saveDB();
@@ -6741,9 +6743,26 @@ function openDoctorForm(id, isSelf){
       <div class="pv-hint">${t('slot_preview_hint')}</div>
     </div>
     <div class="sep"></div>
-    <div class="section-title">🔑 ${t('account_info')}</div>
+    ${!isSelf ? `
+    <div class="section-title">🔒 Mot de passe</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Mot de passe session</label>
+        <input class="input" id="fPwd" type="text" value="${esc(d.password && /^[0-9a-f]{64}$/i.test(d.password) ? '' : (d.password||''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Utilisé pour se connecter à l'espace médecin</div>
+      </div>
+      <div class="field">
+        <label>Mot de passe finance</label>
+        <input class="input" id="fRecettePwd" type="text" value="${esc(d.recettePassword && /^[0-9a-f]{64}$/i.test(d.recettePassword) ? '' : (d.recettePassword||''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Protège l'accès à la section Finance (Recette cabinet)</div>
+      </div>
+    </div>
+    ` : `
     <input type="hidden" id="fPwd" value="${esc(d.password)}">
     <input type="hidden" id="fRecettePwd" value="${esc(d.recettePassword)}">
+    `}
+    <div class="sep"></div>
+    <div class="section-title">🔑 ${t('account_info')}</div>
     <div class="field"><label>${t('bio')}</label><textarea class="textarea" id="fBio">${esc(d.bio)}</textarea></div>
   `;
   openModal(isEdit ? (isSelf ? t('edit_my_profile') : t('edit_doctor')) : t('add_doctor'), d.name||'', body, `
@@ -6849,10 +6868,32 @@ async function saveDoctor(id, isSelf){
   const feeInput = $('#fFee');
   const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
-  const pwdRaw = ($('#fPwd')?.value||'').trim() || DEFAULT_PWD;
-  const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim() || DEFAULT_PWD;
-  const pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-  const recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
+  // --- Gestion des mots de passe ---
+  let pwd;
+  let recettePwd;
+
+  const pwdRaw = ($('#fPwd')?.value||'').trim();
+  const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
+
+  if(isSelf){
+    // Session médecin : NE TOUCHE JAMAIS au mot de passe finance
+    // et ne change le mot de passe session QUE si un nouveau est saisi
+    const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
+    pwd = pwdRaw
+      ? (/^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw))
+      : (existingDoc ? existingDoc.password : DEFAULT_PWD);
+    // On conserve TOUJOURS le mot de passe finance existant
+    recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
+  } else {
+    // Admin : il peut tout modifier
+    const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
+    pwd = pwdRaw
+      ? (/^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw))
+      : (existingDoc ? existingDoc.password : DEFAULT_PWD);
+    recettePwd = recettePwdRaw
+      ? (/^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw))
+      : (existingDoc ? existingDoc.recettePassword : DEFAULT_PWD);
+  }
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
   const workEnd = $('#fEnd')?.value || '17:00';
