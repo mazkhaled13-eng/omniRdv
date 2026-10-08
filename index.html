@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>OmniMed — Plateforme Médicale</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -895,7 +896,6 @@ body.dark #subModalRoot .sub-contact .ct-phone-inline{color:#6ee7b7}
 .doc-view-img{max-width:100%;max-height:70vh;display:block;margin:0 auto;border-radius:8px;box-shadow:var(--shadow-sm)}
 .doc-view-pdf{width:100%;height:70vh;border:0;border-radius:8px;background:#fff}
 .doc-view-other{padding:20px;text-align:center;background:#fff;border-radius:8px;font-size:13px;color:#1f2937}
-/* ===== Session fermée (médecin indisponible) ===== */
 .doctor-row.closed{
   background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(239,68,68,.02));
   border-color:rgba(239,68,68,.3);
@@ -907,7 +907,6 @@ body.dark #subModalRoot .sub-contact .ct-phone-inline{color:#6ee7b7}
 body[dir="rtl"] .doctor-row.closed:hover{transform:translateX(-4px)}
 .doctor-row.closed .dr-name{color:#b91c1c}
 body.dark .doctor-row.closed .dr-name{color:#fca5a5}
-
 .doc-card.closed{
   background:linear-gradient(135deg,rgba(239,68,68,.05),rgba(239,68,68,.02));
   border-color:rgba(239,68,68,.3);
@@ -915,7 +914,6 @@ body.dark .doctor-row.closed .dr-name{color:#fca5a5}
 .doc-card.closed:hover{border-color:rgba(239,68,68,.6)}
 .doc-card.closed .doc-name{color:#b91c1c}
 body.dark .doc-card.closed .doc-name{color:#fca5a5}
-
 .search-result-label.closed{
   background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(239,68,68,.03));
   border-color:rgba(239,68,68,.35);
@@ -950,6 +948,10 @@ body.dark .sr-closed-badge{background:rgba(239,68,68,.2);color:#fca5a5;border-co
 body.dark .indispo-badge{color:#fca5a5;background:rgba(239,68,68,.18)}
 .doc-view-other a{color:var(--accent-primary);font-weight:600;text-decoration:none}
 body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main)}
+.sync-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--radius-pill);
+  font-size:10.5px;font-weight:600;background:var(--glass-bg-3);border:1px solid var(--glass-border);color:var(--text-muted)}
+.sync-badge.online{color:var(--success);border-color:rgba(16,185,129,.4)}
+.sync-badge.offline{color:var(--danger);border-color:rgba(239,68,68,.4)}
 </style>
 </head>
 <body>
@@ -960,12 +962,23 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 
 <script>
 /* ============================================================
+   SUPABASE — CONFIG
+   ⚠️ REMPLACE CES 2 VALEURS PAR LES TIENNES
+   ============================================================ */
+const SUPABASE_URL = 'TON_URL_SUPABASE';
+const SUPABASE_ANON_KEY = 'TON_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  realtime: { params: { eventsPerSecond: 10 } }
+});
+
+/* ============================================================
    OmniMed — Plateforme Médicale
    ============================================================ */
 const COMMISSION_GENERAL_DEFAULT = 20;
 const SUB_MONTHLY_DEFAULT = 2000;
 const SUB_YEARLY_DEFAULT = 20000;
 const SUB_DISCOUNT_DEFAULT = 0;
+const DEFAULT_PWD = '0000';
 const APPTS_PER_PAGE = 25;
 const DOCTORS_PER_PAGE = 10;
 const RECENT_PER_PAGE = 15;
@@ -2216,84 +2229,31 @@ const T = {
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
 
-const idb = {
-  db: null,
-  supported: typeof indexedDB !== 'undefined',
-  async open(){
-    if(!this.supported) return;
-    return new Promise((resolve) => {
-      try{
-        const req = indexedDB.open('omnimed_db', 10);
-        req.onupgradeneeded = e => {
-          const db = e.target.result;
-          if(!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
-          if(!db.objectStoreNames.contains('files')) db.createObjectStore('files');
-        };
-        req.onsuccess = e => { this.db = e.target.result; resolve(); };
-        req.onerror = () => { this.db = null; resolve(); };
-        req.onblocked = () => { resolve(); };
-      }catch(e){ this.db = null; resolve(); }
-    });
-  },
-  async get(key){
-    if(!this.db) return null;
-    return new Promise((resolve) => {
-      try{
-        const tx = this.db.transaction('kv', 'readonly');
-        const req = tx.objectStore('kv').get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      }catch(e){ resolve(null); }
-    });
-  },
-  async set(key, val){
-    if(!this.db) return;
-    return new Promise((resolve) => {
-      try{
-        const tx = this.db.transaction('kv', 'readwrite');
-        tx.objectStore('kv').put(val, key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-        tx.onabort = () => resolve();
-      }catch(e){ resolve(); }
-    });
-  }
-};
-
+/* ============================================================
+   STORAGE — Supabase Storage (remplace IndexedDB pour fichiers)
+   ============================================================ */
+const idb = { db:null, supported:false, async open(){}, async get(){ return null; }, async set(){} };
 const idbFiles = {
   async put(key, val){
-    if(!idb.db) return;
-    return new Promise((resolve) => {
-      try{
-        const tx = idb.db.transaction('files', 'readwrite');
-        tx.objectStore('files').put(val, key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-        tx.onabort = () => resolve();
-      }catch(e){ resolve(); }
-    });
+    try{
+      const blob = new Blob([val.data], {type: val.type || 'application/octet-stream'});
+      const { error } = await sb.storage.from('omnimed-files').upload(key, blob, {
+        contentType: val.type || 'application/octet-stream',
+        upsert: true
+      });
+      if(error) console.error('Upload error:', error);
+    }catch(e){ console.error(e); }
   },
   async get(key){
-    if(!idb.db) return null;
-    return new Promise((resolve) => {
-      try{
-        const tx = idb.db.transaction('files', 'readonly');
-        const req = tx.objectStore('files').get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(null);
-      }catch(e){ resolve(null); }
-    });
+    try{
+      const { data, error } = await sb.storage.from('omnimed-files').download(key);
+      if(error || !data) return null;
+      const buf = await data.arrayBuffer();
+      return { data: buf, type: data.type, name: key };
+    }catch(e){ return null; }
   },
   async del(key){
-    if(!idb.db) return;
-    return new Promise((resolve) => {
-      try{
-        const tx = idb.db.transaction('files', 'readwrite');
-        tx.objectStore('files').delete(key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      }catch(e){ resolve(); }
-    });
+    try{ await sb.storage.from('omnimed-files').remove([key]); }catch(e){}
   }
 };
 
@@ -2322,7 +2282,8 @@ const state = {
   msgSelected: [],
   selectedAppts: [],
   statsPeriod: {type:'all', month: 0, year: 0},
-  lastExportSize: 0
+  lastExportSize: 0,
+  realtimeConnected: false
 };
 const SPECIALTY_AVATARS = {
   'Généraliste':'🩺','Cardiologie':'🫀','Dermatologie':'🧴','Pédiatrie':'🧸','Dentaire':'🦷',
@@ -2440,9 +2401,6 @@ function validationBlockedMsg(a){
     .replace('{time}', a.time);
 }
 
-/* ============================================================
-   Seed vide — l'application démarre avec 0 donnée.
-   ============================================================ */
 function seedData(){
   return {
     schemaVersion: 3,
@@ -2452,7 +2410,7 @@ function seedData(){
     specialties:[...DEFAULT_SPECIALTIES],
     wilayas:[...WILAYAS],
     communes: JSON.parse(JSON.stringify(COMMUNES)),
-    admin:{username:'admin', password:'admin'},
+    admin:{username:'admin', password:DEFAULT_PWD},
     settings:{
       commission: COMMISSION_GENERAL_DEFAULT,
       subMonthly: SUB_MONTHLY_DEFAULT,
@@ -2468,83 +2426,282 @@ function seedData(){
 }
 
 let DB;
+let _syncTimer = null;
+let _isApplyingRemote = false;
+let _pendingDeletes = { doctors: [], services: [], appointments: [], messages: [] };
 
+/* ---------- LOAD depuis Supabase ---------- */
 async function loadDB(){
-  const candidates = [];
-  try {
-    const s = localStorage.getItem(LS_KEY);
-    if(s){ try { candidates.push(JSON.parse(s)); } catch(e){} }
-  } catch(e){}
-  if(idb.db){
-    try {
-      const v = await idb.get(LS_KEY);
-      if(v) candidates.push(v);
-    } catch(e){}
+  try{
+    const [setRes, docRes, apptRes, servRes, notifRes, msgRes,
+           specRes, wilRes, comRes, invRes, subInvRes] = await Promise.all([
+      sb.from('settings').select('*').eq('id',1).maybeSingle(),
+      sb.from('doctors').select('*').order('name'),
+      sb.from('appointments').select('*').order('created_at',{ascending:false}),
+      sb.from('services').select('*'),
+      sb.from('notifications').select('*').order('date',{ascending:false}).limit(200),
+      sb.from('messages').select('*').order('date',{ascending:false}).limit(500),
+      sb.from('specialties').select('name'),
+      sb.from('wilayas').select('name'),
+      sb.from('communes').select('wilaya,name'),
+      sb.from('invoice_registry').select('*'),
+      sb.from('sub_invoice_registry').select('*')
+    ]);
+
+    const s = setRes.data || {};
+    DB = {
+      schemaVersion: 3,
+      invoiceCounter: {year: new Date().getFullYear(), count: 0},
+      invoiceRegistry: Object.fromEntries((invRes.data||[]).map(r=>[r.key, r.num])),
+      subInvoiceRegistry: Object.fromEntries((subInvRes.data||[]).map(r=>[r.key, r.num])),
+      specialties: (specRes.data||[]).map(r=>r.name),
+      wilayas: (wilRes.data||[]).map(r=>r.name),
+      communes: {},
+      admin: { username: s.admin_username || 'admin', password: s.admin_password || DEFAULT_PWD },
+      settings: {
+        commission: s.commission ?? COMMISSION_GENERAL_DEFAULT,
+        subMonthly: s.sub_monthly ?? SUB_MONTHLY_DEFAULT,
+        subYearly: s.sub_yearly ?? SUB_YEARLY_DEFAULT,
+        subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT
+      },
+      doctors: (docRes.data||[]).map(d=>({
+        id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
+        commune: d.commune||'', address: d.address||'', phone: d.phone||'',
+        email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
+        password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
+        bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
+        workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
+        billingType: d.billing_type||'none',
+        commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
+        subStart: d.sub_start, subTrialEnd: d.sub_trial_end,
+        sessionClosed: !!d.session_closed, locked: !!d.locked,
+        createdAt: d.created_at
+      })),
+      appointments: (apptRes.data||[]).map(a=>({
+        id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
+        patientAge:a.patient_age, patientPhone:a.patient_phone,
+        patientEmail:a.patient_email||'', patientWilaya:a.patient_wilaya||'',
+        patientPassword:a.patient_password||'', date:a.date, time:a.time,
+        motif:a.motif||'', services:a.services||[], servicesTotal:Number(a.services_total)||0,
+        documents:a.documents||[], status:a.status, internal:!!a.internal,
+        rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
+        reminders:a.reminders||{h2:false},
+        createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
+      })),
+      services: (servRes.data||[]).map(s=>({
+        id:s.id, doctorId:s.doctor_id, name:s.name,
+        price:Number(s.price)||0, description:s.description||''
+      })),
+      notifications: (notifRes.data||[]).map(n=>({
+        id:n.id, role:n.role, title:n.title, message:n.message,
+        toDoctorId:n.to_doctor_id, apptId:n.appt_id, date:n.date, read:n.read
+      })),
+      messages: (msgRes.data||[]).map(m=>({
+        id:m.id,
+        from:{key:m.from_key,role:m.from_role,id:m.from_id,name:m.from_name,avatar:m.from_avatar},
+        to:{key:m.to_key,role:m.to_role,id:m.to_id,name:m.to_name,avatar:m.to_avatar},
+        subject:m.subject, body:m.body, bodyHTML:m.body_html,
+        files:m.files||[], date:m.date, read:m.read, deletedBy:m.deleted_by||[]
+      }))
+    };
+    (comRes.data||[]).forEach(r=>{
+      if(!DB.communes[r.wilaya]) DB.communes[r.wilaya]=[];
+      DB.communes[r.wilaya].push(r.name);
+    });
+    if(!DB.wilayas.length) DB.wilayas = [...WILAYAS];
+    if(!DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
+    if(!DB.doctors) DB.doctors = [];
+    if(!DB.appointments) DB.appointments = [];
+    if(!DB.services) DB.services = [];
+    if(!DB.messages) DB.messages = [];
+    if(!DB.notifications) DB.notifications = [];
+  }catch(e){
+    console.error('LoadDB error:', e);
+    DB = seedData();
   }
-  let best = null;
-  for(const c of candidates){
-    if(c && (c.schemaVersion === 1 || c.schemaVersion === 2 || c.schemaVersion === 3)){
-      if(!best) best = c;
-    }
-  }
-  DB = best || seedData();
-  if(!DB.settings) DB.settings = {commission: COMMISSION_GENERAL_DEFAULT, subMonthly: SUB_MONTHLY_DEFAULT, subYearly: SUB_YEARLY_DEFAULT, subDiscount: SUB_DISCOUNT_DEFAULT};
-  if(DB.settings.commission === undefined) DB.settings.commission = COMMISSION_GENERAL_DEFAULT;
-  if(DB.settings.subMonthly === undefined) DB.settings.subMonthly = SUB_MONTHLY_DEFAULT;
-  if(DB.settings.subYearly === undefined) DB.settings.subYearly = SUB_YEARLY_DEFAULT;
-  if(DB.settings.subDiscount === undefined) DB.settings.subDiscount = SUB_DISCOUNT_DEFAULT;
-  delete DB.settings.commissionInternal;
-  if(!DB.wilayas) DB.wilayas = [...WILAYAS];
-  if(!DB.communes) DB.communes = JSON.parse(JSON.stringify(COMMUNES));
-  if(!DB.specialties || !DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
-  if(!DB.services) DB.services = [];
-  if(!DB.messages) DB.messages = [];
-  if(!DB.doctors) DB.doctors = [];
-  if(!DB.appointments) DB.appointments = [];
-  if(!DB.invoiceRegistry) DB.invoiceRegistry = {};
-  if(!DB.subInvoiceRegistry) DB.subInvoiceRegistry = {};
-  if(typeof DB.invoiceCounter !== 'object' || DB.invoiceCounter === null){
-    DB.invoiceCounter = {year: new Date().getFullYear(), count: 0};
-  }
-  DB.doctors.forEach(d=>{
-    if(!d.workDays) d.workDays = [];
-    if(!d.workStart) d.workStart = '08:00';
-    if(!d.workEnd) d.workEnd = '17:00';
-    if(!d.commune) d.commune = '';
-    if(!d.disabledSlots) d.disabledSlots = [];
-    if(!d.createdAt) d.createdAt = todayISO();
-    if(d.recettePassword === undefined) d.recettePassword = '1234';
-    if(d.billingType === undefined) d.billingType = 'none';
-    if(d.commissionAmount === undefined) d.commissionAmount = null;
-    if(d.subStart === undefined) d.subStart = null;
-    if(d.subTrialEnd === undefined) d.subTrialEnd = null;
-    if(d.locked === undefined) d.locked = false;
-    if(d.sessionClosed === undefined) d.sessionClosed = false;
-    delete d.avatar;
-    delete d.subEnd;
-  });
-  DB.appointments.forEach(a=>{
-    if(!a.services) a.services = [];
-    if(a.servicesTotal === undefined) a.servicesTotal = 0;
-    if(a.internal === undefined) a.internal = false;
-    if(a.patientPassword === undefined) a.patientPassword = '';
-    if(a.patientWilaya === undefined) a.patientWilaya = '';
-    if(a.rating === undefined) a.rating = 0;
-    if(!a.documents) a.documents = [];
-  });
-  DB.messages.forEach(m=>{
-    if(!m.deletedBy) m.deletedBy = [];
-  });
-  DB.messages.forEach(m=>{
-    if(m.from && m.from.key === 'admin_admin') m.from.key = 'admin';
-    if(m.to && m.to.key === 'admin_admin') m.to.key = 'admin';
-  });
-  DB.schemaVersion = 3;
 }
+
+/* ---------- SAVE (debounced full-sync) ---------- */
 function saveDB(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
-  if(idb.db){ idb.set(LS_KEY, DB).catch(()=>{}); }
+  if(_isApplyingRemote) return;
+  if(_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async () => {
+    _syncTimer = null;
+    await pushToSupabase();
+  }, 500);
 }
+
+async function pushToSupabase(){
+  try{
+    // --- Settings ---
+    await sb.from('settings').upsert({
+      id: 1,
+      commission: DB.settings.commission,
+      sub_monthly: DB.settings.subMonthly,
+      sub_yearly: DB.settings.subYearly,
+      sub_discount: DB.settings.subDiscount,
+      admin_username: DB.admin.username,
+      admin_password: DB.admin.password,
+      updated_at: new Date().toISOString()
+    });
+
+    // --- Deletes en attente ---
+    if(_pendingDeletes.doctors.length){
+      await sb.from('doctors').delete().in('id', _pendingDeletes.doctors);
+      _pendingDeletes.doctors = [];
+    }
+    if(_pendingDeletes.services.length){
+      await sb.from('services').delete().in('id', _pendingDeletes.services);
+      _pendingDeletes.services = [];
+    }
+    if(_pendingDeletes.appointments.length){
+      await sb.from('appointments').delete().in('id', _pendingDeletes.appointments);
+      _pendingDeletes.appointments = [];
+    }
+    if(_pendingDeletes.messages.length){
+      await sb.from('messages').delete().in('id', _pendingDeletes.messages);
+      _pendingDeletes.messages = [];
+    }
+
+    // --- Doctors ---
+    if(DB.doctors.length){
+      await sb.from('doctors').upsert(DB.doctors.map(d=>({
+        id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
+        commune:d.commune||'', address:d.address||'', phone:d.phone||'',
+        email:d.email||'', fee:d.fee||0, duration:d.duration||30,
+        password:d.password||DEFAULT_PWD, recette_password:d.recettePassword||DEFAULT_PWD,
+        bio:d.bio||'', work_days:d.workDays||[], work_start:d.workStart||'08:00',
+        work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
+        billing_type:d.billingType||'none',
+        commission_amount:d.commissionAmount,
+        sub_start:d.subStart, sub_trial_end:d.subTrialEnd,
+        session_closed:!!d.sessionClosed, locked:!!d.locked,
+        updated_at: new Date().toISOString()
+      })));
+    }
+
+    // --- Services ---
+    if(DB.services.length){
+      await sb.from('services').upsert(DB.services.map(s=>({
+        id:String(s.id), doctor_id:String(s.doctorId), name:s.name,
+        price:s.price, description:s.description||''
+      })));
+    }
+
+    // --- Appointments ---
+    if(DB.appointments.length){
+      const rows = DB.appointments.map(a=>({
+        id:a.id, doctor_id:String(a.doctorId), patient_name:a.patientName,
+        patient_age:a.patientAge, patient_phone:a.patientPhone,
+        patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
+        patient_password:a.patientPassword||'', date:a.date, time:a.time,
+        motif:a.motif||'', services:a.services||[], services_total:a.servicesTotal||0,
+        documents:a.documents||[], status:a.status, internal:!!a.internal,
+        rating:a.rating||0, notes:a.notes||'', cancel_reason:a.cancelReason||null,
+        reminders:a.reminders||{h2:false},
+        updated_at: new Date().toISOString(),
+        deleted_at:a.status==='deleted'?new Date().toISOString():null
+      }));
+      for(let i=0;i<rows.length;i+=100){
+        await sb.from('appointments').upsert(rows.slice(i,i+100));
+      }
+    }
+
+    // --- Notifications ---
+    const notifs = DB.notifications.slice(0,200);
+    if(notifs.length){
+      await sb.from('notifications').upsert(notifs.map(n=>({
+        id:n.id, role:n.role, title:n.title, message:n.message,
+        to_doctor_id: n.toDoctorId!=null?String(n.toDoctorId):null,
+        appt_id:n.apptId, date:n.date, read:n.read
+      })));
+    }
+
+    // --- Messages ---
+    if(DB.messages.length){
+      await sb.from('messages').upsert(DB.messages.map(m=>({
+        id:m.id,
+        from_key:m.from.key, from_role:m.from.role, from_id:String(m.from.id),
+        from_name:m.from.name, from_avatar:m.from.avatar,
+        to_key:m.to.key, to_role:m.to.role, to_id:String(m.to.id),
+        to_name:m.to.name, to_avatar:m.to.avatar,
+        subject:m.subject, body:m.body, body_html:m.bodyHTML||null,
+        files:m.files||[], date:m.date, read:!!m.read, deleted_by:m.deletedBy||[]
+      })));
+    }
+
+    // --- Listes ---
+    if(DB.specialties.length) await sb.from('specialties').upsert(DB.specialties.map(n=>({name:n})));
+    if(DB.wilayas.length) await sb.from('wilayas').upsert(DB.wilayas.map(n=>({name:n})));
+    const comRows = [];
+    Object.entries(DB.communes).forEach(([w,list])=>list.forEach(c=>comRows.push({wilaya:w,name:c})));
+    if(comRows.length) await sb.from('communes').upsert(comRows);
+
+    // --- Registres ---
+    const invRows = Object.entries(DB.invoiceRegistry||{}).map(([k,v])=>({key:k,num:v}));
+    if(invRows.length) await sb.from('invoice_registry').upsert(invRows);
+    const subInvRows = Object.entries(DB.subInvoiceRegistry||{}).map(([k,v])=>({key:k,num:v}));
+    if(subInvRows.length) await sb.from('sub_invoice_registry').upsert(subInvRows);
+
+    markSyncBadge(true);
+  }catch(e){
+    console.error('Push error:', e);
+    markSyncBadge(false);
+  }
+}
+
+function markSyncBadge(ok){
+  const el = document.getElementById('syncBadge');
+  if(!el) return;
+  el.className = 'sync-badge ' + (ok ? 'online' : 'offline');
+  el.textContent = ok ? '🟢 En ligne' : '🔴 Hors-ligne';
+}
+
+/* ---------- REALTIME ---------- */
+let _realtimeChannel = null;
+let _realtimeDebounce = null;
+
+function subscribeRealtime(){
+  if(_realtimeChannel) return;
+  _realtimeChannel = sb.channel('omnimed-changes')
+    .on('postgres_changes', {event:'*', schema:'public'}, () => {
+      if(_syncTimer) return; // ignore nos propres écritures récentes
+      if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
+      _realtimeDebounce = setTimeout(async () => {
+        _isApplyingRemote = true;
+        try{
+          const activeEl = document.activeElement;
+          const activeId = activeEl?.id;
+          let selStart = null;
+          if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
+            try{ selStart = activeEl.selectionStart; }catch(e){}
+          }
+          await loadDB();
+          if(state.doctor){
+            const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
+            if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
+          }
+          render();
+          setTimeout(()=>{
+            if(activeId){
+              const el = document.getElementById(activeId);
+              if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
+            }
+          }, 50);
+        } finally {
+          _isApplyingRemote = false;
+        }
+      }, 350);
+    })
+    .subscribe((status)=>{
+      state.realtimeConnected = status === 'SUBSCRIBED';
+      const el = document.getElementById('syncBadge');
+      if(el) markSyncBadge(status === 'SUBSCRIBED');
+      console.log('Realtime:', status);
+    });
+}
+
 function saveHidden(){ try { localStorage.setItem(LS_HIDDEN, JSON.stringify(state.hiddenAppts)); } catch(e){} }
 
 function n2(v){
@@ -2587,11 +2744,10 @@ const jsStr = s => String(s ?? '')
   .replace(/>/g, '\\u003e')
   .replace(/&/g, '\\u0026');
 const uid = p => p + Math.random().toString(36).slice(2,7).toUpperCase();
-const docById = id => DB.doctors.find(d=>d.id===id);
+const docById = id => DB.doctors.find(d=>String(d.id)===String(id));
 const serviceById = id => DB.services.find(s=>s.id===id);
 function servicesForDoctor(id){
-  const nid = typeof id === 'string' ? parseInt(id,10) : id;
-  return DB.services.filter(s=>s.doctorId===nid);
+  return DB.services.filter(s=>String(s.doctorId)===String(id));
 }
 const fmtDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.lang==='ar'?'ar-DZ':state.lang==='en'?'en-GB':'fr-FR';
   return d.toLocaleDateString(l,{weekday:'short',day:'numeric',month:'short',year:'numeric'}); };
@@ -2644,7 +2800,6 @@ function openModal(title, sub, bodyHTML, actionsHTML, wide){
 }
 function closeModal(){ $('#modal-root').innerHTML=''; }
 
-/* ===== Popup abonnement expiré ===== */
 function showSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
@@ -2765,7 +2920,7 @@ function slotsFor(doctorId, dateISO){
   const doc = docById(doctorId); if(!doc) return [];
   const disabled = doc.disabledSlots || [];
   const all = generateSlots(doc.workStart, doc.workEnd, doc.duration).filter(s=>!disabled.includes(s));
-  const taken = DB.appointments.filter(a=>a.doctorId===doctorId && a.date===dateISO && a.status!=='cancelled' && a.status!=='deleted').map(a=>a.time);
+  const taken = DB.appointments.filter(a=>String(a.doctorId)===String(doctorId) && a.date===dateISO && a.status!=='cancelled' && a.status!=='deleted').map(a=>a.time);
   const isToday = dateISO === todayISO();
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
@@ -2797,7 +2952,7 @@ function dateHasAvail(doctorId, dateISO, period){
   return slots.some(s=>{ const h=parseInt(s.time.split(':')[0],10); return period==='morning'?h<12:h>=12; });
 }
 function pushNotif(role, title, message, toDoctorId, apptId){
-  DB.notifications.unshift({id:uid('N-'), role, title, message, toDoctorId:toDoctorId||null, apptId:apptId||null, date:nowISO(), read:false});
+  DB.notifications.unshift({id:uid('N-'), role, title, message, toDoctorId:toDoctorId!=null?String(toDoctorId):null, apptId:apptId||null, date:nowISO(), read:false});
   DB.notifications = DB.notifications.slice(0,80); saveDB();
 }
 function clearApptNotifications(apptId){
@@ -2841,7 +2996,7 @@ function getRecipients(){
     list.push({key:'all_doctors', role:'all_doctors', id:'all_doctors', name:t('msg_all_doctors'), avatar:'👥', specialty:t('msg_all_doctors_desc'), isGroup:true});
   }
   DB.doctors.forEach(d=>{
-    if(me.role === 'doctor' && d.id === me.id) return;
+    if(me.role === 'doctor' && String(d.id) === String(me.id)) return;
     list.push({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty), specialty:d.specialty});
   });
   return list;
@@ -2880,7 +3035,7 @@ async function sendMessage(){
 
   let targets = [];
   if(toKey === 'all_doctors' && me.role === 'admin'){
-        targets = DB.doctors.map(d => ({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty)}));
+    targets = DB.doctors.map(d => ({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty)}));
     if(!targets.length){ toast(t('msg_no_recipient'),'error'); return; }
   } else {
     targets = [to];
@@ -3049,6 +3204,7 @@ function deleteSelectedMsgs(){
     count++;
     if(m.deletedBy.includes(m.from.key) && m.deletedBy.includes(m.to.key)){
       (m.files||[]).forEach(f => idbFiles.del(f.key));
+      _pendingDeletes.messages.push(id);
       DB.messages = DB.messages.filter(x=>x.id!==id);
     }
   });
@@ -3070,6 +3226,7 @@ function deleteMessage(id){
   if(!m.deletedBy.includes(me)) m.deletedBy.push(me);
   if(m.deletedBy.includes(m.from.key) && m.deletedBy.includes(m.to.key)){
     (m.files||[]).forEach(f => idbFiles.del(f.key));
+    _pendingDeletes.messages.push(id);
     DB.messages = DB.messages.filter(x=>x.id!==id);
   }
   saveDB();
@@ -3251,10 +3408,10 @@ function renderMessagesView(){
   const tab = state.msgTab || 'inbox';
   const me = currentUserKey();
   const unreadCount = getUnreadMsgCount();
-  const inbox = DB.messages.filter(m => m.to.key === me && !(m.deletedBy||[]).includes(me)).sort((a,b)=>b.date.localeCompare(a.date));
-  const sent = DB.messages.filter(m => m.from.key === me && !(m.deletedBy||[]).includes(me)).sort((a,b)=>b.date.localeCompare(a.date));
+  const inbox = DB.messages.filter(m => m.to.key === me && !(m.deletedBy||[]).includes(me)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const sent = DB.messages.filter(m => m.from.key === me && !(m.deletedBy||[]).includes(me)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const isAdmin = state.role === 'admin';
-  const globalHistory = DB.messages.filter(m => !m.deletedBy || m.deletedBy.length === 0).sort((a,b)=>b.date.localeCompare(a.date));
+  const globalHistory = DB.messages.filter(m => !m.deletedBy || m.deletedBy.length === 0).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   return `
     <div class="card" style="margin-bottom:12px">
       <div class="chips" style="margin:0">
@@ -3516,7 +3673,7 @@ function renderBulkToolbar(ids, opts){
   `;
 }
 
-/* ===== Documents (appointment attachments) ===== */
+/* ===== Documents ===== */
 function arrayBufferToDataURL(buffer, type){
   const blob = new Blob([buffer], {type: type || 'application/octet-stream'});
   return new Promise((resolve, reject) => {
@@ -3561,11 +3718,11 @@ function removeApptDoc(index, target){
 async function saveApptDocuments(documents){
   const saved = [];
   for(const d of (documents || [])){
-    const key = 'file_' + uid('F');
+    const key = 'file_' + uid('F') + '_' + (d.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_');
     try {
       await idbFiles.put(key, {name:d.name, type:d.type, size:d.size, data:d.data});
       saved.push({key, name:d.name, type:d.type, size:d.size});
-    } catch(e){}
+    } catch(e){ console.error(e); }
   }
   return saved;
 }
@@ -3616,7 +3773,7 @@ async function openApptDocuments(apptId){
 function getStatsAppts(){
   let appts = DB.appointments.filter(a=>a.status!=='deleted');
   if(state.role === 'doctor' && state.doctor){
-    appts = appts.filter(a=>a.doctorId === state.doctor.id);
+    appts = appts.filter(a=>String(a.doctorId)===String(state.doctor.id));
   }
   const sp = state.statsPeriod || {type:'all'};
   if(sp.type === 'month' && sp.year && sp.month){
@@ -3703,6 +3860,7 @@ function render(){
         </div>
       </div>
       <div class="top-actions">
+        <span class="sync-badge ${state.realtimeConnected?'online':'offline'}" id="syncBadge">${state.realtimeConnected?'🟢 En ligne':'🔴 Hors-ligne'}</span>
         ${isDoc && state.doctor ? `<span class="tag accent">🧑‍⚕️ ${esc(state.doctor.name)}</span>`:''}
         ${isAdmin && state.admin ? `<span class="tag accent">🔐 ${t('admin_you')}</span>`:''}
         ${isAccount ? `<button class="pill-btn" onclick="logoutAccount()">🚪 ${t('logout')}</button>`:''}
@@ -3807,8 +3965,8 @@ function doAccountLogin(){
     return;
   }
   const doc = DB.doctors.find(d =>
-    (d.email.toLowerCase() === identLower || d.name.toLowerCase() === identLower) &&
-    d.password === pwd
+    (String(d.email).toLowerCase() === identLower || String(d.name).toLowerCase() === identLower) &&
+    String(d.password) === pwd
   );
   if(doc){
     if(doc.locked){
@@ -3947,9 +4105,9 @@ function openRecettePasswordModal(){
 function checkRecettePassword(){
   const v = ($('#recettePwd')?.value||'').trim();
   if(!state.doctor){ closeModal(); return; }
-  const doc = DB.doctors.find(d=>d.id===state.doctor.id);
+  const doc = DB.doctors.find(d=>String(d.id)===String(state.doctor.id));
   if(!doc){ closeModal(); return; }
-  if(v && v === (doc.recettePassword || '')){
+  if(v && v === (doc.recettePassword || DEFAULT_PWD)){
     state.recetteUnlocked = true;
     closeModal();
     state.view = 'drecette';
@@ -3990,7 +4148,7 @@ function openDoctorProfile(id){
       </div>
       ${state.role === 'admin' ? '' : (isClosed
         ? `<div class="indispo-badge">🚫 Médecin Indisponible</div>`
-        : `<button class="pill-btn primary" onclick="startBookingWith(${d.id})" style="flex-shrink:0">📅 ${t('book_with')}</button>`)}
+        : `<button class="pill-btn primary" onclick="startBookingWith('${jsStr(d.id)}')" style="flex-shrink:0">📅 ${t('book_with')}</button>`)}
     </div>
     <div class="grid grid-2" style="gap:10px;margin-bottom:12px">
       <div class="card" style="padding:12px">
@@ -4085,7 +4243,7 @@ function queueInfoFor(a){
   const diffMin = Math.round(diffMs / 60000);
   const nowTime = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   const earlierCount = DB.appointments.filter(x =>
-    x.doctorId === a.doctorId && x.date === a.date && x.id !== a.id &&
+    String(x.doctorId) === String(a.doctorId) && x.date === a.date && x.id !== a.id &&
     (x.status === 'pending' || x.status === 'confirmed') &&
     x.time < a.time &&
     x.time >= nowTime
@@ -4335,7 +4493,7 @@ function viewHome(){
   const results = searching ? filterDoctorsForSearch() : [];
   const allRecent = DB.doctors.filter(d=>!isDoctorHiddenFromPatients(d)).sort((a,b)=>{
     const da = a.createdAt || ''; const db = b.createdAt || '';
-    return db.localeCompare(da);
+    return String(db).localeCompare(String(da));
   });
   const totalPages = Math.max(1, Math.ceil(allRecent.length / RECENT_PER_PAGE));
   const page = Math.min(state.recentPage || 1, totalPages);
@@ -4412,7 +4570,7 @@ function searchResultLabelHTML(d){
   const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   return `
-    <button type="button" class="search-result-label ${closed?'closed':''}" onclick="openDoctorProfile(${d.id})">
+    <button type="button" class="search-result-label ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
       <div class="sr-avatar">${specialtyAvatar(d.specialty)}</div>
       <div class="sr-info">
         <div class="sr-name">${esc(d.name)}</div>
@@ -4428,7 +4586,7 @@ function recentDoctorRowHTML(d){
   const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   return `
-    <button type="button" class="doctor-row ${closed?'closed':''}" onclick="openDoctorProfile(${d.id})">
+    <button type="button" class="doctor-row ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
       <div class="dr-avatar">${specialtyAvatar(d.specialty)}</div>
       <div class="dr-info">
         <div class="dr-name">${esc(d.name)}</div>
@@ -4535,7 +4693,7 @@ function docCardHTML(d, selected){
   const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   return `
-    <div class="doc-card ${selected?'selected':''} ${closed?'closed':''}" onclick="openDoctorProfile(${d.id})">
+    <div class="doc-card ${selected?'selected':''} ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
       <div class="doc-avatar">${specialtyAvatar(d.specialty)}</div>
       <div class="doc-info">
         <div class="doc-name">${esc(d.name)}</div>
@@ -4566,7 +4724,7 @@ function bookStep2(){
   const slots = s.date ? slotsFor(doc.id, s.date) : [];
   return `
     <div class="card" style="margin-bottom:14px">
-      <div class="card-title">${doc.avatar} ${esc(doc.name)}</div>
+      <div class="card-title">${specialtyAvatar(doc.specialty)} ${esc(doc.name)}</div>
       <div class="card-sub">${esc(doc.specialty)} · ${esc(doc.wilaya)}${doc.commune?' · '+esc(doc.commune):''} · ${doc.duration} ${t('min')}</div>
     </div>
     <div class="card" style="margin-bottom:14px">
@@ -4723,7 +4881,7 @@ async function confirmBooking(){
       render();
       return;
     }
-    const clash = DB.appointments.find(x=>x.id!==s.editingId && x.doctorId===doc.id && x.date===s.date && x.time===s.time && x.status!=='cancelled' && x.status!=='deleted');
+    const clash = DB.appointments.find(x=>x.id!==s.editingId && String(x.doctorId)===String(doc.id) && x.date===s.date && x.time===s.time && x.status!=='cancelled' && x.status!=='deleted');
     if(clash){ toast(t('slot_taken'),'error'); return; }
     a.doctorId = doc.id;
     a.date = s.date; a.time = s.time;
@@ -4752,7 +4910,7 @@ async function confirmBooking(){
     return;
   }
 
-  const clash = DB.appointments.find(x=>x.doctorId===doc.id && x.date===s.date && x.time===s.time && x.status!=='cancelled' && x.status!=='deleted');
+  const clash = DB.appointments.find(x=>String(x.doctorId)===String(doc.id) && x.date===s.date && x.time===s.time && x.status!=='cancelled' && x.status!=='deleted');
   if(clash){ toast(t('slot_just_taken'),'error'); s.step=2; render(); return; }
   const appt = {
     id: genApptId(),
@@ -4818,7 +4976,7 @@ function viewMy(){
   const norm = normPhone(phone);
   const allAppts = phone ? DB.appointments.filter(a=>normPhone(a.patientPhone)===norm && a.status!=='deleted') : [];
   const visible = allAppts.filter(a=>!state.hiddenAppts.includes(a.id));
-  const sorted = visible.slice().sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const sorted = visible.slice().sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">📱 ${t('my_rdv_title')}</div>
@@ -5242,7 +5400,7 @@ async function createInternalAppt(){
   const age = parseInt(f.patientAge,10);
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   if(!f.date || !f.time){ toast(t('required_fields'),'error'); return; }
-  const clash = DB.appointments.find(x=>x.doctorId===doc.id && x.date===f.date && x.time===f.time && x.status!=='cancelled' && x.status!=='deleted');
+  const clash = DB.appointments.find(x=>String(x.doctorId)===String(doc.id) && x.date===f.date && x.time===f.time && x.status!=='cancelled' && x.status!=='deleted');
   if(clash){ toast(t('slot_taken'),'error'); return; }
   const selectedServices = (f.services||[]).map(id=>{
     const sv = serviceById(id);
@@ -5270,7 +5428,7 @@ async function createInternalAppt(){
 }
 function viewDoctorStats(){
   const doc = state.doctor;
-  const appts = getStatsAppts().filter(a=>a.doctorId===doc.id);
+  const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
   const s = computeCommonStats(appts);
   const doneCount = s.statusCounts.done;
   const totalServices = s.totalServiceBookings;
@@ -5314,7 +5472,7 @@ function computeDoctorRevenue(){
   const doc = state.doctor;
   if(!doc) return null;
   const q = state.docRev;
-  let list = DB.appointments.filter(a=>a.doctorId===doc.id && a.status==='done');
+  let list = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status==='done');
   let periodLabel = '';
   if(q.periodType === 'day'){
     if(!q.dayDate) return null;
@@ -5331,7 +5489,7 @@ function computeDoctorRevenue(){
     list = list.filter(a=> a.date >= q.startDate && a.date <= q.endDate);
     periodLabel = `${fmtDate(q.startDate)} → ${fmtDate(q.endDate)}`;
   }
-  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
   const totalFees = list.reduce((s,a)=>s + (doc.fee||0), 0);
   const totalServices = list.reduce((s,a)=>s + (a.servicesTotal||0), 0);
   const totalGross = totalFees + totalServices;
@@ -5344,7 +5502,7 @@ function viewDoctorRevenue(){
   const today = todayISO();
   const weekStart = dateOffset(-6);
   const monthStart = dateOffset(-29);
-  const done = DB.appointments.filter(a=>a.doctorId===doc.id && a.status==='done');
+  const done = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status==='done');
   const feeFor = a => (doc.fee||0) + (a.servicesTotal||0);
   const sumRange = arr => arr.reduce((s,a)=>s+feeFor(a),0);
   const todayRev = sumRange(done.filter(a=>a.date===today));
@@ -5608,7 +5766,6 @@ function printDoctorRevenue(){
       </div>
     </div>
   </div>
-
   <div class="section-head">
     <span class="ico-badge">🧑‍⚕️</span>
     Informations du praticien
@@ -5620,7 +5777,6 @@ function printDoctorRevenue(){
       <strong>Période :</strong> ${esc(periodLabel)} &nbsp;·&nbsp; <strong>${t('revenue_rdv_count')} :</strong> ${list.length}
     </div>
   </div>
-
   <div class="section-head">
     <span class="ico-badge">📊</span>
     Synthèse financière
@@ -5632,7 +5788,6 @@ function printDoctorRevenue(){
     <div class="kpi warn"><div class="k-lbl">${t('recette_commission_col')}</div><div class="k-val">-${n2(totalCommission)} DA</div></div>
     <div class="kpi success"><div class="k-lbl">${t('recette_net')}</div><div class="k-val">${n2(net)} DA</div></div>
   </div>
-
   <div class="section-head">
     <span class="ico-badge">📋</span>
     Détail des rendez-vous
@@ -5665,7 +5820,6 @@ function printDoctorRevenue(){
       <td class="r net">${n2(net)}</td>
     </tr></tfoot>
   </table>
-
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
   </div>
@@ -5673,13 +5827,13 @@ function printDoctorRevenue(){
 }
 function viewDoctorDash(){
   const doc = state.doctor;
-  const all = DB.appointments.filter(a=>a.doctorId===doc.id && a.status!=='deleted');
+  const all = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted');
   const today = all.filter(a=>a.date===todayISO() && a.status!=='cancelled');
   const pending = all.filter(a=>a.status==='pending');
   const confirmed = all.filter(a=>a.status==='confirmed');
   const done = all.filter(a=>a.status==='done');
   const pendingNotifs = DB.notifications
-    .filter(n=>n.role==='doctor' && n.toDoctorId===doc.id && n.apptId)
+    .filter(n=>n.role==='doctor' && String(n.toDoctorId)===String(doc.id) && n.apptId)
     .map(n => ({notif:n, appt: DB.appointments.find(x=>x.id===n.apptId)}))
     .filter(x=>x.appt && x.appt.status==='pending')
     .slice(0, 10);
@@ -5726,7 +5880,7 @@ function viewDoctorAppts(){
   const doc = state.doctor;
   const f = state.filter;
   if(!f.date) f.date = todayISO();
-  let list = DB.appointments.filter(a=>a.doctorId===doc.id && a.status!=='deleted');
+  let list = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted');
   if(f.status!=='all') list = list.filter(a=>a.status===f.status);
   if(f.date) list = list.filter(a=>a.date===f.date);
   if(f.search){
@@ -5741,7 +5895,7 @@ function viewDoctorAppts(){
       return false;
     });
   }
-  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
   const totalPages = Math.max(1, Math.ceil(list.length / APPTS_PER_PAGE));
   const page = Math.min(state.apptsPage || 1, totalPages);
   const slice = list.slice((page-1)*APPTS_PER_PAGE, page*APPTS_PER_PAGE);
@@ -5926,12 +6080,12 @@ function deleteAppt(id){
   toast(t('appt_deleted'),'info');
 }
 function openServicesManager(doctorId){
-  const idNum = typeof doctorId === 'string' ? parseInt(doctorId,10) : doctorId;
-  const list = servicesForDoctor(idNum);
-  const doc = docById(idNum);
+  const list = servicesForDoctor(doctorId);
+  const doc = docById(doctorId);
+  const idStr = jsStr(String(doctorId));
   const body = `
     <div style="margin-bottom:12px">
-      <button class="pill-btn primary" onclick="openServiceForm('${idNum}', null)">+ ${t('add_service')}</button>
+      <button class="pill-btn primary" onclick="openServiceForm('${idStr}', null)">+ ${t('add_service')}</button>
     </div>
     ${list.length ? list.map(sv=>`
       <div class="list-item">
@@ -5940,8 +6094,8 @@ function openServicesManager(doctorId){
           ${sv.description?`<div style="font-size:11px;color:var(--text-muted)">${esc(sv.description)}</div>`:''}
         </div>
         <span class="tag accent" style="font-family:var(--font-numbers)">${n2(sv.price)} DA</span>
-        <button class="mini-btn ghost" onclick="openServiceForm('${idNum}','${sv.id}')">✏️</button>
-        <button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${idNum}')">🗑️</button>
+        <button class="mini-btn ghost" onclick="openServiceForm('${idStr}','${sv.id}')">✏️</button>
+        <button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${idStr}')">🗑️</button>
       </div>
     `).join('') : `<div class="empty" style="padding:20px">${t('no_services')}</div>`}
   `;
@@ -5952,36 +6106,38 @@ function openServiceForm(doctorId, serviceId){
   const isEdit = !!serviceId;
   const sv = isEdit ? serviceById(serviceId) : {name:'', price:1000, description:''};
   if(!sv) return;
+  const idStr = jsStr(String(doctorId));
   openModal(isEdit?t('edit_service'):t('add_service'), '', `
     <div class="field"><label>${t('service_name')} *</label><input class="input" id="svName" value="${esc(sv.name)}"></div>
     <div class="field"><label>${t('service_price')} *</label><input class="input" id="svPrice" type="number" inputmode="numeric" min="0" step="50" value="${sv.price}"></div>
     <div class="field"><label>${t('service_desc')}</label><textarea class="textarea" id="svDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
-  `, `<button class="pill-btn" onclick="openServicesManager('${doctorId}')">← ${t('back')}</button>
-     <button class="pill-btn primary" onclick="saveService('${doctorId}','${serviceId||''}')">💾 ${t('save')}</button>`);
+  `, `<button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
+     <button class="pill-btn primary" onclick="saveService('${idStr}','${jsStr(serviceId||'')}')">💾 ${t('save')}</button>`);
 }
 function saveService(doctorId, serviceId){
   const name = ($('#svName')?.value||'').trim();
   const price = parseInt($('#svPrice')?.value,10) || 0;
   const desc = ($('#svDesc')?.value||'').trim();
   if(!name){ toast(t('required_fields'),'error'); return; }
-  const idNum = typeof doctorId === 'string' ? parseInt(doctorId,10) : doctorId;
   if(serviceId){
     const sv = serviceById(serviceId); if(!sv) return;
     sv.name = name; sv.price = price; sv.description = desc;
   } else {
-    DB.services.push({id:uid('S-'), doctorId: idNum, name, price, description: desc});
+    DB.services.push({id:uid('S-'), doctorId: doctorId, name, price, description: desc});
   }
   saveDB();
-  openServicesManager(idNum);
+  openServicesManager(doctorId);
   toast(t('saved_ok'),'success');
 }
 function confirmDeleteService(serviceId, doctorId){
   const sv = serviceById(serviceId); if(!sv) return;
+  const idStr = jsStr(String(doctorId));
   openModal('🗑️ '+t('delete_service'), sv.name, '', `
-    <button class="pill-btn" onclick="openServicesManager('${doctorId}')">← ${t('back')}</button>
-    <button class="pill-btn danger" onclick="deleteService('${serviceId}','${doctorId}')">🗑️ ${t('delete')}</button>`);
+    <button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
+    <button class="pill-btn danger" onclick="deleteService('${serviceId}','${idStr}')">🗑️ ${t('delete')}</button>`);
 }
 function deleteService(serviceId, doctorId){
+  _pendingDeletes.services.push(serviceId);
   DB.services = DB.services.filter(s=>s.id!==serviceId);
   saveDB();
   openServicesManager(doctorId);
@@ -5989,7 +6145,7 @@ function deleteService(serviceId, doctorId){
 }
 function openPrintRDVModal(){
   const doc = state.doctor;
-  const all = DB.appointments.filter(a=>a.doctorId===doc.id && a.status!=='deleted');
+  const all = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted');
   const days = [...new Set(all.map(a=>a.date))].sort();
   if(!days.length){ toast('Aucun rendez-vous à imprimer','error'); return; }
   const defaultDay = days.includes(todayISO()) ? todayISO() : days[0];
@@ -6012,7 +6168,7 @@ function refreshPrintRDVTable(){
   const sel = document.getElementById('printRDVDay'); if(!sel) return;
   const day = sel.value;
   const list = DB.appointments
-    .filter(a=>a.doctorId===doc.id && a.date===day && a.status!=='deleted')
+    .filter(a=>String(a.doctorId)===String(doc.id) && a.date===day && a.status!=='deleted')
     .sort((a,b)=>a.time.localeCompare(b.time));
   const container = document.getElementById('printRDVTableContainer'); if(!container) return;
   if(!list.length){
@@ -6055,7 +6211,7 @@ function printRDVTable(){
   const sel = document.getElementById('printRDVDay'); if(!sel) return;
   const day = sel.value;
   const list = DB.appointments
-    .filter(a=>a.doctorId===doc.id && a.date===day && a.status!=='deleted')
+    .filter(a=>String(a.doctorId)===String(doc.id) && a.date===day && a.status!=='deleted')
     .sort((a,b)=>a.time.localeCompare(b.time));
   if(!list.length){ toast(t('no_rdv_for_day'),'error'); return; }
   const now = new Date().toLocaleString('fr-FR');
@@ -6120,7 +6276,6 @@ function printRDVTable(){
       </div>
     </div>
   </div>
-
   <div class="section-head">
     <span class="ico-badge">🧑‍⚕️</span>
     Informations du praticien
@@ -6132,7 +6287,6 @@ function printRDVTable(){
       <strong>Journée :</strong> ${fmtLongDate(day)} &nbsp;·&nbsp; <strong>Nombre de RDV :</strong> ${list.length}
     </div>
   </div>
-
   <div class="section-head">
     <span class="ico-badge">📅</span>
     Liste des rendez-vous
@@ -6149,7 +6303,6 @@ function printRDVTable(){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
-
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
   </div>
@@ -6251,11 +6404,11 @@ function viewDoctorProfile(){
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-self:flex-start">
-          <button class="pill-btn primary" onclick="openDoctorForm(${d.id}, true)">✏️ ${t('edit_my_profile')}</button>
-          <button class="pill-btn primary" onclick="openServicesManager(${d.id})">💉 ${t('manage_services')}</button>
+          <button class="pill-btn primary" onclick="openDoctorForm('${jsStr(d.id)}', true)">✏️ ${t('edit_my_profile')}</button>
+          <button class="pill-btn primary" onclick="openServicesManager('${jsStr(d.id)}')">💉 ${t('manage_services')}</button>
           ${d.sessionClosed
-            ? `<button class="pill-btn success" onclick="toggleDoctorSession(${d.id})">🟢 Ouverture session</button>`
-            : `<button class="pill-btn danger" onclick="toggleDoctorSession(${d.id})">🔴 Fermeture session</button>`}
+            ? `<button class="pill-btn success" onclick="toggleDoctorSession('${jsStr(d.id)}')">🟢 Ouverture session</button>`
+            : `<button class="pill-btn danger" onclick="toggleDoctorSession('${jsStr(d.id)}')">🔴 Fermeture session</button>`}
         </div>
       </div>
     </div>
@@ -6289,7 +6442,7 @@ function viewDoctorProfile(){
 function changePwd(){
   const v = $('#newPwd')?.value;
   if(!v || v.length<4){ toast('4 caractères minimum','error'); return; }
-  const doc = DB.doctors.find(x=>x.id===state.doctor.id);
+  const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
   if(doc) doc.password = v;
   state.doctor.password = v; saveDB(); toast(t('password_updated'),'success');
 }
@@ -6298,7 +6451,7 @@ function openDoctorForm(id, isSelf){
   isSelf = !!isSelf; const isEdit = !!id;
   const d = isEdit ? docById(id) : {
     name:'', specialty: '', wilaya: '', commune:'', address:'',
-    fee:2000, duration:30, phone:'', email:'', password:'1234', recettePassword:'1234', bio:'',
+    fee:2000, duration:30, phone:'', email:'', password:DEFAULT_PWD, recettePassword:DEFAULT_PWD, bio:'',
     workDays:[], workStart:'08:00', workEnd:'17:00', disabledSlots:[],
     billingType:'none', commissionAmount: null, subStart: null, subTrialEnd: null
   };
@@ -6307,9 +6460,9 @@ function openDoctorForm(id, isSelf){
   if(!d.workStart) d.workStart = '08:00';
   if(!d.workEnd) d.workEnd = '17:00';
   if(!d.disabledSlots) d.disabledSlots = [];
-  if(d.recettePassword === undefined) d.recettePassword = '1234';
+  if(d.recettePassword === undefined) d.recettePassword = DEFAULT_PWD;
   if(d.billingType === undefined) d.billingType = 'none';
-   window._workDays = [...d.workDays];
+  window._workDays = [...d.workDays];
   window._disabledSlots = [...d.disabledSlots];
   window._billingType = d.billingType;
   window._commissionAmount = d.commissionAmount;
@@ -6375,6 +6528,7 @@ function openDoctorForm(id, isSelf){
       </div>
     </div>
   `;
+  const idStr = isEdit ? jsStr(String(id)) : 'null';
   const body = `
     <div class="section-title">👤 ${t('profile')}</div>
     <div class="field-row">
@@ -6406,7 +6560,7 @@ function openDoctorForm(id, isSelf){
     <div class="field"><label>${t('address')}</label><input class="input" id="fAddr" value="${esc(d.address)}"></div>
     <div class="field-row">
       <div class="field"><label>${t('phone')}</label><input class="input" id="fPhone" type="tel" value="${esc(d.phone)}" placeholder="+2136…"></div>
-      <div class="field"><label>${t('email')}</label><input class="input" id="fEmail" type="email" value="${esc(d.email)}"></div>
+      <div class="field"><label>${t('email')} *</label><input class="input" id="fEmail" type="email" value="${esc(d.email)}" ${isEdit&&isSelf?'':''} placeholder="medecin@exemple.com"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>${t('fee')} (DA)</label><input class="input" id="fFee" type="number" inputmode="numeric" value="${d.fee}" ${isSelf?'disabled style="opacity:.6"':''}></div>
@@ -6415,7 +6569,7 @@ function openDoctorForm(id, isSelf){
       </div>
     </div>
     <div class="sep"></div>
-        ${billingSectionHTML}
+    ${billingSectionHTML}
     <div class="sep"></div>
     <div class="section-title">🗓️ ${t('my_schedule')}</div>
     <div class="field">
@@ -6441,22 +6595,13 @@ function openDoctorForm(id, isSelf){
     </div>
     <div class="sep"></div>
     <div class="section-title">🔑 ${t('account_info')}</div>
-    <div class="field">
-      <label>${t('new_password')} *</label>
-      <input class="input" id="fPwd" value="${esc(d.password)}">
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t('password_hint')}</div>
-    </div>
-    ${isSelf ? '' : `
-      <div class="field">
-        <label>🔒 ${t('recette_password')} *</label>
-        <input class="input" id="fRecettePwd" value="${esc(d.recettePassword)}">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${t('recette_password_hint')}</div>
-      </div>`}
+    <input type="hidden" id="fPwd" value="${esc(d.password)}">
+    <input type="hidden" id="fRecettePwd" value="${esc(d.recettePassword)}">
     <div class="field"><label>${t('bio')}</label><textarea class="textarea" id="fBio">${esc(d.bio)}</textarea></div>
   `;
   openModal(isEdit ? (isSelf ? t('edit_my_profile') : t('edit_doctor')) : t('add_doctor'), d.name||'', body, `
     <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
-    <button class="pill-btn primary" onclick="saveDoctor(${id||'null'}, ${isSelf})">💾 ${isSelf ? t('save') : t('save_doctor')}</button>
+    <button class="pill-btn primary" onclick="saveDoctor(${idStr}, ${isSelf})">💾 ${isSelf ? t('save') : t('save_doctor')}</button>
   `);
   setTimeout(()=>{ updateSlotPreview(); refreshSubEndField(); }, 20);
 }
@@ -6557,17 +6702,17 @@ function saveDoctor(id, isSelf){
   const feeInput = $('#fFee');
   const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
-  const pwd = ($('#fPwd')?.value||'').trim();
+  const pwd = ($('#fPwd')?.value||'').trim() || DEFAULT_PWD;
   const recettePwdInput = $('#fRecettePwd');
-  const recettePwd = recettePwdInput ? recettePwdInput.value.trim() : null;
+  const recettePwd = recettePwdInput ? (recettePwdInput.value.trim() || DEFAULT_PWD) : DEFAULT_PWD;
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
   const workEnd = $('#fEnd')?.value || '17:00';
   const workDays = [...(window._workDays || [])].sort((a,b)=>a-b);
   const disabledSlots = [...(window._disabledSlots || [])];
 
-  if(!name || !specialty || !wilaya || !pwd){ toast(t('required_fields'),'error'); return; }
-  if(!isSelf && !recettePwd){ toast(t('required_fields'),'error'); return; }
+  if(!name || !specialty || !wilaya){ toast(t('required_fields'),'error'); return; }
+  if(!isSelf && !email){ toast('Email obligatoire (sert d\'identifiant)','error'); return; }
   if(toMin(workStart) >= toMin(workEnd)){ toast('Heure de fin doit être après le début','error'); return; }
   if(!workDays.length){ toast('Sélectionnez au moins un jour de travail','error'); return; }
   if(!DB.specialties.includes(specialty)) DB.specialties.push(specialty);
@@ -6579,9 +6724,9 @@ function saveDoctor(id, isSelf){
 
   if(isSelf){
     if(id){
-      const d = DB.doctors.find(x=>x.id===id); if(!d) return;
+      const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
       Object.assign(d, commonFields);
-      if(state.doctor && state.doctor.id===id){
+      if(state.doctor && String(state.doctor.id)===String(id)){
         state.doctor = d;
       }
     }
@@ -6626,11 +6771,26 @@ function saveDoctor(id, isSelf){
   }
 
   if(id){
-    const d = DB.doctors.find(x=>x.id===id); if(!d) return;
-    Object.assign(d, commonFields, {fee, duration}, billingFields);
-    if(recettePwd) d.recettePassword = recettePwd;
+    const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
+    const oldId = d.id;
+    const newId = email;
+    if(oldId !== newId && DB.doctors.some(x=>String(x.id)===newId && String(x.id)!==String(oldId))){
+      toast('Un médecin avec cet email existe déjà','error'); return;
+    }
+    Object.assign(d, commonFields, {fee, duration, recettePassword: recettePwd, id: newId}, billingFields);
     delete d.subEnd;
-    if(state.doctor && state.doctor.id===id){
+    // Mise à jour des références si l'id change
+    if(oldId !== newId){
+      DB.services.forEach(s=>{ if(String(s.doctorId)===String(oldId)) s.doctorId = newId; });
+      DB.appointments.forEach(a=>{ if(String(a.doctorId)===String(oldId)) a.doctorId = newId; });
+      DB.notifications.forEach(n=>{ if(n.toDoctorId!=null && String(n.toDoctorId)===String(oldId)) n.toDoctorId = newId; });
+      DB.messages.forEach(m=>{
+        if(m.from && String(m.from.id)===String(oldId)) m.from = {...m.from, id:newId, key:`doctor_${newId}`};
+        if(m.to && String(m.to.id)===String(oldId)) m.to = {...m.to, id:newId, key:`doctor_${newId}`};
+      });
+      _pendingDeletes.doctors.push(oldId);
+    }
+    if(state.doctor && String(state.doctor.id)===String(id)){
       state.doctor = d;
       if(isSubscriptionType(d) && !isSubscriptionActive(d)){
         hideSubscriptionExpiredModal();
@@ -6642,15 +6802,19 @@ function saveDoctor(id, isSelf){
       }
     }
   } else {
-    const newId = Math.max(0, ...DB.doctors.map(x=>x.id)) + 1;
-    DB.doctors.push({id:newId, name, specialty, wilaya, commune, address, phone, email, fee, duration, password:pwd, recettePassword: recettePwd || '1234', bio, workDays, workStart, workEnd, disabledSlots, createdAt: todayISO(), ...billingFields});
+    if(DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
+    DB.doctors.push({
+      id: email, name, specialty, wilaya, commune, address, phone, email, fee, duration,
+      password: DEFAULT_PWD, recettePassword: DEFAULT_PWD, bio, workDays, workStart, workEnd,
+      disabledSlots, createdAt: todayISO(), sessionClosed:false, locked:false, ...billingFields
+    });
   }
   saveDB(); closeModal(); render();
   toast(t('doctor_saved'),'success');
 }
 function confirmDeleteDoctor(id){
   const d = docById(id); if(!d) return;
-  const apptsN = DB.appointments.filter(a=>a.doctorId===id).length;
+  const apptsN = DB.appointments.filter(a=>String(a.doctorId)===String(id)).length;
   const servN = servicesForDoctor(id).length;
   openModal('🗑️ '+t('delete_doctor'), `${specialtyAvatar(d.specialty)} ${d.name}`,
     `<div style="font-size:13px;line-height:1.7">${t('delete_confirm')}</div>
@@ -6659,13 +6823,13 @@ function confirmDeleteDoctor(id){
        <span class="tag accent">💉 ${servN} prestations</span>
      </div>`,
     `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
-     <button class="pill-btn danger" onclick="deleteDoctor(${id})">🗑️ ${t('delete_doctor')}</button>`);
+     <button class="pill-btn danger" onclick="deleteDoctor('${jsStr(String(id))}')">🗑️ ${t('delete_doctor')}</button>`);
 }
 function toggleDoctorSession(id){
-  const d = DB.doctors.find(x=>x.id===id);
+  const d = DB.doctors.find(x=>String(x.id)===String(id));
   if(!d) return;
   d.sessionClosed = !d.sessionClosed;
-  if(state.doctor && state.doctor.id===id) state.doctor.sessionClosed = d.sessionClosed;
+  if(state.doctor && String(state.doctor.id)===String(id)) state.doctor.sessionClosed = d.sessionClosed;
   saveDB();
   render();
   toast(
@@ -6674,7 +6838,7 @@ function toggleDoctorSession(id){
   );
 }
 function toggleDoctorLock(id){
-  const d = DB.doctors.find(x=>x.id===id);
+  const d = DB.doctors.find(x=>String(x.id)===String(id));
   if(!d) return;
   d.locked = !d.locked;
   saveDB();
@@ -6682,11 +6846,13 @@ function toggleDoctorLock(id){
   toast(d.locked ? '🔒 Session verrouillée' : '🔓 Session ouverte', d.locked ? 'info' : 'success');
 }
 function deleteDoctor(id){
-  DB.doctors = DB.doctors.filter(d=>d.id!==id);
-  DB.appointments = DB.appointments.filter(a=>a.doctorId!==id);
-  DB.notifications = DB.notifications.filter(n=>n.toDoctorId!==id);
-  DB.services = DB.services.filter(s=>s.doctorId!==id);
-  if(state.doctor && state.doctor.id===id) state.doctor = null;
+  const d = docById(id); if(!d) return;
+  _pendingDeletes.doctors.push(id);
+  DB.doctors = DB.doctors.filter(x=>String(x.id)!==String(id));
+  DB.appointments = DB.appointments.filter(a=>String(a.doctorId)!==String(id));
+  DB.notifications = DB.notifications.filter(n=>String(n.toDoctorId)!==String(id));
+  DB.services = DB.services.filter(s=>String(s.doctorId)!==String(id));
+  if(state.doctor && String(state.doctor.id)===String(id)) state.doctor = null;
   saveDB(); closeModal(); render(); toast(t('doctor_deleted'),'success');
 }
 function openNotifDetail(notifId){
@@ -6751,7 +6917,7 @@ function viewAdminStats(){
   const billableList = appts.filter(a=>a.status==='done');
   const billable = billableList.length;
   const totalRev = billableList.reduce((sum,a)=>sum+apptCommission(a),0);
-  const docCount = DB.doctors.map(d=>({d, n: appts.filter(a=>a.doctorId===d.id).length}))
+  const docCount = DB.doctors.map(d=>({d, n: appts.filter(a=>String(a.doctorId)===String(d.id)).length}))
     .filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,8)
     .map(x=>[x.d.name, x.n]);
   const wilayaCount = {};
@@ -6801,7 +6967,7 @@ function printAdminStats(){
   const s = computeCommonStats(appts);
   const billableList = appts.filter(a=>a.status==='done');
   const totalRev = billableList.reduce((sum,a)=>sum+apptCommission(a),0);
-  const docCount = DB.doctors.map(d=>({d, n: appts.filter(a=>a.doctorId===d.id).length}))
+  const docCount = DB.doctors.map(d=>({d, n: appts.filter(a=>String(a.doctorId)===String(d.id)).length}))
     .filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,10)
     .map(x=>[x.d.name, x.n]);
   const wilayaCount = {};
@@ -6872,67 +7038,58 @@ function printAdminStats(){
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid;box-shadow:0 12px 32px rgba(99,102,241,.28)}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
-  .cover::after{content:'';position:absolute;bottom:-100px;left:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
-  .cover .logo-box{display:flex;gap:16px;align-items:center;min-width:0}
-  .cover .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+  .cover .logo-box{display:flex;gap:16px;align-items:center}
+  .cover .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
   .cover h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin-bottom:4px;font-family:'Playfair Display',Georgia,serif;line-height:1.05}
-  .cover .sub{font-size:12.5px;opacity:.94;font-weight:500;letter-spacing:.3px}
-  .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9;letter-spacing:.5px}
+  .cover .sub{font-size:12.5px;opacity:.94;font-weight:500}
+  .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9}
   .cover .date-box{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;flex-shrink:0;border:1px solid rgba(255,255,255,.25);min-width:170px}
   .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:9px}
   .cover .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize;line-height:1.25}
   .cover .date-box .time{opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif}
   .cover-bottom{position:relative;z-index:1;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22);display:flex;gap:22px;flex-wrap:wrap;font-size:11px}
   .cover-bottom .cb-item{display:flex;align-items:center;gap:8px;opacity:.95}
-  .cover-bottom .cb-ico{font-size:15px}
-  .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px;letter-spacing:-.2px}
-  .section-head{display:flex;align-items:center;gap:11px;font-size:12.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;padding:10px 0 10px 0;border-bottom:2px solid #ede9fe;margin:26px 0 16px}
-  .section-head .ico-badge{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:15px;flex-shrink:0;box-shadow:0 4px 10px rgba(139,92,246,.3)}
-  .section-head .ico-badge.plain{background:#ede9fe;box-shadow:none}
-  .section-head .count{margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 12px;border-radius:9999px;font-size:10px;font-weight:700;font-family:'Rubik',sans-serif;letter-spacing:0}
-  .section-head:first-of-type{margin-top:0}
-  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:8px;page-break-inside:avoid}
-  .kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:14px;padding:14px 14px 15px;overflow:hidden;page-break-inside:avoid}
+  .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px}
+  .section-head{display:flex;align-items:center;gap:11px;font-size:12.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;padding:10px 0;border-bottom:2px solid #ede9fe;margin:26px 0 16px}
+  .section-head .ico-badge{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:15px;flex-shrink:0}
+  .section-head .ico-badge.plain{background:#ede9fe}
+  .section-head .count{margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 12px;border-radius:9999px;font-size:10px;font-weight:700;font-family:'Rubik',sans-serif}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:8px}
+  .kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:14px;padding:14px}
   .kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#8b5cf6,#ec4899)}
   .kpi.success::after{background:linear-gradient(90deg,#10b981,#34d399)}
   .kpi.money::after{background:linear-gradient(90deg,#059669,#10b981)}
   .kpi.warn::after{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
   .kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
-  .kpi .k-ico{font-size:20px;margin-bottom:6px;line-height:1}
-  .kpi .k-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700;margin-bottom:5px;line-height:1.3}
+  .kpi .k-ico{font-size:20px;margin-bottom:6px}
+  .kpi .k-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700;margin-bottom:5px}
   .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px;line-height:1.1}
-  .kpi.success .k-val{color:#059669}
-  .kpi.money .k-val{color:#059669}
+  .kpi.success .k-val,.kpi.money .k-val{color:#059669}
   .kpi.warn .k-val{color:#d97706}
   .kpi.info .k-val{color:#2563eb}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
-  .grid-2 > .block{margin-bottom:0}
-  .block{margin-bottom:18px;page-break-inside:avoid}
+  .block{margin-bottom:18px}
   .block-title{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#4b5563;margin-bottom:10px}
-  .block-title .bt-ico{font-size:14px}
   .chart{background:linear-gradient(180deg,#fafbff 0%,#f5f3ff 100%);border:1px solid #ede9fe;border-radius:14px;padding:15px 16px}
   .chart-row{display:grid;grid-template-columns:135px 1fr 46px;gap:11px;align-items:center;font-size:10.5px;margin-bottom:8px}
-  .chart-row:last-child{margin-bottom:0}
   .chart-lbl{font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .chart-bar-wrap{height:14px;background:#e5e7eb;border-radius:9999px;overflow:hidden;position:relative}
-  .chart-bar{height:100%;border-radius:9999px;min-width:3px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.08)}
-  .chart-val{font-family:'Rubik',sans-serif;font-weight:700;color:#7c3aed;text-align:right;font-size:12px;letter-spacing:-.2px}
+  .chart-bar-wrap{height:14px;background:#e5e7eb;border-radius:9999px;overflow:hidden}
+  .chart-bar{height:100%;border-radius:9999px;min-width:3px}
+  .chart-val{font-family:'Rubik',sans-serif;font-weight:700;color:#7c3aed;text-align:right;font-size:12px}
   .nodata{color:#9ca3af;font-size:10.5px;font-style:italic;padding:20px 0;text-align:center}
   table.rank-tbl{width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden}
   table.rank-tbl thead th{background:linear-gradient(180deg,#f5f3ff 0%,#ede9fe 100%);color:#4c1d95;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:10px 11px;text-align:left;border-bottom:1.5px solid #ddd6fe}
-  table.rank-tbl tbody td{padding:9px 11px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
-  table.rank-tbl tbody tr:last-child td{border-bottom:none}
+  table.rank-tbl tbody td{padding:9px 11px;border-bottom:1px solid #f3f4f6}
   table.rank-tbl tbody tr:nth-child(even){background:#fafbff}
   table.rank-tbl td.rank{width:34px;text-align:center}
   table.rank-tbl td.label{font-weight:600;color:#1f2937}
-  table.rank-tbl td.num{text-align:right;font-family:'Rubik',sans-serif;font-weight:700;color:#7c3aed;width:55px;font-size:12px;letter-spacing:-.2px}
+  table.rank-tbl td.num{text-align:right;font-family:'Rubik',sans-serif;font-weight:700;color:#7c3aed;width:55px;font-size:12px}
   table.rank-tbl td.pct{width:130px;text-align:right}
-  table.rank-tbl td.nodata-td{text-align:center;color:#9ca3af;font-style:italic;padding:18px}
   .rank-badge{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#ede9fe;color:#7c3aed;font-family:'Rubik',sans-serif;font-weight:800;font-size:10.5px}
-  .rank-badge.gold{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;box-shadow:0 3px 8px rgba(245,158,11,.4)}
-  .rank-badge.silver{background:linear-gradient(135deg,#cbd5e1,#94a3b8);color:#fff;box-shadow:0 3px 8px rgba(148,163,184,.4)}
-  .rank-badge.bronze{background:linear-gradient(135deg,#fcd34d,#d97706);color:#fff;box-shadow:0 3px 8px rgba(217,119,6,.35)}
+  .rank-badge.gold{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff}
+  .rank-badge.silver{background:linear-gradient(135deg,#cbd5e1,#94a3b8);color:#fff}
+  .rank-badge.bronze{background:linear-gradient(135deg,#fcd34d,#d97706);color:#fff}
   .pct-bar{display:inline-block;width:78px;height:6px;background:#e5e7eb;border-radius:9999px;overflow:hidden;vertical-align:middle;margin-right:6px}
   .pct-fill{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#ec4899);border-radius:9999px;min-width:3px}
   .pct-val{font-family:'Rubik',sans-serif;font-weight:600;color:#7c3aed;font-size:10px;vertical-align:middle}
@@ -6940,17 +7097,13 @@ function printAdminStats(){
   .footer .sign-box{text-align:center;min-width:180px}
   .footer .sign-lbl{font-size:10px;color:#7c3aed;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
   .footer .sign-line{height:50px;border-bottom:1.5px solid #9ca3af}
-  .footer .stamp{display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;padding:6px 11px;border-radius:8px;font-family:'Rubik',sans-serif;font-size:9px;color:#4b5563;font-weight:600;letter-spacing:.3px}
+  .footer .stamp{display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;padding:6px 11px;border-radius:8px;font-family:'Rubik',sans-serif;font-size:9px;color:#4b5563;font-weight:600}
   .totals-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;background:linear-gradient(135deg,#f5f3ff 0%,#fdf2f8 100%);border:1px solid #e9d5ff;border-radius:14px;padding:14px 18px}
   .totals-strip .ts-item{text-align:center}
   .totals-strip .ts-item + .ts-item{border-left:1px dashed #d8b4fe;padding-left:10px}
   .totals-strip .ts-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#7c3aed;font-weight:700;margin-bottom:4px}
-  .totals-strip .ts-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:17px;color:#4c1d95;letter-spacing:-.4px}
+  .totals-strip .ts-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:17px;color:#4c1d95}
   .totals-strip .ts-val.money{color:#059669}
-  @media print{
-    @page{ size:A4 portrait; margin:10mm }
-    .section-head, .kpi-grid, .cover, .block, .kpi, .totals-strip{page-break-inside:avoid}
-  }
 </style></head>
 <body>
   <div class="cover">
@@ -6970,17 +7123,13 @@ function printAdminStats(){
       </div>
     </div>
     <div class="cover-bottom">
-      <div class="cb-item"><span class="cb-ico">📅</span><span>Période analysée : <strong>${esc(periodLabel)}</strong></span></div>
-      <div class="cb-item"><span class="cb-ico">📊</span><span>Volume total : <strong>${s.list.length} RDV</strong></span></div>
-      <div class="cb-item"><span class="cb-ico">🧑‍⚕️</span><span>Médecins actifs : <strong>${DB.doctors.length}</strong></span></div>
-      <div class="cb-item"><span class="cb-ico">🗺️</span><span>Wilayas couvertes : <strong>${new Set(DB.doctors.map(d=>d.wilaya)).size}</strong></span></div>
+      <div class="cb-item">📅 Période : <strong>${esc(periodLabel)}</strong></div>
+      <div class="cb-item">📊 Volume total : <strong>${s.list.length} RDV</strong></div>
+      <div class="cb-item">🧑‍⚕️ Médecins : <strong>${DB.doctors.length}</strong></div>
+      <div class="cb-item">🗺️ Wilayas : <strong>${new Set(DB.doctors.map(d=>d.wilaya)).size}</strong></div>
     </div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge">📊</span>
-    Vue d'ensemble
-    <span class="count">${s.list.length} RDV</span>
-  </div>
+  <div class="section-head"><span class="ico-badge">📊</span> Vue d'ensemble <span class="count">${s.list.length} RDV</span></div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-ico">🧑‍⚕️</div><div class="k-lbl">${t('total_doctors')}</div><div class="k-val">${DB.doctors.length}</div></div>
     <div class="kpi"><div class="k-ico">👥</div><div class="k-lbl">${t('stats_unique_patients')}</div><div class="k-val">${s.uniquePatients}</div></div>
@@ -6991,13 +7140,10 @@ function printAdminStats(){
     <div class="kpi warn"><div class="k-ico">🎂</div><div class="k-lbl">${t('stats_avg_age')}</div><div class="k-val">${s.avgAge||'—'} <span style="font-size:11px">${t('billing_years_old')}</span></div></div>
     <div class="kpi money"><div class="k-ico">💰</div><div class="k-lbl">${t('stats_total_revenue')}</div><div class="k-val">${fmtDA(totalRev)}</div></div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge plain">👥</span>
-    Patients & Statuts
-  </div>
+  <div class="section-head"><span class="ico-badge plain">👥</span> Patients & Statuts</div>
   <div class="grid-2">
     <div class="block">
-      <div class="block-title"><span class="bt-ico">👥</span>${t('stats_patient_ages')}</div>
+      <div class="block-title">👥 ${t('stats_patient_ages')}</div>
       <div class="chart">
         ${ageEntries.map(([lbl, val, ico])=>{
           const pct = Math.max((val / maxAge) * 100, 2);
@@ -7010,7 +7156,7 @@ function printAdminStats(){
       </div>
     </div>
     <div class="block">
-      <div class="block-title"><span class="bt-ico">📊</span>${t('stats_status_dist')}</div>
+      <div class="block-title">📊 ${t('stats_status_dist')}</div>
       <div class="chart">
         ${statusEntries.map(([lbl, val, color])=>{
           const pct = Math.max((val / maxStatus) * 100, 2);
@@ -7024,31 +7170,19 @@ function printAdminStats(){
     </div>
   </div>
   ${s.topServices.length ? `
-  <div class="section-head">
-    <span class="ico-badge plain">💉</span>
-    ${t('stats_top_services')}
-    <span class="count">${s.topServices.length}</span>
-  </div>
-  <div class="block">
-    <div class="chart">
-      ${barChart(s.topServices, 'linear-gradient(90deg,#10b981,#34d399)')}
-    </div>
-  </div>` : ''}
-  <div class="section-head">
-    <span class="ico-badge plain">🏆</span>
-    Classements
-    <span class="count">Top 10</span>
-  </div>
+  <div class="section-head"><span class="ico-badge plain">💉</span> ${t('stats_top_services')} <span class="count">${s.topServices.length}</span></div>
+  <div class="block"><div class="chart">${barChart(s.topServices, 'linear-gradient(90deg,#10b981,#34d399)')}</div></div>` : ''}
+  <div class="section-head"><span class="ico-badge plain">🏆</span> Classements <span class="count">Top 10</span></div>
   <div class="grid-2">
     <div class="block">
-      <div class="block-title"><span class="bt-ico">🧑‍⚕️</span>${t('stats_top_doctors')}</div>
+      <div class="block-title">🧑‍⚕️ ${t('stats_top_doctors')}</div>
       <table class="rank-tbl">
         <thead><tr><th style="width:34px">#</th><th>Médecin</th><th style="text-align:right;width:55px">RDV</th><th style="text-align:right;width:130px">${t('stats_share')}</th></tr></thead>
         <tbody>${tableRows(docCount)}</tbody>
       </table>
     </div>
     <div class="block">
-      <div class="block-title"><span class="bt-ico">🩺</span>${t('stats_top_specs')}</div>
+      <div class="block-title">🩺 ${t('stats_top_specs')}</div>
       <table class="rank-tbl">
         <thead><tr><th style="width:34px">#</th><th>Spécialité</th><th style="text-align:right;width:55px">RDV</th><th style="text-align:right;width:130px">${t('stats_share')}</th></tr></thead>
         <tbody>${tableRows(s.topSpecs)}</tbody>
@@ -7056,38 +7190,20 @@ function printAdminStats(){
     </div>
   </div>
   ${topWilayas.length ? `
-  <div class="section-head">
-    <span class="ico-badge plain">🗺️</span>
-    ${t('stats_top_wilayas')}
-    <span class="count">${topWilayas.length}</span>
-  </div>
+  <div class="section-head"><span class="ico-badge plain">🗺️</span> ${t('stats_top_wilayas')} <span class="count">${topWilayas.length}</span></div>
   <div class="block">
     <table class="rank-tbl">
       <thead><tr><th style="width:34px">#</th><th>Wilaya</th><th style="text-align:right;width:55px">RDV</th><th style="text-align:right;width:130px">${t('stats_share')}</th></tr></thead>
       <tbody>${tableRows(topWilayas)}</tbody>
     </table>
   </div>` : ''}
-  <div class="section-head">
-    <span class="ico-badge plain">⏱️</span>
-    Distribution temporelle
-  </div>
+  <div class="section-head"><span class="ico-badge plain">⏱️</span> Distribution temporelle</div>
   <div class="grid-2">
-    <div class="block">
-      <div class="block-title"><span class="bt-ico">📆</span>${t('stats_by_weekday')}</div>
-      <div class="chart">${barChart(weekdayEntries, 'linear-gradient(90deg,#8b5cf6,#a78bfa)')}</div>
-    </div>
-    <div class="block">
-      <div class="block-title"><span class="bt-ico">⏰</span>${t('stats_by_hour')}</div>
-      <div class="chart">${barChart(hourEntries, 'linear-gradient(90deg,#f59e0b,#fbbf24)')}</div>
-    </div>
+    <div class="block"><div class="block-title">📆 ${t('stats_by_weekday')}</div><div class="chart">${barChart(weekdayEntries, 'linear-gradient(90deg,#8b5cf6,#a78bfa)')}</div></div>
+    <div class="block"><div class="block-title">⏰ ${t('stats_by_hour')}</div><div class="chart">${barChart(hourEntries, 'linear-gradient(90deg,#f59e0b,#fbbf24)')}</div></div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge plain">📈</span>
-    ${t('stats_monthly')}
-  </div>
-  <div class="block">
-    <div class="chart">${barChart(monthlyEntries, 'linear-gradient(90deg,#8b5cf6,#ec4899)')}</div>
-  </div>
+  <div class="section-head"><span class="ico-badge plain">📈</span> ${t('stats_monthly')}</div>
+  <div class="block"><div class="chart">${barChart(monthlyEntries, 'linear-gradient(90deg,#8b5cf6,#ec4899)')}</div></div>
   <div class="totals-strip">
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_appts')}</div><div class="ts-val">${s.list.length}</div></div>
     <div class="ts-item"><div class="ts-lbl">${t('stats_unique_patients')}</div><div class="ts-val">${s.uniquePatients}</div></div>
@@ -7096,17 +7212,14 @@ function printAdminStats(){
   </div>
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-    <div class="sign-box">
-      <div class="sign-lbl">${t('manager_sign')}</div>
-      <div class="sign-line"></div>
-    </div>
+    <div class="sign-box"><div class="sign-lbl">${t('manager_sign')}</div><div class="sign-line"></div></div>
   </div>
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
 }
 function printDoctorStats(){
   const doc = state.doctor;
-  const appts = getStatsAppts().filter(a=>a.doctorId===doc.id);
+  const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
   const s = computeCommonStats(appts);
   const billableList = appts.filter(a=>a.status==='done');
   const totalRev = billableList.reduce((sum,a)=>sum+apptCommission(a),0);
@@ -7168,30 +7281,25 @@ function printDoctorStats(){
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
-  html,body{width:100%}
-  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden}
+  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:6px}
+  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:26px 28px;border-radius:20px;margin-bottom:22px;overflow:hidden}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
-  .cover::after{content:'';position:absolute;bottom:-100px;left:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
   .logo-box{display:flex;gap:16px;align-items:center}
-  .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
+  .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
   .cover h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin-bottom:4px;font-family:'Playfair Display',Georgia,serif;line-height:1.05}
-  .cover .sub{font-size:12.5px;opacity:.94;font-weight:500;letter-spacing:.3px}
-  .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9;letter-spacing:.5px}
-  .date-box{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;border:1px solid rgba(255,255,255,.25);min-width:170px}
+  .cover .sub{font-size:12.5px;opacity:.94;font-weight:500}
+  .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9}
+  .date-box{background:rgba(255,255,255,.18);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;border:1px solid rgba(255,255,255,.25);min-width:170px}
   .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:9px}
-  .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize;line-height:1.25}
-  .date-box .time{opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif}
+  .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize}
   .cover-bottom{position:relative;z-index:1;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22);display:flex;gap:22px;flex-wrap:wrap;font-size:11px}
   .cover-bottom .cb-item{display:flex;align-items:center;gap:8px;opacity:.95}
-  .cover-bottom .cb-ico{font-size:15px}
-  .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px;letter-spacing:-.2px}
+  .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px}
   .section-head{display:flex;align-items:center;gap:11px;font-size:12.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;padding:10px 0;border-bottom:2px solid #ede9fe;margin:26px 0 16px}
   .section-head .ico-badge{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:15px;flex-shrink:0}
   .section-head .ico-badge.plain{background:#ede9fe}
-  .section-head .count{margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 12px;border-radius:9999px;font-size:10px;font-weight:700;font-family:'Rubik',sans-serif;letter-spacing:0}
-  .section-head:first-of-type{margin-top:0}
+  .section-head .count{margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 12px;border-radius:9999px;font-size:10px;font-weight:700;font-family:'Rubik',sans-serif}
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:8px}
   .kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:14px;padding:14px}
   .kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#8b5cf6,#ec4899)}
@@ -7201,18 +7309,15 @@ function printDoctorStats(){
   .kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
   .kpi .k-ico{font-size:20px;margin-bottom:6px}
   .kpi .k-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700;margin-bottom:5px}
-  .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px;line-height:1.1}
+  .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px}
   .kpi.success .k-val,.kpi.money .k-val{color:#059669}
   .kpi.warn .k-val{color:#d97706}
   .kpi.info .k-val{color:#2563eb}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
-  .grid-2 > .block{margin-bottom:0}
   .block{margin-bottom:18px}
   .block-title{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#4b5563;margin-bottom:10px}
-  .block-title .bt-ico{font-size:14px}
   .chart{background:linear-gradient(180deg,#fafbff 0%,#f5f3ff 100%);border:1px solid #ede9fe;border-radius:14px;padding:15px 16px}
   .chart-row{display:grid;grid-template-columns:135px 1fr 46px;gap:11px;align-items:center;font-size:10.5px;margin-bottom:8px}
-  .chart-row:last-child{margin-bottom:0}
   .chart-lbl{font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .chart-bar-wrap{height:14px;background:#e5e7eb;border-radius:9999px;overflow:hidden}
   .chart-bar{height:100%;border-radius:9999px;min-width:3px}
@@ -7259,21 +7364,17 @@ function printDoctorStats(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div class="time">${now}</div>
+        <div style="opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif">${now}</div>
       </div>
     </div>
     <div class="cover-bottom">
-      <div class="cb-item"><span class="cb-ico">🩺</span><span><strong>${esc(doc.specialty)}</strong></span></div>
-      <div class="cb-item"><span class="cb-ico">📍</span><span>${esc(doc.wilaya)}${doc.commune?' · '+esc(doc.commune):''}</span></div>
-      <div class="cb-item"><span class="cb-ico">📅</span><span>Période : <strong>${esc(periodLabel)}</strong></span></div>
-      <div class="cb-item"><span class="cb-ico">📊</span><span>Volume : <strong>${s.list.length} RDV</strong></span></div>
+      <div class="cb-item">🩺 <strong>${esc(doc.specialty)}</strong></div>
+      <div class="cb-item">📍 ${esc(doc.wilaya)}${doc.commune?' · '+esc(doc.commune):''}</div>
+      <div class="cb-item">📅 Période : <strong>${esc(periodLabel)}</strong></div>
+      <div class="cb-item">📊 Volume : <strong>${s.list.length} RDV</strong></div>
     </div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge">📊</span>
-    Vue d'ensemble
-    <span class="count">${s.list.length} RDV</span>
-  </div>
+  <div class="section-head"><span class="ico-badge">📊</span> Vue d'ensemble <span class="count">${s.list.length} RDV</span></div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-ico">👥</div><div class="k-lbl">${t('stats_unique_patients')}</div><div class="k-val">${s.uniquePatients}</div></div>
     <div class="kpi"><div class="k-ico">📅</div><div class="k-lbl">${t('stats_total_appts')}</div><div class="k-val">${s.list.length}</div></div>
@@ -7286,13 +7387,10 @@ function printDoctorStats(){
     <div class="kpi success"><div class="k-ico">✓</div><div class="k-lbl">${t('confirmed_c')}</div><div class="k-val">${s.statusCounts.confirmed}</div></div>
     <div class="kpi money"><div class="k-ico">💰</div><div class="k-lbl">${t('stats_total_revenue')}</div><div class="k-val">${fmtDA(totalRev)}</div></div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge plain">👥</span>
-    Patients & Statuts
-  </div>
+  <div class="section-head"><span class="ico-badge plain">👥</span> Patients & Statuts</div>
   <div class="grid-2">
     <div class="block">
-      <div class="block-title"><span class="bt-ico">👥</span>${t('stats_patient_ages')}</div>
+      <div class="block-title">👥 ${t('stats_patient_ages')}</div>
       <div class="chart">
         ${ageEntries.map(([lbl, val, ico])=>{
           const pct = Math.max((val / maxAge) * 100, 2);
@@ -7305,7 +7403,7 @@ function printDoctorStats(){
       </div>
     </div>
     <div class="block">
-      <div class="block-title"><span class="bt-ico">📊</span>${t('stats_status_dist')}</div>
+      <div class="block-title">📊 ${t('stats_status_dist')}</div>
       <div class="chart">
         ${statusEntries.map(([lbl, val, color])=>{
           const pct = Math.max((val / maxStatus) * 100, 2);
@@ -7319,41 +7417,16 @@ function printDoctorStats(){
     </div>
   </div>
   ${s.topServices.length ? `
-  <div class="section-head">
-    <span class="ico-badge plain">💉</span>
-    ${t('stats_top_services')}
-    <span class="count">${s.topServices.length}</span>
-  </div>
-  <div class="block">
-    <div class="chart">
-      ${barChart(s.topServices, 'linear-gradient(90deg,#10b981,#34d399)')}
-    </div>
-  </div>` : ''}
-  <div class="section-head">
-    <span class="ico-badge plain">⏱️</span>
-    Distribution temporelle
-  </div>
+  <div class="section-head"><span class="ico-badge plain">💉</span> ${t('stats_top_services')} <span class="count">${s.topServices.length}</span></div>
+  <div class="block"><div class="chart">${barChart(s.topServices, 'linear-gradient(90deg,#10b981,#34d399)')}</div></div>` : ''}
+  <div class="section-head"><span class="ico-badge plain">⏱️</span> Distribution temporelle</div>
   <div class="grid-2">
-    <div class="block">
-      <div class="block-title"><span class="bt-ico">📆</span>${t('stats_by_weekday')}</div>
-      <div class="chart">${barChart(weekdayEntries, 'linear-gradient(90deg,#8b5cf6,#a78bfa)')}</div>
-    </div>
-    <div class="block">
-      <div class="block-title"><span class="bt-ico">⏰</span>${t('stats_by_hour')}</div>
-      <div class="chart">${barChart(hourEntries, 'linear-gradient(90deg,#f59e0b,#fbbf24)')}</div>
-    </div>
+    <div class="block"><div class="block-title">📆 ${t('stats_by_weekday')}</div><div class="chart">${barChart(weekdayEntries, 'linear-gradient(90deg,#8b5cf6,#a78bfa)')}</div></div>
+    <div class="block"><div class="block-title">⏰ ${t('stats_by_hour')}</div><div class="chart">${barChart(hourEntries, 'linear-gradient(90deg,#f59e0b,#fbbf24)')}</div></div>
   </div>
-  <div class="section-head">
-    <span class="ico-badge plain">📈</span>
-    ${t('stats_monthly')}
-  </div>
-  <div class="block">
-    <div class="chart">${barChart(monthlyEntries, 'linear-gradient(90deg,#8b5cf6,#ec4899)')}</div>
-  </div>
-  <div class="section-head">
-    <span class="ico-badge plain">🏆</span>
-    Top patients
-  </div>
+  <div class="section-head"><span class="ico-badge plain">📈</span> ${t('stats_monthly')}</div>
+  <div class="block"><div class="chart">${barChart(monthlyEntries, 'linear-gradient(90deg,#8b5cf6,#ec4899)')}</div></div>
+  <div class="section-head"><span class="ico-badge plain">🏆</span> Top patients</div>
   <div class="block">
     <table class="rank-tbl">
       <thead><tr><th style="width:34px">#</th><th>Patient</th><th style="text-align:right;width:55px">RDV</th><th style="text-align:right;width:130px">${t('stats_share')}</th></tr></thead>
@@ -7368,10 +7441,7 @@ function printDoctorStats(){
   </div>
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-    <div class="sign-box">
-      <div class="sign-lbl">${t('manager_sign')}</div>
-      <div class="sign-line"></div>
-    </div>
+    <div class="sign-box"><div class="sign-lbl">${t('manager_sign')}</div><div class="sign-line"></div></div>
   </div>
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
@@ -7535,7 +7605,7 @@ function viewAdminDash(){
   const cancelled = activeAppts.filter(a=>a.status==='cancelled').length;
   const patients = new Set(activeAppts.map(a=>normPhone(a.patientPhone))).size;
   const todayAppts = activeAppts.filter(a=>a.date===todayISO() && a.status!=='cancelled');
-  const docStats = DB.doctors.map(d=>({d, n: activeAppts.filter(a=>a.doctorId===d.id).length})).sort((a,b)=>b.n-a.n).slice(0,5);
+  const docStats = DB.doctors.map(d=>({d, n: activeAppts.filter(a=>String(a.doctorId)===String(d.id)).length})).sort((a,b)=>b.n-a.n).slice(0,5);
   const billableList = activeAppts.filter(a=>a.status==='done');
   const totalRev = billableList.reduce((sum,a)=>sum+apptCommission(a),0);
   const todayRev = billableList.filter(a=>a.date===todayISO()).reduce((sum,a)=>sum+apptCommission(a),0);
@@ -7604,7 +7674,7 @@ function viewAdminDash(){
 }
 function onBillingDoctorSelect(v){
   if(v === 'all') state.billing.doctorId = 'all';
-  else state.billing.doctorId = parseInt(v,10);
+  else state.billing.doctorId = v;
   render();
 }
 function onBillingDoctorSearch(v){
@@ -7625,7 +7695,7 @@ function renderBillingSuggestions(q){
     return;
   }
   box.innerHTML = results.slice(0,12).map(d=>`
-    <button type="button" class="doc-search-suggest-item" onmousedown="event.preventDefault()" onclick="pickBillingDoctor(${d.id})">
+    <button type="button" class="doc-search-suggest-item" onmousedown="event.preventDefault()" onclick="pickBillingDoctor('${jsStr(d.id)}')">
       <span class="sug-avatar">${specialtyAvatar(d.specialty)}</span>
       <span class="sug-info">
         <span class="sug-name">${esc(d.name)}</span>
@@ -7645,14 +7715,14 @@ function pickBillingDoctor(id){
 }
 function onQuickRevDoctorSelect(v){
   if(v === 'all') state.quickRev.doctorId = 'all';
-  else state.quickRev.doctorId = parseInt(v,10);
+  else state.quickRev.doctorId = v;
   state.quickRevVisible = QUICK_REV_PER_PAGE;
   render();
 }
 function computeQuickRevenue(){
   const q = state.quickRev;
   let list = DB.appointments.filter(a=>a.status==='done');
-  if(q.doctorId !== 'all') list = list.filter(a=>a.doctorId===parseInt(q.doctorId,10));
+  if(q.doctorId !== 'all') list = list.filter(a=>String(a.doctorId)===String(q.doctorId));
   let periodLabel = '';
   if(q.periodType === 'day'){
     if(!q.dayDate) return null;
@@ -7669,9 +7739,9 @@ function computeQuickRevenue(){
     list = list.filter(a=> a.date >= q.startDate && a.date <= q.endDate);
     periodLabel = `${fmtDate(q.startDate)} → ${fmtDate(q.endDate)}`;
   }
-  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
   const total = list.reduce((sum,a)=>sum+apptCommission(a),0);
-  const docLabel = q.doctorId==='all' ? t('billing_all_doctors') : (docById(parseInt(q.doctorId,10))?.name || '—');
+  const docLabel = q.doctorId==='all' ? t('billing_all_doctors') : (docById(q.doctorId)?.name || '—');
   return {list, total, periodLabel, docLabel};
 }
 function showMoreQuickRev(){
@@ -7733,7 +7803,7 @@ function viewAdminRevenue(){
           <label>${t('billing_doctor')}</label>
           <select class="select" onchange="onQuickRevDoctorSelect(this.value)">
             <option value="all" ${q.doctorId==='all'?'selected':''}>👥 ${t('billing_all_doctors')}</option>
-            ${DB.doctors.map(d=>`<option value="${d.id}" ${String(q.doctorId)===String(d.id)?'selected':''}>${d.avatar} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
+            ${DB.doctors.map(d=>`<option value="${jsStr(String(d.id))}" ${String(q.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="margin-bottom:0">
@@ -7831,7 +7901,7 @@ function viewAdminRevenue(){
         <label>${t('billing_doctor')}</label>
         <select class="select" onchange="onBillingDoctorSelect(this.value)">
           <option value="all" ${b.doctorId==='all'?'selected':''}>👥 ${t('billing_all_doctors')}</option>
-          ${DB.doctors.map(d=>`<option value="${d.id}" ${String(b.doctorId)===String(d.id)?'selected':''}>${d.avatar} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
+          ${DB.doctors.map(d=>`<option value="${jsStr(String(d.id))}" ${String(b.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
         </select>
         ${b.doctorId === 'all' ? `<div style="font-size:11px;color:var(--accent-primary);margin-top:6px;padding:6px 10px;background:var(--accent-light);border-radius:6px;font-weight:600">💡 ${t('print_per_doctor_hint')}</div>` : ''}
       </div>
@@ -7915,17 +7985,17 @@ function printQuickRevenueDetails(){
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
-  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px}
   .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
   .logo-box{display:flex;gap:14px;align-items:center}
-  .logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:30px;border:1.5px solid rgba(255,255,255,.3)}
+  .logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:30px;border:1.5px solid rgba(255,255,255,.3)}
   .cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:'Playfair Display',Georgia,serif;line-height:1.05}
   .cover .sub{font-size:11.5px;opacity:.94}
-  .date-box{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}
+  .date-box{background:rgba(255,255,255,.18);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}
   .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}
-  .date-box strong{display:block;font-size:13px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize;line-height:1.25}
+  .date-box strong{display:block;font-size:13px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:4px}
   .section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #ede9fe;margin:18px 0 12px}
   .section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:14px}
   table.data{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:10px}
@@ -7951,7 +8021,7 @@ function printQuickRevenueDetails(){
   <div class="section-head">
     <span class="ico-badge">📊</span>
     Détail des rendez-vous facturables
-    <span style="margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:700;letter-spacing:0">${list.length} RDV</span>
+    <span style="margin-left:auto;background:#ede9fe;color:#7c3aed;padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:700">${list.length} RDV</span>
   </div>
   ${list.length ? `
   <table class="data">
@@ -7980,7 +8050,7 @@ function onBillingDoctorInput(v){
   if(!v){ return; }
   let doc = DB.doctors.find(d => `${d.name} — ${d.specialty}` === v);
   if(!doc) doc = DB.doctors.find(d => d.name === v);
-  if(!doc) doc = DB.doctors.find(d => d.name.toLowerCase().includes(v.toLowerCase()));
+  if(!doc) doc = DB.doctors.find(d => String(d.name).toLowerCase().includes(v.toLowerCase()));
   if(doc){ state.billing.doctorId = doc.id; render(); }
 }
 function openCommissionRateModal(){
@@ -8024,7 +8094,7 @@ function saveCommissionRate(){
 function computeBillingData(){
   const b = state.billing;
   let list = DB.appointments.filter(a=>a.status==='done');
-  if(b.doctorId !== 'all') list = list.filter(a=>a.doctorId===parseInt(b.doctorId,10));
+  if(b.doctorId !== 'all') list = list.filter(a=>String(a.doctorId)===String(b.doctorId));
   let periodLabel = '';
   if(b.periodType === 'day'){
     if(!b.dayDate) return null;
@@ -8041,10 +8111,9 @@ function computeBillingData(){
     list = list.filter(a=> a.date >= b.startDate && a.date <= b.endDate);
     periodLabel = `${fmtDate(b.startDate)} → ${fmtDate(b.endDate)}`;
   }
-  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
   const total = list.reduce((s,a)=>s+apptCommission(a),0);
-  const docLabel = b.doctorId==='all' ? t('billing_all_doctors') :
-    (docById(parseInt(b.doctorId,10))?.name || '—');
+  const docLabel = b.doctorId==='all' ? t('billing_all_doctors') : (docById(b.doctorId)?.name || '—');
   const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
   return {list, total, periodLabel, docLabel, totalWords};
 }
@@ -8060,8 +8129,8 @@ function buildSubscriptionInvoiceData(doc){
   const basePrice = getSubscriptionBasePrice(kind);
   const disc = getSubscriptionDiscount();
   const finalPrice = getSubscriptionDiscountedPrice(kind);
-  const startISO = b.subStart ? b.subStart.slice(0,10) : '';
-  const endISO = b.subEnd ? b.subEnd.slice(0,10) : '';
+  const startISO = b.subStart ? String(b.subStart).slice(0,10) : '';
+  const endISO = b.subEnd ? String(b.subEnd).slice(0,10) : '';
   return {
     kind,
     kindLabel: kind === 'yearly' ? t('billing_type_sub_yearly') : t('billing_type_sub_monthly'),
@@ -8078,7 +8147,6 @@ function getInvoiceRegistryKey(doctorId, periodType, periodKey){
   return `${doctorId}_${periodType}_${periodKey}`;
 }
 function getSubInvoiceRegistryKey(doctorId, periodKey){
-  // Subscription invoice number is unique per doctor per month
   return `${doctorId}_${periodKey}`;
 }
 function getPeriodKey(){
@@ -8094,19 +8162,17 @@ function getPeriodKey(){
   }
 }
 function getSubPeriodKey(){
-  // For subscription invoices: use just the month (YYYY_MM) so each doctor+month has unique number
   const b = state.billing;
   if(b.periodType === 'month'){
     const y = b.year || currentYear();
     const m = b.month || currentMonth();
     return `${y}_${String(m).padStart(2,'0')}`;
   }
-  // For day/interval: use the dayDate or range
   return getPeriodKey();
 }
 function peekInvoiceNumber(){
   const b = state.billing;
-  const doc = b.doctorId !== 'all' ? docById(parseInt(b.doctorId, 10)) : null;
+  const doc = b.doctorId !== 'all' ? docById(b.doctorId) : null;
   const isSub = doc && isSubscriptionType(doc);
   if(isSub){
     const key = getSubInvoiceRegistryKey(doc.id, getSubPeriodKey());
@@ -8181,7 +8247,7 @@ function buildInvoiceTableBlockForDoctor(list, doc, periodType){
         <td style="text-align:center">${d}</td>
         <td style="white-space:nowrap"><strong>${fmtDateFR(iso)}</strong> <span style="color:${isOff?'#b91c1c':'#9ca3af'};font-size:9.5px;text-transform:uppercase">${dayLabel}</span></td>
         <td style="text-align:center;font-weight:600">${cnt}</td>
-        <td style="text-align:center">${cnt>0 ? (statusLabels['done']||'Terminé') : '—'}</td>
+        <td style="text-align:center">${cnt>0 ? 'Terminé' : '—'}</td>
         <td style="text-align:right;font-weight:700;white-space:nowrap;color:${cnt>0?'#059669':(isOff?'#b91c1c':'#9ca3af')}">${cnt>0?('+'+n2(comm)+' DA'):'—'}</td>
       </tr>`);
     }
@@ -8252,9 +8318,7 @@ function buildSubscriptionInvoiceBlock(doc){
         <th>${t('sub_invoice_amount')}</th>
         <th style="text-align:right">DA</th>
       </tr></thead>
-      <tbody>
-        ${finalLine}
-      </tbody>
+      <tbody>${finalLine}</tbody>
     </table>
     <div style="margin-top:10px;font-size:10.5px;color:#6b7280;font-style:italic;text-align:center">${esc(subWord)}</div>
     <div class="letter-amount"><strong>${t('stop_invoice')} :</strong> ${esc(totalWords)}</div>
@@ -8264,7 +8328,7 @@ function buildInvoiceStyles(){
   return `
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:8mm}
-  body{font-family:'Inter',system-ui,sans-serif;color:#1f2937;padding:6px;background:#fff;font-size:8.5px;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:'Inter',system-ui,sans-serif;color:#1f2937;padding:6px;background:#fff;font-size:8.5px;line-height:1.25}
   .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:8px;margin-bottom:10px}
   .brand{display:flex;gap:10px;align-items:flex-start}
   .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0}
@@ -8288,7 +8352,6 @@ function buildInvoiceStyles(){
   .letter-amount{background:#f8fafc;border:1px dashed #d1d5db;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:10px;line-height:1.5;font-style:italic;color:#1f2937}
   .letter-amount strong{color:#8b5cf6;font-style:normal}
   .page-break{page-break-after:always;height:0}
-  @media print{ @page{ margin:10mm } }
   `;
 }
 function buildInvoicePageHTML(doc, docAppts, periodLabel, invNo, totalWords, total){
@@ -8340,7 +8403,7 @@ function openBillingModal(){
   const {list, total, periodLabel, docLabel, totalWords} = data;
   const now = new Date().toLocaleString('fr-FR');
   const isAllDoctors = state.billing.doctorId === 'all';
-  const singleDoc = !isAllDoctors ? docById(parseInt(b.doctorId,10)) : null;
+  const singleDoc = !isAllDoctors ? docById(b.doctorId) : null;
   const isTrialInvoice = singleDoc && singleDoc.billingType === 'sub_trial';
   const isSubInvoice = singleDoc && (singleDoc.billingType === 'sub_monthly' || singleDoc.billingType === 'sub_yearly') && isSubscriptionActive(singleDoc);
   let invNo;
@@ -8373,8 +8436,8 @@ function openBillingModal(){
   }).join('') : `<tr><td colspan="10"><div class="empty" style="padding:30px"><div class="empty-ico">🧾</div>${t('billing_no_data')}</div></td></tr>`;
   let subInvoiceHTML = '';
   if(isTrialInvoice){
-    const startISO = singleDoc.subStart ? singleDoc.subStart.slice(0,10) : '';
-    const endISO = singleDoc.subTrialEnd ? singleDoc.subTrialEnd.slice(0,10) : '';
+    const startISO = singleDoc.subStart ? String(singleDoc.subStart).slice(0,10) : '';
+    const endISO = singleDoc.subTrialEnd ? String(singleDoc.subTrialEnd).slice(0,10) : '';
     subInvoiceHTML = `
       <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.05));border-color:rgba(16,185,129,.35)">
         <div class="card-title" style="font-size:14px">🎁 ${t('billing_type_sub_trial')}</div>
@@ -8478,10 +8541,10 @@ function buildMessageInvoiceHTML(doc, appts, periodLabel, total, isSub, isTrial,
   } else {
     headerTitle = invNo ? `${t('billing_invoice')} N° ${invNo}` : t('billing_invoice');
   }
-  
+
   if(isTrial){
-    const startISO = doc.subStart ? doc.subStart.slice(0,10) : '';
-    const endISO = doc.subTrialEnd ? doc.subTrialEnd.slice(0,10) : '';
+    const startISO = doc.subStart ? String(doc.subStart).slice(0,10) : '';
+    const endISO = doc.subTrialEnd ? String(doc.subTrialEnd).slice(0,10) : '';
     content = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
         <div style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🎁 ${t('billing_type_sub_trial')}</div>
@@ -8554,7 +8617,6 @@ function buildMessageInvoiceHTML(doc, appts, periodLabel, total, isSub, isTrial,
         </div>
       </div>`;
   }
-  
   return `
     <div style="border:2px solid #8b5cf6;border-radius:14px;padding:16px;background:#fff;font-family:Inter,system-ui,sans-serif;color:#1f2937">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:12px;gap:12px;flex-wrap:wrap">
@@ -8592,17 +8654,15 @@ async function sendInvoicesToDoctors(){
       if(!grouped[a.doctorId]) grouped[a.doctorId] = [];
       grouped[a.doctorId].push(a);
     });
-    const docIds = Object.keys(grouped).map(Number).sort((a,c)=>{
+    const docIds = Object.keys(grouped).sort((a,c)=>{
       const da = docById(a); const dc = docById(c);
-      return (da?.name||'').localeCompare(dc?.name||'');
+      return String(da?.name||'').localeCompare(String(dc?.name||''));
     });
     groups = docIds.map(id => ({docId:id, appts: grouped[id]}));
   } else {
-    const docId = parseInt(b.doctorId,10);
-    const doc = docById(docId);
+    const doc = docById(b.doctorId);
     if(!doc){ toast(t('doctor_not_found'),'error'); return; }
-    const docAppts = list.filter(a=>a.doctorId===docId);
-    groups = [{docId, appts: docAppts}];
+    groups = [{docId: b.doctorId, appts: list.filter(a=>String(a.doctorId)===String(b.doctorId))}];
   }
 
   let subject;
@@ -8620,10 +8680,8 @@ async function sendInvoicesToDoctors(){
     if(!doc) continue;
     const isTrialDoc = doc.billingType === 'sub_trial';
     const isSubDoc = (doc.billingType === 'sub_monthly' || doc.billingType === 'sub_yearly') && isSubscriptionActive(doc);
-    
-    let invoiceHTML;
-    let bodyText;
-    
+
+    let invoiceHTML, bodyText;
     if(isTrialDoc){
       invoiceHTML = buildMessageInvoiceHTML(doc, appts, periodLabel, 0, false, true, null);
       bodyText = t('billing_invoice_body').replace('{name}', doc.name).replace('{period}', periodLabel).replace('{total}', t('billing_no_billable_trial'));
@@ -8641,11 +8699,11 @@ async function sendInvoicesToDoctors(){
       invoiceHTML = buildMessageInvoiceHTML(doc, appts, periodLabel, docTotal, false, false, invNo);
       bodyText = t('billing_invoice_body').replace('{name}', doc.name).replace('{period}', periodLabel).replace('{total}', fmtDA(docTotal));
     }
-    
+
     const msg = {
       id: 'MSG-'+uid('M'),
       from: {key: me.key, role: me.role, id: me.id, name: me.name, avatar: me.avatar},
-      to: {key:`doctor_${doc.id}`, role:'doctor', id:doc.id, name:doc.name, avatar:doc.avatar},
+      to: {key:`doctor_${doc.id}`, role:'doctor', id:doc.id, name:doc.name, avatar:specialtyAvatar(doc.specialty)},
       subject,
       body: bodyText,
       bodyHTML: invoiceHTML,
@@ -8668,7 +8726,7 @@ function printBillingReport(){
   if(b.periodType === 'interval' && (!b.startDate || !b.endDate)){ toast(t('billing_choose_dates'),'error'); return; }
   const data = computeBillingData();
   if(!data){ toast(t('billing_no_data'),'error'); return; }
-  const {list, total, periodLabel, docLabel, totalWords} = data;
+  const {list, total, periodLabel, totalWords} = data;
   if(!list.length){ toast(t('billing_no_data'),'error'); return; }
 
   if(b.doctorId === 'all'){
@@ -8677,9 +8735,9 @@ function printBillingReport(){
       if(!grouped[a.doctorId]) grouped[a.doctorId] = [];
       grouped[a.doctorId].push(a);
     });
-    const docIds = Object.keys(grouped).map(Number).sort((a,b)=>{
+    const docIds = Object.keys(grouped).sort((a,b)=>{
       const da = docById(a); const db = docById(b);
-      return (da?.name||'').localeCompare(db?.name||'');
+      return String(da?.name||'').localeCompare(String(db?.name||''));
     });
     if(!DB.invoiceRegistry) DB.invoiceRegistry = {};
     if(!DB.subInvoiceRegistry) DB.subInvoiceRegistry = {};
@@ -8710,11 +8768,11 @@ function printBillingReport(){
     return;
   }
 
-  const singleDoc = docById(parseInt(b.doctorId,10));
+  const singleDoc = docById(b.doctorId);
   const isSubDocForPrint = singleDoc && isSubscriptionType(singleDoc) && singleDoc.billingType !== 'sub_trial';
   const isTrialDocForPrint = singleDoc && singleDoc.billingType === 'sub_trial';
   let invNo = null;
-  if(!isTrialDocForPrint){
+  if(!isTrialDocForPrint && singleDoc){
     const invNum = assignInvoiceNumberForDoctor(singleDoc.id);
     invNo = isSubDocForPrint ? formatSubInvoiceNumberFromCount(invNum) : formatInvoiceNumberFromCount(invNum);
   }
@@ -8758,7 +8816,7 @@ function viewAdminDoctors(){
       <input class="input" id="adminDocsSearch" placeholder="${t('search_doctor_ph')}" value="${esc(state.adminDoctorsSearch)}" oninput="onAdminDoctorsSearch(this.value)">
     </div>
     ${slice.length ? slice.map(d=>{
-      const apptCount = DB.appointments.filter(a=>a.doctorId===d.id && a.status!=='deleted').length;
+      const apptCount = DB.appointments.filter(a=>String(a.doctorId)===String(d.id) && a.status!=='deleted').length;
       const servCount = servicesForDoctor(d.id).length;
       const days = (d.workDays||[]);
       const rating = getDoctorRating(d.id);
@@ -8789,8 +8847,6 @@ function viewAdminDoctors(){
               ${servCount?`<span class="tag accent">💉 ${servCount}</span>`:''}
               ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} (${rating.count})</span>`:`<span class="tag rating-empty">⭐ —</span>`}
               ${billTag}
-              <span class="tag muted">🔑 ${esc(d.password)}</span>
-              <span class="tag warn">🔒 ${esc(d.recettePassword||'—')}</span>
               ${days.length?`<span class="tag success">🗓️ ${days.map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`:`<span class="tag danger">🗓️ —</span>`}
               ${d.locked
                 ? `<span class="tag danger">🔒 Session verrouillée</span>`
@@ -8798,13 +8854,13 @@ function viewAdminDoctors(){
             </div>
           </div>
           <div class="appt-actions">
-            <button class="mini-btn ghost" onclick="openDoctorProfile(${d.id})">👁️</button>
+            <button class="mini-btn ghost" onclick="openDoctorProfile('${jsStr(String(d.id))}')">👁️</button>
             ${d.locked
-              ? `<button class="mini-btn green" onclick="toggleDoctorLock(${d.id})" title="Ouvrir la session du médecin">🔓 Ouvrir session</button>`
-              : `<button class="mini-btn red" onclick="toggleDoctorLock(${d.id})" title="Verrouiller la session du médecin">🔒 Verrouillé</button>`}
-            <button class="mini-btn ghost" onclick="openDoctorForm(${d.id})">✏️</button>
-            <button class="mini-btn ghost" onclick="openServicesManager(${d.id})">💉</button>
-            <button class="mini-btn red" onclick="confirmDeleteDoctor(${d.id})">🗑️</button>
+              ? `<button class="mini-btn green" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Ouvrir la session du médecin">🔓 Ouvrir session</button>`
+              : `<button class="mini-btn red" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Verrouiller la session du médecin">🔒 Verrouiller</button>`}
+            <button class="mini-btn ghost" onclick="openDoctorForm('${jsStr(String(d.id))}')">✏️</button>
+            <button class="mini-btn ghost" onclick="openServicesManager('${jsStr(String(d.id))}')">💉</button>
+            <button class="mini-btn red" onclick="confirmDeleteDoctor('${jsStr(String(d.id))}')">🗑️</button>
           </div>
         </div>`;
     }).join('') : `<div class="empty"><div class="empty-ico">🧑‍⚕️</div>${t('no_docs')}</div>`}
@@ -8826,7 +8882,7 @@ function onAdminDoctorsSearch(v){
 function viewAdminAppts(){
   const f = state.adminFilter;
   let list = DB.appointments.slice();
-  if(f.doctorId!=='all') list = list.filter(a=>a.doctorId===parseInt(f.doctorId,10));
+  if(f.doctorId!=='all') list = list.filter(a=>String(a.doctorId)===String(f.doctorId));
   if(f.status!=='all') list = list.filter(a=>a.status===f.status);
   if(f.date) list = list.filter(a=>a.date===f.date);
   if(f.search){
@@ -8841,7 +8897,7 @@ function viewAdminAppts(){
       return false;
     });
   }
-  list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
   const totalPages = Math.max(1, Math.ceil(list.length / APPTS_PER_PAGE));
   const page = Math.min(state.apptsPage || 1, totalPages);
   const slice = list.slice((page-1)*APPTS_PER_PAGE, page*APPTS_PER_PAGE);
@@ -8855,7 +8911,7 @@ function viewAdminAppts(){
       <div class="grid grid-3">
         <select class="select" onchange="state.adminFilter.doctorId=this.value;state.apptsPage=1;render()">
           <option value="all">${t('filter_doctor')} — ${t('filter_all')}</option>
-          ${DB.doctors.map(d=>`<option value="${d.id}" ${f.doctorId==d.id?'selected':''}>${esc(d.name)}</option>`).join('')}
+          ${DB.doctors.map(d=>`<option value="${jsStr(String(d.id))}" ${String(f.doctorId)===String(d.id)?'selected':''}>${esc(d.name)}</option>`).join('')}
         </select>
         <input class="input" type="date" value="${f.date}" onchange="state.adminFilter.date=this.value;state.apptsPage=1;render()">
         <button class="pill-btn danger" onclick="state.adminFilter={doctorId:'all',status:'all',date:'',search:''};state.apptsPage=1;render()">🗑️ Réinitialiser</button>
@@ -9015,7 +9071,6 @@ function doImportJSON(dataStr){
     if(DB.settings.subMonthly === undefined) DB.settings.subMonthly = SUB_MONTHLY_DEFAULT;
     if(DB.settings.subYearly === undefined) DB.settings.subYearly = SUB_YEARLY_DEFAULT;
     if(DB.settings.subDiscount === undefined) DB.settings.subDiscount = SUB_DISCOUNT_DEFAULT;
-    delete DB.settings.commissionInternal;
     if(!DB.doctors) DB.doctors = [];
     if(!DB.appointments) DB.appointments = [];
     if(!DB.services) DB.services = [];
@@ -9026,36 +9081,8 @@ function doImportJSON(dataStr){
     if(!DB.specialties || !DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
     if(!DB.wilayas) DB.wilayas = [...WILAYAS];
     if(!DB.communes) DB.communes = JSON.parse(JSON.stringify(COMMUNES));
-    if(!DB.admin) DB.admin = {username:'admin', password:'admin'};
-    if(!DB.invoiceCounter) DB.invoiceCounter = {year: new Date().getFullYear(), count: 0};
+    if(!DB.admin) DB.admin = {username:'admin', password:DEFAULT_PWD};
     DB.schemaVersion = 3;
-    DB.doctors.forEach(d=>{
-      if(!d.workDays) d.workDays = [];
-      if(!d.workStart) d.workStart = '08:00';
-      if(!d.workEnd) d.workEnd = '17:00';
-      if(!d.commune) d.commune = '';
-      if(!d.disabledSlots) d.disabledSlots = [];
-      if(!d.createdAt) d.createdAt = todayISO();
-      if(d.recettePassword === undefined) d.recettePassword = '1234';
-      if(d.billingType === undefined) d.billingType = 'none';
-      if(d.commissionAmount === undefined) d.commissionAmount = null;
-      if(d.subStart === undefined) d.subStart = null;
-      if(d.subTrialEnd === undefined) d.subTrialEnd = null;
-      if(d.locked === undefined) d.locked = false;
-      if(d.sessionClosed === undefined) d.sessionClosed = false;
-      delete d.avatar;
-      delete d.subEnd;
-    });
-    DB.appointments.forEach(a=>{
-      if(!a.services) a.services = [];
-      if(a.servicesTotal === undefined) a.servicesTotal = 0;
-      if(a.internal === undefined) a.internal = false;
-      if(a.patientPassword === undefined) a.patientPassword = '';
-      if(a.patientWilaya === undefined) a.patientWilaya = '';
-      if(a.rating === undefined) a.rating = 0;
-      if(!a.documents) a.documents = [];
-    });
-    DB.messages.forEach(m=>{ if(!m.deletedBy) m.deletedBy = []; });
     saveDB();
     closeModal();
     state.doctor = null; state.admin = null; state.role = 'patient'; state.view = 'home';
@@ -9099,6 +9126,7 @@ async function init(){
   loadPrefs(); checkReminders();
   setInterval(checkReminders, 5 * 60 * 1000);
   applyDir(); render();
+  subscribeRealtime();
 }
 window.addEventListener('DOMContentLoaded', init);
 Object.assign(window, {
@@ -9147,14 +9175,15 @@ Object.assign(window, {
   buildInvoicePageHTML, buildInvoiceStyles, buildInvoiceTableBlockForDoctor, buildSubscriptionInvoiceBlock, buildSubscriptionInvoiceData,
   canValidateAppt, validationBlockedMsg,
   showSubscriptionExpiredModal, hideSubscriptionExpiredModal, showDoctorLockedModal,
-    specialtyAvatar, isDoctorHiddenFromPatients,
+  specialtyAvatar, isDoctorHiddenFromPatients,
   getDoctorBilling, isSubscriptionType, isSubscriptionActive, getSubscriptionDaysLeft,
   getSubscriptionTypeLabel, getGeneralCommission,
   getSubscriptionMonthlyPrice, getSubscriptionYearlyPrice, getSubscriptionDiscount,
   getSubscriptionBasePrice, getSubscriptionDiscountedPrice,
   isDoctorSubscriptionActiveForBilling,
   sendInvoicesToDoctors, buildMessageInvoiceHTML,
-  openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL
+  openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
+  subscribeRealtime
 });
 </script>
 </body>
