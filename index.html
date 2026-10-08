@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <title>OmniMed — Plateforme Médicale</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -952,6 +953,76 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
   font-size:10.5px;font-weight:600;background:var(--glass-bg-3);border:1px solid var(--glass-border);color:var(--text-muted)}
 .sync-badge.online{color:var(--success);border-color:rgba(16,185,129,.4)}
 .sync-badge.offline{color:var(--danger);border-color:rgba(239,68,68,.4)}
+
+/* ============ FIX AFFICHAGE MOBILE ============ */
+@media (max-width: 640px) {
+
+  .app-top{
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 6px;
+    row-gap: 4px;
+  }
+  .brand-left{
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
+  }
+  .brand-logo-c{width:34px;height:34px;font-size:17px;border-radius:10px}
+  .brand-name-c{font-size:17px}
+  .brand-tag-c{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-titles{min-width:0;overflow:hidden}
+
+  .top-actions{
+    flex: 0 0 auto;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+  .top-actions .pill-btn{padding:5px 9px;font-size:10.5px}
+  .top-actions .tag{padding:2px 7px;font-size:10px;max-width:120px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sync-badge{font-size:9.5px;padding:2px 6px}
+
+  .app-nav{
+    flex-wrap: wrap;
+    padding: 7px 10px;
+    gap: 6px;
+  }
+  .nav-items{
+    flex: 1 1 100%;
+    order: 1;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .nav-controls{
+    flex: 1 1 100%;
+    order: 2;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .nav-item{padding:6px 10px;font-size:11.5px}
+  .nav-item .ico{font-size:12px}
+
+  .role-menu{padding:2px}
+  .role-btn{padding:5px 9px;font-size:11px}
+
+  .segmented{padding:2px}
+  .segmented button{padding:4px 8px;font-size:10.5px}
+
+  .switch{width:42px;height:23px}
+  .switch .slider::before{height:15px;width:15px;left:3px;top:3px}
+  .switch input:checked + .slider::before{transform:translateX(19px)}
+  .switch .slider .ico{font-size:10px}
+
+  .content-wrap{padding: 12px 10px}
+}
+@media (max-width: 380px){
+  .brand-tag-c{display:none}
+}
 </style>
 </head>
 <body>
@@ -970,6 +1041,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   realtime: { params: { eventsPerSecond: 10 } }
 });
+
+/* ============================================================
+   HASHING MDP — SHA-256 + sel applicatif
+   ============================================================ */
+const PWD_SALT = 'omnimed_v1_static_salt_2025';
+async function hashPassword(plain){
+  if(plain == null) return null;
+  const s = String(plain);
+  if(/^[0-9a-f]{64}$/i.test(s)) return s.toLowerCase();
+  const enc = new TextEncoder().encode(PWD_SALT + '::' + s);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function verifyPassword(plain, stored){
+  if(stored == null) return false;
+  if(!/^[0-9a-f]{64}$/i.test(String(stored))) return String(plain) === String(stored);
+  return (await hashPassword(plain)) === String(stored).toLowerCase();
+}
 
 /* ============================================================
    OmniMed — Plateforme Médicale
@@ -1111,7 +1200,6 @@ const T = {
     status_pending:'En attente',status_confirmed:'Confirmé',status_cancelled:'Annulé',status_postponed:'Reporté',status_done:'Terminé',status_deleted:'Supprimé',
     filter_all:'Tous',validate:'Valider',confirm_rdv:'Confirmer le RDV',cancel:'Annuler',delete:'Supprimer',
     done:'Terminer',print:'Imprimer',
-    waitlist:"Rejoindre la file d'attente",waitlist_title:"File d'attente",
     no_appts:'Aucun rendez-vous',no_docs:'Aucun médecin ne correspond',no_notif:'Aucune notification',
     my_rdv_title:'Retrouver mes rendez-vous',my_rdv_sub:'Entrez votre numéro de téléphone',
     lookup:'Rechercher',dark:'Sombre',light:'Clair',
@@ -1130,16 +1218,16 @@ const T = {
     modify_appt:'Modifier ce rendez-vous',
     my_info:'Mes informations',qr_title:'Code de check-in',appt_detail:'Détail du rendez-vous',
     patient:'Patient',doctor:'Médecin',when:'Quand',where:'Où',notes_doctor:'Notes du médecin',
-    save:'Enregistrer',close:'Fermer',waitlist_empty:"File d'attente vide",add_waitlist:"S'inscrire",waitlist_joined:"Inscrit",
+    save:'Enregistrer',close:'Fermer',
     lang:'Langue',dnotif:'Notifications',
     admin_you:'Admin',role:'Rôle',invalid_login:'Identifiants invalides',required_fields:'Champs obligatoires manquants',
-    total_doctors:'Médecins',total_patients:'Patients',waitlist_c:"En file d'attente",
+    total_doctors:'Médecins',total_patients:'Patients',
     manage_doctors:'Gestion des médecins',manage_doctors_sub:'Ajouter, modifier ou supprimer un médecin',
     add_doctor:'Ajouter un médecin',edit_doctor:'Modifier le médecin',delete_doctor:'Supprimer le médecin',
     delete_confirm:"Voulez-vous vraiment supprimer ce médecin ?",save_doctor:'Enregistrer le médecin',
     avatar:'Avatar',credentials:'Identifiants de connexion',new_password:'Mot de passe',
     password_hint:'Le médecin utilisera ce mot de passe pour se connecter',
-    all_appointments:'Tous les rendez-vous',all_waitlist:"Toute la file d'attente",
+    all_appointments:'Tous les rendez-vous',
     export_csv:'Exporter CSV',reset_data:'Réinitialiser',reset_confirm:'Réinitialiser toutes les données ?',
     filter_doctor:'Filtrer par médecin',specialties:'Spécialités',wilayas:'Wilayas',
     doctor_deleted:'Médecin supprimé',doctor_saved:'Médecin enregistré',appt_deleted:'Rendez-vous marqué supprimé',
@@ -1494,7 +1582,6 @@ const T = {
     status_pending:'Pending',status_confirmed:'Confirmed',status_cancelled:'Cancelled',status_postponed:'Postponed',status_done:'Done',status_deleted:'Deleted',
     filter_all:'All',validate:'Validate',confirm_rdv:'Confirm appointment',cancel:'Cancel',delete:'Delete',
     done:'Complete',print:'Print',
-    waitlist:'Join waitlist',waitlist_title:'Waitlist',
     no_appts:'No appointments',no_docs:'No doctor matches',no_notif:'No notification',
     my_rdv_title:'Find my appointments',my_rdv_sub:'Enter your phone number',
     lookup:'Search',dark:'Dark',light:'Light',
@@ -1513,16 +1600,16 @@ const T = {
     modify_appt:'Modify this appointment',
     my_info:'My information',qr_title:'Check-in code',appt_detail:'Appointment details',
     patient:'Patient',doctor:'Doctor',when:'When',where:'Where',notes_doctor:'Doctor notes',
-    save:'Save',close:'Close',waitlist_empty:'Waitlist empty',add_waitlist:'Join',waitlist_joined:'Added',
+    save:'Save',close:'Close',
     lang:'Language',dnotif:'Notifications',
     admin_you:'Admin',role:'Role',invalid_login:'Invalid credentials',required_fields:'Missing required fields',
-    total_doctors:'Doctors',total_patients:'Patients',waitlist_c:'Waitlist',
+    total_doctors:'Doctors',total_patients:'Patients',
     manage_doctors:'Manage doctors',manage_doctors_sub:'Add, edit or delete a doctor',
     add_doctor:'Add doctor',edit_doctor:'Edit doctor',delete_doctor:'Delete doctor',
     delete_confirm:'Really delete this doctor?',save_doctor:'Save doctor',
     avatar:'Avatar',credentials:'Login credentials',new_password:'Password',
     password_hint:'The doctor will use this password to log in',
-    all_appointments:'All appointments',all_waitlist:'Full waitlist',
+    all_appointments:'All appointments',
     export_csv:'Export CSV',reset_data:'Reset data',reset_confirm:'Reset all demo data?',
     filter_doctor:'Filter by doctor',specialties:'Specialties',wilayas:'Wilayas',
     doctor_deleted:'Doctor deleted',doctor_saved:'Doctor saved',appt_deleted:'Appointment marked as deleted',
@@ -1877,7 +1964,6 @@ const T = {
     status_pending:'قيد الانتظار',status_confirmed:'مؤكد',status_cancelled:'ملغى',status_postponed:'مؤجل',status_done:'منتهي',status_deleted:'محذوف',
     filter_all:'الكل',validate:'تأكيد مرور',confirm_rdv:'تأكيد الموعد',cancel:'إلغاء',delete:'حذف',
     done:'إنهاء',print:'طباعة',
-    waitlist:'انضم إلى قائمة الانتظار',waitlist_title:'قائمة الانتظار',
     no_appts:'لا مواعيد',no_docs:'لا يوجد طبيب مطابق',no_notif:'لا إشعارات',
     my_rdv_title:'البحث عن مواعيدي',my_rdv_sub:'أدخل رقم هاتفك',
     lookup:'بحث',dark:'داكن',light:'فاتح',
@@ -1896,16 +1982,16 @@ const T = {
     modify_appt:'تعديل هذا الموعد',
     my_info:'معلوماتي',qr_title:'رمز تسجيل الوصول',appt_detail:'تفاصيل الموعد',
     patient:'المريض',doctor:'الطبيب',when:'متى',where:'أين',notes_doctor:'ملاحظات الطبيب',
-    save:'حفظ',close:'إغلاق',waitlist_empty:'قائمة الانتظار فارغة',add_waitlist:'انضمام',waitlist_joined:'تمت الإضافة',
+    save:'حفظ',close:'إغلاق',
     lang:'اللغة',dnotif:'الإشعارات',
     admin_you:'مسؤول',role:'الدور',invalid_login:'بيانات غير صحيحة',required_fields:'حقول مطلوبة مفقودة',
-    total_doctors:'الأطباء',total_patients:'المرضى',waitlist_c:'في قائمة الانتظار',
+    total_doctors:'الأطباء',total_patients:'المرضى',
     manage_doctors:'إدارة الأطباء',manage_doctors_sub:'إضافة أو تعديل أو حذف طبيب',
     add_doctor:'إضافة طبيب',edit_doctor:'تعديل الطبيب',delete_doctor:'حذف الطبيب',
     delete_confirm:'هل تريد حقًا حذف هذا الطبيب؟',save_doctor:'حفظ الطبيب',
     avatar:'الصورة',credentials:'بيانات الدخول',new_password:'كلمة المرور',
     password_hint:'سيستخدم الطبيب كلمة المرور هذه للدخول',
-    all_appointments:'كل المواعيد',all_waitlist:'كل قائمة الانتظار',
+    all_appointments:'كل المواعيد',
     export_csv:'تصدير CSV',reset_data:'إعادة تعيين',reset_confirm:'إعادة تعيين كل البيانات؟',
     filter_doctor:'تصفية حسب الطبيب',specialties:'التخصصات',wilayas:'الولايات',
     doctor_deleted:'تم حذف الطبيب',doctor_saved:'تم حفظ الطبيب',appt_deleted:'تم وضع علامة الحذف',
@@ -2301,7 +2387,14 @@ function isDoctorHiddenFromPatients(doc){
   if(isSubscriptionType(doc) && !isSubscriptionActive(doc)) return true;
   return false;
 }
-function dateOffset(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function localISO(d){
+  const dt = d || new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,'0');
+  const day = String(dt.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function dateOffset(n){ const d = new Date(); d.setDate(d.getDate()+n); return localISO(d); }
 
 function addMonths(date, months){
   const d = new Date(date.getTime());
@@ -2428,7 +2521,24 @@ function seedData(){
 let DB;
 let _syncTimer = null;
 let _isApplyingRemote = false;
-let _pendingDeletes = { doctors: [], services: [], appointments: [], messages: [] };
+
+const LS_PENDING_DELETES = 'omnimed_pending_deletes';
+const _pendingDeletes = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_PENDING_DELETES) || '{}');
+    return {
+      doctors:      Array.isArray(raw.doctors)      ? raw.doctors      : [],
+      services:     Array.isArray(raw.services)     ? raw.services     : [],
+      appointments: Array.isArray(raw.appointments) ? raw.appointments : [],
+      messages:     Array.isArray(raw.messages)     ? raw.messages     : []
+    };
+  } catch(e){
+    return { doctors: [], services: [], appointments: [], messages: [] };
+  }
+})();
+function savePendingDeletes(){
+  try { localStorage.setItem(LS_PENDING_DELETES, JSON.stringify(_pendingDeletes)); } catch(e){}
+}
 
 /* ---------- LOAD depuis Supabase ---------- */
 async function loadDB(){
@@ -2464,7 +2574,7 @@ async function loadDB(){
         subYearly: s.sub_yearly ?? SUB_YEARLY_DEFAULT,
         subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT
       },
-      doctors: (docRes.data||[]).map(d=>({
+      doctors: (docRes.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
         id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
         email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
@@ -2477,7 +2587,7 @@ async function loadDB(){
         sessionClosed: !!d.session_closed, locked: !!d.locked,
         createdAt: d.created_at
       })),
-      appointments: (apptRes.data||[]).map(a=>({
+      appointments: (apptRes.data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
         id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
         patientAge:a.patient_age, patientPhone:a.patient_phone,
         patientEmail:a.patient_email||'', patientWilaya:a.patient_wilaya||'',
@@ -2488,7 +2598,7 @@ async function loadDB(){
         reminders:a.reminders||{h2:false},
         createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
       })),
-      services: (servRes.data||[]).map(s=>({
+      services: (servRes.data||[]).filter(s=>!_pendingDeletes.services.includes(String(s.id))).map(s=>({
         id:s.id, doctorId:s.doctor_id, name:s.name,
         price:Number(s.price)||0, description:s.description||''
       })),
@@ -2496,7 +2606,7 @@ async function loadDB(){
         id:n.id, role:n.role, title:n.title, message:n.message,
         toDoctorId:n.to_doctor_id, apptId:n.appt_id, date:n.date, read:n.read
       })),
-      messages: (msgRes.data||[]).map(m=>({
+      messages: (msgRes.data||[]).filter(m=>!_pendingDeletes.messages.includes(String(m.id))).map(m=>({
         id:m.id,
         from:{key:m.from_key,role:m.from_role,id:m.from_id,name:m.from_name,avatar:m.from_avatar},
         to:{key:m.to_key,role:m.to_role,id:m.to_id,name:m.to_name,avatar:m.to_avatar},
@@ -2550,18 +2660,22 @@ async function pushToSupabase(){
     if(_pendingDeletes.doctors.length){
       await sb.from('doctors').delete().in('id', _pendingDeletes.doctors);
       _pendingDeletes.doctors = [];
+      savePendingDeletes();
     }
     if(_pendingDeletes.services.length){
       await sb.from('services').delete().in('id', _pendingDeletes.services);
       _pendingDeletes.services = [];
+      savePendingDeletes();
     }
     if(_pendingDeletes.appointments.length){
       await sb.from('appointments').delete().in('id', _pendingDeletes.appointments);
       _pendingDeletes.appointments = [];
+      savePendingDeletes();
     }
     if(_pendingDeletes.messages.length){
       await sb.from('messages').delete().in('id', _pendingDeletes.messages);
       _pendingDeletes.messages = [];
+      savePendingDeletes();
     }
 
     // --- Doctors ---
@@ -2600,7 +2714,7 @@ async function pushToSupabase(){
         documents:a.documents||[], status:a.status, internal:!!a.internal,
         rating:a.rating||0, notes:a.notes||'', cancel_reason:a.cancelReason||null,
         reminders:a.reminders||{h2:false},
-        updated_at: new Date().toISOString(),
+        updated_at:new Date().toISOString(),
         deleted_at:a.status==='deleted'?new Date().toISOString():null
       }));
       for(let i=0;i<rows.length;i+=100){
@@ -2664,42 +2778,47 @@ let _realtimeDebounce = null;
 
 function subscribeRealtime(){
   if(_realtimeChannel) return;
-  _realtimeChannel = sb.channel('omnimed-changes')
-    .on('postgres_changes', {event:'*', schema:'public'}, () => {
-      if(_syncTimer) return; // ignore nos propres écritures récentes
-      if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
-      _realtimeDebounce = setTimeout(async () => {
-        _isApplyingRemote = true;
-        try{
-          const activeEl = document.activeElement;
-          const activeId = activeEl?.id;
-          let selStart = null;
-          if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
-            try{ selStart = activeEl.selectionStart; }catch(e){}
-          }
-          await loadDB();
-          if(state.doctor){
-            const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
-            if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
-          }
-          render();
-          setTimeout(()=>{
-            if(activeId){
-              const el = document.getElementById(activeId);
-              if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
-            }
-          }, 50);
-        } finally {
-          _isApplyingRemote = false;
+
+  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry'];
+  let chan = sb.channel('omnimed-changes');
+  const handler = () => {
+    if(_syncTimer) return;                 // on est en train de pusher
+    if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
+    _realtimeDebounce = setTimeout(async () => {
+      _isApplyingRemote = true;
+      try{
+        const activeEl = document.activeElement;
+        const activeId = activeEl?.id;
+        let selStart = null;
+        if(activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')){
+          try{ selStart = activeEl.selectionStart; }catch(e){}
         }
-      }, 350);
-    })
-    .subscribe((status)=>{
-      state.realtimeConnected = status === 'SUBSCRIBED';
-      const el = document.getElementById('syncBadge');
-      if(el) markSyncBadge(status === 'SUBSCRIBED');
-      console.log('Realtime:', status);
-    });
+        await loadDB();
+        if(state.doctor){
+          const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
+          if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
+        }
+        render();
+        setTimeout(()=>{
+          if(activeId){
+            const el = document.getElementById(activeId);
+            if(el){ try{ el.focus({preventScroll:true}); if(selStart!=null && el.setSelectionRange) el.setSelectionRange(selStart,selStart); }catch(e){} }
+          }
+        }, 50);
+      } finally {
+        _isApplyingRemote = false;
+      }
+    }, 350);
+  };
+  tables.forEach(tbl => {
+    chan = chan.on('postgres_changes', {event:'*', schema:'public', table: tbl}, handler);
+  });
+  _realtimeChannel = chan.subscribe((status)=>{
+    state.realtimeConnected = status === 'SUBSCRIBED';
+    const el = document.getElementById('syncBadge');
+    if(el) markSyncBadge(status === 'SUBSCRIBED');
+    console.log('Realtime:', status);
+  });
 }
 
 function saveHidden(){ try { localStorage.setItem(LS_HIDDEN, JSON.stringify(state.hiddenAppts)); } catch(e){} }
@@ -2753,12 +2872,12 @@ const fmtDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.lang==
   return d.toLocaleDateString(l,{weekday:'short',day:'numeric',month:'short',year:'numeric'}); };
 const fmtLongDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.lang==='ar'?'ar-DZ':state.lang==='en'?'en-GB':'fr-FR';
   return d.toLocaleDateString(l,{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
-const todayISO = () => new Date().toISOString().slice(0,10);
+const todayISO = () => localISO(new Date());
 const nowISO = () => new Date().toISOString();
 const toMin = hhmm => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
 const toHHMM = min => String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0');
-const currentMonth = () => parseInt(todayISO().slice(5,7),10);
-const currentYear = () => parseInt(todayISO().slice(0,4),10);
+const currentMonth = () => new Date().getMonth()+1;
+const currentYear  = () => new Date().getFullYear();
 const fmtDateFR = iso => { const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
 const normPhone = p => String(p||'').replace(/[\s\-\.\(\)]/g,'');
 
@@ -2960,21 +3079,23 @@ function clearApptNotifications(apptId){
 }
 function checkReminders(){
   const now = new Date();
-  DB.appointments.forEach(a=>{
-    if(a.status!=='confirmed') return;
-    if(a.reminders?.h2) return;
-    const dt = new Date(a.date+'T'+a.time+':00');
-    const diff = (dt - now)/3600000;
-    if(diff>0 && diff<=2){
-      const doc = docById(a.doctorId); if(!doc) return;
-      a.reminders = a.reminders||{}; a.reminders.h2 = true;
+  const today = todayISO();
+  const tomorrow = dateOffset(1);
+  for(const a of DB.appointments){
+    if(a.status !== 'confirmed') continue;
+    if(a.reminders?.h2) continue;
+    if(a.date !== today && a.date !== tomorrow) continue;
+    const dt = new Date(a.date + 'T' + a.time + ':00');
+    const diff = (dt - now) / 3600000;
+    if(diff > 0 && diff <= 2){
+      const doc = docById(a.doctorId); if(!doc) continue;
+      a.reminders = a.reminders || {}; a.reminders.h2 = true;
       pushNotif('doctor', t('reminder')+' H-2', `${a.patientName} — ${a.time}`, a.doctorId, a.id);
       pushNotif('patient', t('reminder')+' H-2', `RDV chez ${doc.name} à ${a.time}`, null, a.id);
     }
-  });
+  }
   saveDB();
 }
-
 /* ===== Messagerie ===== */
 function currentUserKey(){
   const me = currentUserInfo();
@@ -3205,6 +3326,7 @@ function deleteSelectedMsgs(){
     if(m.deletedBy.includes(m.from.key) && m.deletedBy.includes(m.to.key)){
       (m.files||[]).forEach(f => idbFiles.del(f.key));
       _pendingDeletes.messages.push(id);
+      savePendingDeletes();
       DB.messages = DB.messages.filter(x=>x.id!==id);
     }
   });
@@ -3227,6 +3349,7 @@ function deleteMessage(id){
   if(m.deletedBy.includes(m.from.key) && m.deletedBy.includes(m.to.key)){
     (m.files||[]).forEach(f => idbFiles.del(f.key));
     _pendingDeletes.messages.push(id);
+    savePendingDeletes();
     DB.messages = DB.messages.filter(x=>x.id!==id);
   }
   saveDB();
@@ -3944,12 +4067,16 @@ function viewLogin(){
     </div>
   `;
 }
-function doAccountLogin(){
+async function doAccountLogin(){
   const ident = ($('#compteIdent')?.value||'').trim();
   const pwd = ($('#comptePwd')?.value||'').trim();
   const identLower = ident.toLowerCase();
   if(!ident || !pwd){ toast(t('required_fields'),'error'); return; }
-  if(identLower === DB.admin.username.toLowerCase() && pwd === DB.admin.password){
+
+  if(identLower === DB.admin.username.toLowerCase() && await verifyPassword(pwd, DB.admin.password)){
+    if(!/^[0-9a-f]{64}$/i.test(DB.admin.password)){
+      DB.admin.password = await hashPassword(pwd);
+    }
     state.admin = {username: DB.admin.username};
     state.doctor = null;
     state.role = 'admin';
@@ -3960,15 +4087,22 @@ function doAccountLogin(){
     state.msgSelected = [];
     state.selectedAppts = [];
     hideSubscriptionExpiredModal();
+    saveDB();
     render();
     toast(t('account_admin_welcome') + ' ✓','success');
     return;
   }
-  const doc = DB.doctors.find(d =>
-    (String(d.email).toLowerCase() === identLower || String(d.name).toLowerCase() === identLower) &&
-    String(d.password) === pwd
-  );
+
+  let doc = null;
+  for(const d of DB.doctors){
+    const okIdent = (String(d.email).toLowerCase() === identLower || String(d.name).toLowerCase() === identLower);
+    if(okIdent && await verifyPassword(pwd, d.password)){ doc = d; break; }
+  }
   if(doc){
+    if(!/^[0-9a-f]{64}$/i.test(doc.password)){
+      doc.password = await hashPassword(pwd);
+      saveDB();
+    }
     if(doc.locked){
       showDoctorLockedModal();
       return;
@@ -4102,12 +4236,17 @@ function openRecettePasswordModal(){
      <button class="pill-btn primary" id="recetteUnlockBtn" onclick="checkRecettePassword()">🔓 ${t('unlock')}</button>`);
   setTimeout(()=>{ const el=document.getElementById('recettePwd'); if(el) el.focus(); }, 40);
 }
-function checkRecettePassword(){
+async function checkRecettePassword(){
   const v = ($('#recettePwd')?.value||'').trim();
   if(!state.doctor){ closeModal(); return; }
   const doc = DB.doctors.find(d=>String(d.id)===String(state.doctor.id));
   if(!doc){ closeModal(); return; }
-  if(v && v === (doc.recettePassword || DEFAULT_PWD)){
+  const stored = doc.recettePassword || DEFAULT_PWD;
+  if(v && await verifyPassword(v, stored)){
+    if(!/^[0-9a-f]{64}$/i.test(stored)){
+      doc.recettePassword = await hashPassword(v);
+      saveDB();
+    }
     state.recetteUnlocked = true;
     closeModal();
     state.view = 'drecette';
@@ -4449,11 +4588,16 @@ function patientProtectedAction(apptId, action){
     else if(action === 'cancel') patientCancel(apptId);
   }
 }
-function verifyPatientPwd(apptId, action){
+async function verifyPatientPwd(apptId, action){
   const v = ($('#patientPwdCheck')?.value||'');
   const a = DB.appointments.find(x=>x.id===apptId);
   if(!a){ closeModal(); return; }
-  if(v === (a.patientPassword||'')){
+  const stored = a.patientPassword || '';
+  if(stored && await verifyPassword(v, stored)){
+    if(!/^[0-9a-f]{64}$/i.test(stored)){
+      a.patientPassword = await hashPassword(v);
+      saveDB();
+    }
     closeModal();
     if(action === 'modify') modifyAppt(apptId);
     else if(action === 'cancel') patientCancel(apptId);
@@ -4861,6 +5005,7 @@ async function confirmBooking(){
   const motif = ($('#pMotif')?.value||'').trim();
   const patientWilaya = ($('#pWilaya')?.value||'').trim();
   const patientPassword = ($('#pPassword')?.value||'').trim();
+  const hashedPatientPwd = patientPassword ? await hashPassword(patientPassword) : '';
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   const doc = docById(s.doctorId);
   if(!doc){ toast(t('doctor_not_found'),'error'); return; }
@@ -4890,7 +5035,7 @@ async function confirmBooking(){
     a.patientPhone = phone;
     a.patientEmail = email;
     a.patientWilaya = patientWilaya;
-    a.patientPassword = patientPassword;
+    a.patientPassword = hashedPatientPwd;
     a.motif = motif || 'Consultation';
     a.services = selectedServices;
     a.servicesTotal = servicesTotal;
@@ -4917,7 +5062,7 @@ async function confirmBooking(){
     doctorId:doc.id, patientName:name,
     patientAge: isNaN(age) ? null : age, patientPhone:phone, patientEmail:email,
     patientWilaya: patientWilaya,
-    patientPassword: patientPassword,
+    patientPassword: hashedPatientPwd,
     date:s.date, time:s.time, motif:motif||'Consultation',
     services: selectedServices, servicesTotal: servicesTotal,
     documents: savedDocs,
@@ -5257,7 +5402,6 @@ function renderTopListCard(title, icon, entries, color){
       </div>
     </div>`;
 }
-
 function renderDoctorView(){
   switch(state.view){
     case 'ddash': return viewDoctorDash();
@@ -6138,6 +6282,7 @@ function confirmDeleteService(serviceId, doctorId){
 }
 function deleteService(serviceId, doctorId){
   _pendingDeletes.services.push(serviceId);
+  savePendingDeletes();
   DB.services = DB.services.filter(s=>s.id!==serviceId);
   saveDB();
   openServicesManager(doctorId);
@@ -6439,12 +6584,14 @@ function viewDoctorProfile(){
     </div>
   `;
 }
-function changePwd(){
+async function changePwd(){
   const v = $('#newPwd')?.value;
   if(!v || v.length<4){ toast('4 caractères minimum','error'); return; }
   const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
-  if(doc) doc.password = v;
-  state.doctor.password = v; saveDB(); toast(t('password_updated'),'success');
+  const hashed = await hashPassword(v);
+  if(doc) doc.password = hashed;
+  state.doctor.password = hashed;
+  saveDB(); toast(t('password_updated'),'success');
 }
 
 function openDoctorForm(id, isSelf){
@@ -6528,7 +6675,7 @@ function openDoctorForm(id, isSelf){
       </div>
     </div>
   `;
-  const idStr = isEdit ? jsStr(String(id)) : 'null';
+  const idStr = isEdit ? `'${jsStr(String(id))}'` : 'null';
   const body = `
     <div class="section-title">👤 ${t('profile')}</div>
     <div class="field-row">
@@ -6690,7 +6837,7 @@ function togglePreviewSlot(time){
   if(idx >= 0) window._disabledSlots.splice(idx,1); else window._disabledSlots.push(time);
   updateSlotPreview();
 }
-function saveDoctor(id, isSelf){
+async function saveDoctor(id, isSelf){
   isSelf = !!isSelf;
   const name = ($('#fName')?.value||'').trim();
   const specialty = ($('#fSpec')?.value||'').trim();
@@ -6702,9 +6849,10 @@ function saveDoctor(id, isSelf){
   const feeInput = $('#fFee');
   const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
-  const pwd = ($('#fPwd')?.value||'').trim() || DEFAULT_PWD;
-  const recettePwdInput = $('#fRecettePwd');
-  const recettePwd = recettePwdInput ? (recettePwdInput.value.trim() || DEFAULT_PWD) : DEFAULT_PWD;
+  const pwdRaw = ($('#fPwd')?.value||'').trim() || DEFAULT_PWD;
+  const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim() || DEFAULT_PWD;
+  const pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
+  const recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
   const workEnd = $('#fEnd')?.value || '17:00';
@@ -6779,7 +6927,6 @@ function saveDoctor(id, isSelf){
     }
     Object.assign(d, commonFields, {fee, duration, recettePassword: recettePwd, id: newId}, billingFields);
     delete d.subEnd;
-    // Mise à jour des références si l'id change
     if(oldId !== newId){
       DB.services.forEach(s=>{ if(String(s.doctorId)===String(oldId)) s.doctorId = newId; });
       DB.appointments.forEach(a=>{ if(String(a.doctorId)===String(oldId)) a.doctorId = newId; });
@@ -6789,6 +6936,7 @@ function saveDoctor(id, isSelf){
         if(m.to && String(m.to.id)===String(oldId)) m.to = {...m.to, id:newId, key:`doctor_${newId}`};
       });
       _pendingDeletes.doctors.push(oldId);
+      savePendingDeletes();
     }
     if(state.doctor && String(state.doctor.id)===String(id)){
       state.doctor = d;
@@ -6848,6 +6996,7 @@ function toggleDoctorLock(id){
 function deleteDoctor(id){
   const d = docById(id); if(!d) return;
   _pendingDeletes.doctors.push(id);
+  savePendingDeletes();
   DB.doctors = DB.doctors.filter(x=>String(x.id)!==String(id));
   DB.appointments = DB.appointments.filter(a=>String(a.doctorId)!==String(id));
   DB.notifications = DB.notifications.filter(n=>String(n.toDoctorId)!==String(id));
@@ -6897,7 +7046,6 @@ function openNotifDetail(notifId){
   }
   openModal(n.title, n.message, body, actionsHTML);
 }
-
 function renderAdminView(){
   switch(state.view){
     case 'adash': return viewAdminDash();
@@ -8216,6 +8364,7 @@ function assignInvoiceNumberForDoctor(doctorId){
   if(DB.invoiceRegistry[key]) return DB.invoiceRegistry[key];
   const next = Object.keys(DB.invoiceRegistry).length + 1;
   DB.invoiceRegistry[key] = next;
+  saveDB();
   return next;
 }
 function formatInvoiceNumberFromCount(count){
@@ -9094,20 +9243,29 @@ function doImportJSON(dataStr){
   }
 }
 function qrSVG(seed){
-  let h=0; for(const c of String(seed)) h=(h*31+c.charCodeAt(0))>>>0;
-  const n=21; const cells=[];
-  const rand=()=>{ h=(h*1664525+1013904223)>>>0; return h/4294967296; };
-  for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-    const finder = (x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
-    let on;
-    if(finder){
-      const lx = x>=n-7 ? x-(n-7) : x;
-      const ly = y>=n-7 ? y-(n-7) : y;
-      on = (lx===0||lx===6||ly===0||ly===6) || (lx>=2&&lx<=4&&ly>=2&&ly<=4);
-    } else on = rand()>0.55;
-    if(on) cells.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="#1f2937"/>`);
+  try{
+    if(typeof qrcode !== 'function') throw new Error('lib manquante');
+    const qr = qrcode(0, 'M');
+    qr.addData(String(seed));
+    qr.make();
+    return qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
+  }catch(e){
+    console.warn('QR fallback:', e);
+    let h = 0; for(const c of String(seed)) h = (h*31 + c.charCodeAt(0)) >>> 0;
+    const n = 21, cells = [];
+    const rand = () => { h = (h*1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+      const finder = (x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
+      let on;
+      if(finder){
+        const lx = x>=n-7 ? x-(n-7) : x;
+        const ly = y>=n-7 ? y-(n-7) : y;
+        on = (lx===0||lx===6||ly===0||ly===6) || (lx>=2&&lx<=4&&ly>=2&&ly<=4);
+      } else on = rand() > 0.55;
+      if(on) cells.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="#1f2937"/>`);
+    }
+    return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${cells.join('')}</svg>`;
   }
-  return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${cells.join('')}</svg>`;
 }
 async function init(){
   try{ await idb.open(); }catch(e){}
@@ -9183,6 +9341,7 @@ Object.assign(window, {
   isDoctorSubscriptionActiveForBilling,
   sendInvoicesToDoctors, buildMessageInvoiceHTML,
   openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
+  hashPassword, verifyPassword,
   subscribeRealtime
 });
 </script>
