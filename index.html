@@ -2653,6 +2653,22 @@ async function loadDB(){
       DB.communes[r.wilaya].push(r.name);
     });
     if(!DB.wilayas.length) DB.wilayas = [...WILAYAS];
+    // ⬇️⬇️⬇️ AJOUT : forcer l'ordre officiel des wilayas (01 → 58)
+    DB.wilayas.sort((a, b) => {
+      const ia = WILAYAS.indexOf(a);
+      const ib = WILAYAS.indexOf(b);
+      if(ia === -1 && ib === -1) return String(a).localeCompare(String(b), 'fr');
+      if(ia === -1) return 1;
+      if(ib === -1) return -1;
+      return ia - ib;
+    });
+    // ⬇️⬇️⬇️ AJOUT : trier les communes par ordre alphabétique dans chaque wilaya
+    Object.keys(DB.communes).forEach(w => {
+      if(Array.isArray(DB.communes[w])){
+        DB.communes[w] = [...new Set(DB.communes[w])]
+          .sort((a,b)=>String(a).localeCompare(String(b), 'fr'));
+      }
+    });
     if(!DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
     if(!DB.doctors) DB.doctors = [];
     if(!DB.appointments) DB.appointments = [];
