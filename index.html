@@ -2584,6 +2584,7 @@ async function loadDB(){
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
         email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
         password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
+        passwordPlain: d.password_plain || '', recettePasswordPlain: d.recette_password_plain || '',
         bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
         workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
         billingType: d.billing_type||'none',
@@ -2690,6 +2691,7 @@ async function pushToSupabase(){
         commune:d.commune||'', address:d.address||'', phone:d.phone||'',
         email:d.email||'', fee:d.fee||0, duration:d.duration||30,
         password:d.password||DEFAULT_PWD, recette_password:d.recettePassword||DEFAULT_PWD,
+        password_plain: d.passwordPlain || null, recette_password_plain: d.recettePasswordPlain || null,
         bio:d.bio||'', work_days:d.workDays||[], work_start:d.workStart||'08:00',
         work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
         billing_type:d.billingType||'none',
@@ -6827,18 +6829,18 @@ function openDoctorForm(id, isSelf){
     <div class="field-row">
       <div class="field">
         <label>Mot de passe session</label>
-        <input class="input" id="fPwd" type="text" value="${esc(d.password && /^[0-9a-f]{64}$/i.test(d.password) ? '' : (d.password||''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
+        <input class="input" id="fPwd" type="text" value="${esc(d.passwordPlain || (d.password && !/^[0-9a-f]{64}$/i.test(d.password) ? d.password : ''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Utilisé pour se connecter à l'espace médecin</div>
       </div>
       <div class="field">
         <label>Mot de passe finance</label>
-        <input class="input" id="fRecettePwd" type="text" value="${esc(d.recettePassword && /^[0-9a-f]{64}$/i.test(d.recettePassword) ? '' : (d.recettePassword||''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
+        <input class="input" id="fRecettePwd" type="text" value="${esc(d.recettePasswordPlain || (d.recettePassword && !/^[0-9a-f]{64}$/i.test(d.recettePassword) ? d.recettePassword : ''))}" placeholder="${isEdit ? 'Laisser vide pour conserver' : DEFAULT_PWD}" autocomplete="new-password">
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Protège l'accès à la section Finance (Recette cabinet)</div>
       </div>
     </div>
     ` : `
-    <input type="hidden" id="fPwd" value="${esc(d.password)}">
-    <input type="hidden" id="fRecettePwd" value="${esc(d.recettePassword)}">
+    <input type="hidden" id="fPwd" value="${esc(d.passwordPlain || d.password || '')}">
+    <input type="hidden" id="fRecettePwd" value="${esc(d.recettePasswordPlain || d.recettePassword || '')}">
     `}
     <div class="sep"></div>
     <div class="section-title">🔑 ${t('account_info')}</div>
@@ -6950,6 +6952,8 @@ async function saveDoctor(id, isSelf){
   // --- Gestion des mots de passe ---
   let pwd;
   let recettePwd;
+  let pwdPlain = '';
+  let recettePwdPlain = '';
 
   const pwdRaw = ($('#fPwd')?.value||'').trim();
   const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
@@ -6958,20 +6962,33 @@ async function saveDoctor(id, isSelf){
     // Session médecin : NE TOUCHE JAMAIS au mot de passe finance
     // et ne change le mot de passe session QUE si un nouveau est saisi
     const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
-    pwd = pwdRaw
-      ? (/^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw))
-      : (existingDoc ? existingDoc.password : DEFAULT_PWD);
+    if(pwdRaw){
+      pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
+      pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? (existingDoc?.passwordPlain||'') : pwdRaw;
+    } else {
+      pwd = existingDoc ? existingDoc.password : DEFAULT_PWD;
+      pwdPlain = existingDoc ? (existingDoc.passwordPlain||'') : DEFAULT_PWD;
+    }
     // On conserve TOUJOURS le mot de passe finance existant
     recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
+    recettePwdPlain = existingDoc ? (existingDoc.recettePasswordPlain||'') : DEFAULT_PWD;
   } else {
     // Admin : il peut tout modifier
     const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
-    pwd = pwdRaw
-      ? (/^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw))
-      : (existingDoc ? existingDoc.password : DEFAULT_PWD);
-    recettePwd = recettePwdRaw
-      ? (/^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw))
-      : (existingDoc ? existingDoc.recettePassword : DEFAULT_PWD);
+    if(pwdRaw){
+      pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
+      pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? (existingDoc?.passwordPlain||'') : pwdRaw;
+    } else {
+      pwd = existingDoc ? existingDoc.password : DEFAULT_PWD;
+      pwdPlain = existingDoc ? (existingDoc.passwordPlain||'') : DEFAULT_PWD;
+    }
+    if(recettePwdRaw){
+      recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
+      recettePwdPlain = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? (existingDoc?.recettePasswordPlain||'') : recettePwdRaw;
+    } else {
+      recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
+      recettePwdPlain = existingDoc ? (existingDoc.recettePasswordPlain||'') : DEFAULT_PWD;
+    }
   }
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
@@ -7045,7 +7062,9 @@ async function saveDoctor(id, isSelf){
     if(oldId !== newId && DB.doctors.some(x=>String(x.id)===newId && String(x.id)!==String(oldId))){
       toast('Un médecin avec cet email existe déjà','error'); return;
     }
-    Object.assign(d, commonFields, {fee, duration, recettePassword: recettePwd, id: newId}, billingFields);
+    Object.assign(d, commonFields, {fee, duration, recettePassword: recettePwd,
+      passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
+      id: newId}, billingFields);
     delete d.subEnd;
     if(oldId !== newId){
       DB.services.forEach(s=>{ if(String(s.doctorId)===String(oldId)) s.doctorId = newId; });
@@ -7073,7 +7092,9 @@ async function saveDoctor(id, isSelf){
     if(DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
     DB.doctors.push({
       id: email, name, specialty, wilaya, commune, address, phone, email, fee, duration,
-      password: DEFAULT_PWD, recettePassword: DEFAULT_PWD, bio, workDays, workStart, workEnd,
+      password: pwd, recettePassword: recettePwd,
+      passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
+      bio, workDays, workStart, workEnd,
       disabledSlots, createdAt: todayISO(), sessionClosed:false, locked:false, ...billingFields
     });
   }
