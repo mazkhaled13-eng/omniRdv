@@ -2822,50 +2822,10 @@ function markSyncBadge(ok){
   el.className = 'sync-badge ' + (ok ? 'online' : 'offline');
   el.textContent = ok ? '🟢 En ligne' : '🔴 Hors-ligne';
 }
-/* ---------- Helpers anti-flicker Realtime ---------- */
-// Fait un "empreinte" de la DB pour détecter un vrai changement
-function snapshotDB(){
-  return {
-      doctors:        JSON.stringify(DB.doctors),
-          appointments:   JSON.stringify(DB.appointments),
-              services:       JSON.stringify(DB.services),
-                  notifications:  JSON.stringify(DB.notifications),
-                      messages:       JSON.stringify(DB.messages),
-                          settings:       JSON.stringify(DB.settings),
-                              specialties:    JSON.stringify(DB.specialties),
-                                  wilayas:        JSON.stringify(DB.wilayas),
-                                      communes:       JSON.stringify(DB.communes),
-                                          invoiceRegistry:    JSON.stringify(DB.invoiceRegistry),
-                                              subInvoiceRegistry: JSON.stringify(DB.subInvoiceRegistry)
-                                                };
-                                                }
 
-                                                // Quelles clés DB sont pertinentes pour la vue actuelle ?
-                                                // Renvoie null = "tout est pertinent" (ex: admin) → ne jamais skip
-                                                function relevantKeysForCurrentView(){
-                                                  const v = state.view;
-                                                    const isAdmin = state.role === 'admin';
-                                                      const isDoc   = state.role === 'doctor';
-                                                        if(isAdmin) return null; // admin voit tout → toujours re-render
-                                                          if(isDoc){
-                                                              if(v === 'ddash' || v === 'dappts' || v === 'dinternal'
-                                                                     || v === 'dstats' || v === 'drecette')
-                                                                           return ['appointments','services','notifications','settings'];
-                                                                               if(v === 'dprof')    return ['doctors','settings'];
-                                                                                   if(v === 'dmessages')return ['messages','doctors'];
-                                                                                       return ['appointments','doctors','services','notifications','settings'];
-                                                                                         }
-                                                                                           // Patient
-                                                                                             if(v === 'home' || v === 'book')
-                                                                                                 return ['doctors','specialties','wilayas','communes','appointments','services'];
-                                                                                                   if(v === 'my')     return ['appointments','doctors','notifications'];
-                                                                                                     if(v === 'login')  return null;
-                                                                                                       return ['doctors','appointments','services','settings'];
-                                                                                                       }
-
-                                                                                                       /* ---------- REALTIME ---------- */
-                                                                                                       let _realtimeChannel = null;
-                                                                                                       let _realtimeDebounce = null;
+ /* ---------- REALTIME ---------- */
+ let _realtimeChannel = null;
+ let _realtimeDebounce = null;
 function subscribeRealtime(){
   if(_realtimeChannel) return;
 
