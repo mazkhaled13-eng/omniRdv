@@ -957,151 +957,259 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 
 /* ============ FIX AFFICHAGE MOBILE ============ */
 @media (max-width: 640px) {
-  .app-top{flex-wrap:wrap;padding:8px 10px;gap:6px;row-gap:4px}
-  .brand-left{flex:1 1 auto;min-width:0;gap:8px}
+
+  .app-top{
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    gap: 6px;
+    row-gap: 4px;
+  }
+  .brand-left{
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
+  }
   .brand-logo-c{width:34px;height:34px;font-size:17px;border-radius:10px}
   .brand-name-c{font-size:17px}
   .brand-tag-c{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-titles{min-width:0;overflow:hidden}
-  .top-actions{flex:0 0 auto;flex-shrink:1;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+
+  .top-actions{
+    flex: 0 0 auto;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+  }
   .top-actions .pill-btn{padding:5px 9px;font-size:10.5px}
-  .top-actions .tag{padding:2px 7px;font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top-actions .tag{padding:2px 7px;font-size:10px;max-width:120px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sync-badge{font-size:9.5px;padding:2px 6px}
-  .app-nav{flex-wrap:wrap;padding:7px 10px;gap:6px}
-  .nav-items{flex:1 1 100%;order:1;overflow-x:auto;padding-bottom:2px}
-  .nav-controls{flex:1 1 100%;order:2;justify-content:space-between;gap:6px;flex-wrap:wrap}
+
+  .app-nav{
+    flex-wrap: wrap;
+    padding: 7px 10px;
+    gap: 6px;
+  }
+  .nav-items{
+    flex: 1 1 100%;
+    order: 1;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .nav-controls{
+    flex: 1 1 100%;
+    order: 2;
+    justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
   .nav-item{padding:6px 10px;font-size:11.5px}
   .nav-item .ico{font-size:12px}
+
   .role-menu{padding:2px}
   .role-btn{padding:5px 9px;font-size:11px}
+
   .segmented{padding:2px}
   .segmented button{padding:4px 8px;font-size:10.5px}
+
   .switch{width:42px;height:23px}
   .switch .slider::before{height:15px;width:15px;left:3px;top:3px}
   .switch input:checked + .slider::before{transform:translateX(19px)}
   .switch .slider .ico{font-size:10px}
-  .content-wrap{padding:12px 10px}
+
+  .content-wrap{padding: 12px 10px}
 }
 @media (max-width: 380px){
   .brand-tag-c{display:none}
 }
 
 /* ============================================================
-   ✅ MODIF 2 : REFONTE ÉTIQUETTE RDV PATIENT
+   ✅ MODIFICATION 2 : REFONTE ÉTIQUETTE PATIENT (carte entière)
    ============================================================ */
-.patient-appt{
-  flex-direction: column;
-  align-items: stretch;
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
+.appt.patient-appt{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:10px;
+  cursor:pointer;
+  padding:12px 14px;
+  border-left:4px solid var(--accent-primary);
+  position:relative;
+  background:var(--glass-bg);
+  border-top:1px solid var(--glass-border);
+  border-right:1px solid var(--glass-border);
+  border-bottom:1px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  margin-bottom:8px;
 }
-.patient-appt .appt-main{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: var(--transition);
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  color: var(--text-main);
+.appt.patient-appt.internal{
+  border-left-color:#ec4899;
+  background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04));
 }
-.patient-appt .appt-main:hover{ background: var(--accent-light); }
-.patient-appt .appt-main:hover .appt-patient{ color: var(--accent-primary); }
-.patient-appt .appt-main:hover .appt-chevron{ color: var(--accent-primary); transform: translateX(3px); }
-.patient-appt .appt-body{ flex: 1; min-width: 0; }
-.patient-appt .appt-patient{
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+.appt.patient-appt:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-sm);
+  border-color:var(--accent-primary);
+  border-left-color:var(--accent-primary);
 }
-.patient-appt .appt-spec{
-  font-weight: 400;
-  color: var(--text-muted);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+.appt.patient-appt.internal:hover{
+  border-left-color:#ec4899;
 }
-.patient-appt .appt-meta{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-  margin-top: 4px;
+.appt.patient-appt .pa-head{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  flex-wrap:wrap;
+  width:100%;
 }
-.patient-appt .appt-meta-item{
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg-3);
-  border: 1px solid var(--glass-border);
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--text-main);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.appt.patient-appt .appt-time{
+  min-width:56px;
 }
-.patient-appt .appt-actions{
-  border-top: 1px solid var(--glass-border);
-  padding: 6px 10px;
-  justify-content: flex-end;
-  background: rgba(0,0,0,.02);
+.appt.patient-appt .pa-body{
+  flex:1;
+  min-width:0;
 }
-body.dark .patient-appt .appt-actions{ background: rgba(255,255,255,.02); }
-.appt-chevron{
-  font-size: 22px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  transition: var(--transition);
-  line-height: 1;
-  font-weight: 700;
+.appt.patient-appt .pa-body .appt-patient{
+  font-size:14px;
+  margin-bottom:5px;
+  line-height:1.3;
 }
-body[dir="rtl"] .appt-chevron{ transform: scaleX(-1); }
-body[dir="rtl"] .patient-appt .appt-main:hover .appt-chevron{ transform: scaleX(-1) translateX(3px); }
-@media (max-width: 520px){
-  .patient-appt .appt-main{ padding: 9px 10px; gap: 8px; }
-  .patient-appt .appt-meta{ gap: 4px; }
-  .patient-appt .appt-meta-item{ font-size: 10px; padding: 2px 6px; }
+.appt.patient-appt .pa-body .appt-meta{
+  font-size:11px;
+  gap:6px;
+  align-items:center;
+  line-height:1.5;
+}
+.appt.patient-appt .pa-detail-chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding:7px 13px;
+  border-radius:var(--radius-pill);
+  font-size:11px;
+  font-weight:700;
+  background:var(--accent-light);
+  color:var(--accent-primary);
+  border:1.5px solid rgba(139,92,246,.35);
+  white-space:nowrap;
+  transition:var(--transition);
+  flex-shrink:0;
+  align-self:center;
+  letter-spacing:.15px;
+}
+.appt.patient-appt:hover .pa-detail-chip{
+  background:var(--accent-primary);
+  color:#fff;
+  border-color:var(--accent-primary);
+  box-shadow:0 4px 10px rgba(139,92,246,.3);
+}
+.appt.patient-appt .pa-actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  padding-top:9px;
+  border-top:1px dashed var(--glass-border);
+  width:100%;
+  justify-content:flex-end;
+}
+@media (max-width: 640px){
+  .appt.patient-appt{
+    padding:11px 12px;
+    gap:9px;
+  }
+  .appt.patient-appt .pa-head{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:10px;
+    align-items:start;
+  }
+  .appt.patient-appt .pa-detail-chip{
+    grid-column:1 / -1;
+    width:100%;
+    justify-content:center;
+    align-self:stretch;
+    padding:9px 12px;
+    font-size:11.5px;
+  }
+  .appt.patient-appt .pa-actions{
+    justify-content:stretch;
+  }
+  .appt.patient-appt .pa-actions .mini-btn{
+    flex:1 1 auto;
+    min-width:0;
+    justify-content:center;
+    text-align:center;
+  }
+}
+@media (max-width: 400px){
+  .appt.patient-appt .pa-body .appt-patient{
+    font-size:13px;
+  }
+  .appt.patient-appt .pa-body .appt-meta{
+    font-size:10.5px;
+  }
+  .appt.patient-appt .pa-detail-chip{
+    font-size:11px;
+  }
 }
 
 /* ============================================================
-   ✅ MODIF 3 : SYSTÈME RESPONSIVE PLEIN ÉCRAN
+   ✅ MODIFICATION 3 : SYSTÈME ADAPTATIF PLEIN ÉCRAN
    ============================================================ */
-@supports (height: 100svh) {
-  body { min-height: 100svh; }
-  .app {
-    height: calc(100svh - 40px);
-    height: calc(100dvh - 40px);
+html,body{
+  width:100%;
+  max-width:100vw;
+}
+@media (max-width: 640px){
+  html,body{
+    overflow-x:hidden;
   }
-  @media (max-width: 900px) {
-    .app {
-      height: calc(100svh - 24px);
-      height: calc(100dvh - 24px);
-    }
+  .app{
+    min-height:0;
+    max-height:100dvh;
   }
-  @media (max-width: 640px) {
-    .app {
-      height: 100svh;
-      height: 100dvh;
-    }
+  .content-wrap{
+    padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .card{
+    min-width:0;
+  }
+  .card-title, .card-sub{
+    word-break:break-word;
+  }
+  .stats-tags{
+    gap:6px;
+  }
+  .tag.stat-tag-lg{
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .tag.stat-tag-lg .st-lbl{
+    white-space:normal;
+  }
+  .grid, .grid-2, .grid-3, .grid-4{
+    gap:10px;
+  }
+  .modal{
+    max-height:calc(100dvh - 20px);
+  }
+  .modal-actions .pill-btn{
+    word-break:break-word;
+    white-space:normal;
   }
 }
-.content-wrap{ padding-bottom: max(18px, env(safe-area-inset-bottom)); }
-@media (max-width: 640px){
-  .app-top{ padding-top: max(8px, env(safe-area-inset-top)); }
-  .content-wrap{ padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-  .app-nav{ padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+@media (max-width: 400px){
+  .grid-2, .grid-3, .grid-4{
+    grid-template-columns:1fr;
+  }
+  .bulk-toolbar .bt-right .mini-btn{
+    flex:1 1 auto;
+    text-align:center;
+    justify-content:center;
+  }
 }
 </style>
 </head>
@@ -1110,18 +1218,24 @@ body[dir="rtl"] .patient-appt .appt-main:hover .appt-chevron{ transform: scaleX(
 <div id="toasts"></div>
 <div id="modal-root"></div>
 <div id="subModalRoot"></div>
-<script>
-/* ============================================================
+<!-- ⬇️ La suite (le <script>) est dans la PARTIE 2 ⬇️ -->
+   <script>
+  /* ============================================================
    SUPABASE — CONFIG
    ============================================================ */
 const SUPABASE_URL = 'https://cbvzfkntznlrffyacmil.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNidnpma250em5scmZmeWFjbWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTExNzQsImV4cCI6MjEwNzAyNzE3NH0.slHetHt0OhRAWJHZU4I6Mm-X1W4jc-03kVliEWhHkAM';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  realtime: { params: { eventsPerSecond: 50, heartbeatIntervalMs: 15000 } }
+  realtime: {
+    params: {
+      eventsPerSecond: 50,
+      heartbeatIntervalMs: 15000
+    }
+  }
 });
 
 /* ============================================================
-   HASHING MDP
+   HASHING MDP — SHA-256 + sel applicatif
    ============================================================ */
 const PWD_SALT = 'omnimed_v1_static_salt_2025';
 async function hashPassword(plain){
@@ -1139,7 +1253,7 @@ async function verifyPassword(plain, stored){
 }
 
 /* ============================================================
-   CONSTANTES
+   OmniMed — Plateforme Médicale
    ============================================================ */
 const COMMISSION_GENERAL_DEFAULT = 20;
 const SUB_MONTHLY_DEFAULT = 2000;
@@ -1271,14 +1385,8 @@ function numberToFrenchWords(n){
   if(r > 0) out += ' ' + under1M(r);
   return out;
 }
-  <script>
-/* ============================================================
-   TRADUCTIONS — Dictionnaire complet (fr / en / ar)
-   + clés ajoutées pour la section Nettoyage (cleaning_*)
-   ============================================================ */
 const T = {
-  fr:{
-    brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',
+  fr:{brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',
     home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dinternal:'RDV interne',dstats:'Statistiques',dprof:'Mon profil',
     drecette:'Finance',dmessages:'Messagerie',
     adash:'Tableau de bord',adoctors:'Médecins',aappts:'Rendez-vous',astats:'Statistiques',arevenue:'Finance',alistes:'Listes',asettings:'Paramètres',amessages:'Messagerie',
@@ -1659,21 +1767,19 @@ const T = {
     json_last_size:'Taille du dernier export',
     admin_settings_section:'Paramètres système',
     system_info:'Informations système',
-    /* ✅ MODIF 1 : Nettoyage */
-    cleaning_section:'Nettoyage',
-    cleaning_title:'Nettoyage',
+    /* ✅ MODIFICATION 1 : Traductions Nettoyage */
+    cleaning:'Nettoyage',
     cleaning_sub:'Rendez-vous non consultés depuis plus de 2 ans',
-    cleaning_hint:'Ces rendez-vous datent de plus de 2 ans. Supprimez-les définitivement pour alléger la base de données.',
-    cleaning_total:'Total à nettoyer',
-    cleaning_delete_all:'Tout supprimer',
-    cleaning_confirm:'Supprimer définitivement {n} rendez-vous ? Cette action est irréversible.',
-    cleaning_none:'Aucun rendez-vous ancien à nettoyer',
+    cleaning_empty:'Aucun rendez-vous non consulté de plus de 2 ans',
+    cleaning_btn:'Nettoyer les anciens RDV',
+    cleaning_confirm:'Supprimer définitivement {n} rendez-vous ?',
     cleaning_deleted:'{n} rendez-vous supprimés',
-    cleaning_view:'Voir la liste',
-    cleaning_older_than:'Plus de 2 ans'
+    cleaning_old:'RDV anciens (> 2 ans)',
+    cleaning_warning:'Ces rendez-vous n\'ont pas été consultés (statut ≠ Terminé) et datent de plus de 2 ans. La suppression est définitive.',
+    cleaning_details:'Détails des anciens rendez-vous',
+    cleaning_more:'et {n} autre(s)'
   },
-  en:{
-    brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',
+  en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
     drecette:'Finance',dmessages:'Messages',
     adash:'Dashboard',adoctors:'Doctors',aappts:'Appointments',astats:'Statistics',arevenue:'Finance',alistes:'Lists',asettings:'Settings',amessages:'Messages',
@@ -2054,21 +2160,19 @@ const T = {
     json_last_size:'Last export size',
     admin_settings_section:'System settings',
     system_info:'System information',
-    /* ✅ MODIF 1 : Nettoyage */
-    cleaning_section:'Cleaning',
-    cleaning_title:'Cleaning',
+    /* ✅ MODIFICATION 1 */
+    cleaning:'Cleaning',
     cleaning_sub:'Appointments not consulted for over 2 years',
-    cleaning_hint:'These appointments are over 2 years old. Delete them permanently to lighten the database.',
-    cleaning_total:'Total to clean',
-    cleaning_delete_all:'Delete all',
-    cleaning_confirm:'Permanently delete {n} appointments? This action is irreversible.',
-    cleaning_none:'No old appointment to clean',
+    cleaning_empty:'No old appointments to clean',
+    cleaning_btn:'Clean old appointments',
+    cleaning_confirm:'Permanently delete {n} appointments?',
     cleaning_deleted:'{n} appointments deleted',
-    cleaning_view:'View list',
-    cleaning_older_than:'Over 2 years'
+    cleaning_old:'Old appointments (> 2 years)',
+    cleaning_warning:'These appointments were not consulted (status ≠ Done) and are over 2 years old. Deletion is permanent.',
+    cleaning_details:'Old appointments details',
+    cleaning_more:'and {n} more'
   },
-  ar:{
-    brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',
+  ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
     drecette:'المالية',dmessages:'الرسائل',
     adash:'لوحة التحكم',adoctors:'الأطباء',aappts:'المواعيد',astats:'إحصائيات',arevenue:'المالية',alistes:'القوائم',asettings:'الإعدادات',amessages:'الرسائل',
@@ -2449,24 +2553,23 @@ const T = {
     json_last_size:'حجم آخر تصدير',
     admin_settings_section:'إعدادات النظام',
     system_info:'معلومات النظام',
-    /* ✅ MODIF 1 : Nettoyage */
-    cleaning_section:'التنظيف',
-    cleaning_title:'التنظيف',
-    cleaning_sub:'مواعيد لم تُستشار منذ أكثر من سنتين',
-    cleaning_hint:'هذه المواعيد عمرها أكثر من سنتين. احذفها نهائيًا لتخفيف قاعدة البيانات.',
-    cleaning_total:'الإجمالي للتنظيف',
-    cleaning_delete_all:'حذف الكل',
-    cleaning_confirm:'حذف {n} موعد نهائيًا؟ هذا الإجراء لا رجعة فيه.',
-    cleaning_none:'لا توجد مواعيد قديمة للتنظيف',
+    /* ✅ MODIFICATION 1 */
+    cleaning:'التنظيف',
+    cleaning_sub:'مواعيد لم يتم استشارتها منذ أكثر من سنتين',
+    cleaning_empty:'لا توجد مواعيد قديمة لتنظيفها',
+    cleaning_btn:'تنظيف المواعيد القديمة',
+    cleaning_confirm:'حذف {n} موعد نهائيًا؟',
     cleaning_deleted:'تم حذف {n} موعد',
-    cleaning_view:'عرض القائمة',
-    cleaning_older_than:'أكثر من سنتين'
+    cleaning_old:'مواعيد قديمة (> سنتين)',
+    cleaning_warning:'هذه المواعيد لم تتم استشارتها (الحالة ≠ منتهية) وتزيد عن سنتين. الحذف نهائي.',
+    cleaning_details:'تفاصيل المواعيد القديمة',
+    cleaning_more:'و {n} أخرى'
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
 
-/* ============================================================
-   STORAGE — Supabase Storage
+  /* ============================================================
+   STORAGE — Supabase Storage (remplace IndexedDB pour fichiers)
    ============================================================ */
 const idb = { db:null, supported:false, async open(){}, async get(){ return null; }, async set(){} };
 const idbFiles = {
@@ -2796,7 +2899,7 @@ async function loadDB(){
   }
 }
 
-/* ---------- SAVE ---------- */
+/* ---------- SAVE (debounced full-sync) ---------- */
 function saveDB(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
   if(_isApplyingRemote) return;
@@ -3012,14 +3115,19 @@ function subscribeRealtime(){
       _isApplyingRemote = true;
       try{
         const before = snapshotDB();
+
         await loadDB();
+
         if(state.doctor){
           const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
           if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
         }
+
         const after = snapshotDB();
         const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
+
         if(changedKeys.length === 0) return;
+
         const relevant = relevantKeysForCurrentView();
         if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
 
@@ -3096,7 +3204,7 @@ function subscribeRealtime(){
       console.warn('Realtime déconnecté, reconnexion dans 3s…');
       setTimeout(() => {
         if(_realtimeChannel){
-          try { sb.removeChannel(_realtimeChannel); } catch(e){}
+          try { sb.removeChannel(_realtimeChannel); }catch(e){}
           _realtimeChannel = null;
           subscribeRealtime();
         }
@@ -3412,6 +3520,92 @@ function checkReminders(){
     }
   }
   saveDB();
+}
+
+/* ============================================================
+   ✅ MODIFICATION 1 : FONCTIONS NETTOYAGE (RDV non consultés > 2 ans)
+   ============================================================ */
+function getOldAppointments(){
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const limitISO = localISO(twoYearsAgo);
+  return DB.appointments
+    .filter(a => a.date < limitISO && a.status !== 'done')
+    .sort((a, b) => String(b.date + b.time).localeCompare(String(a.date + a.time)));
+}
+function openCleaningModal(){
+  const oldAppts = getOldAppointments();
+  if(!oldAppts.length){
+    openModal('🧽 ' + t('cleaning'), t('cleaning_empty'), '',
+      `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`);
+    return;
+  }
+  const body = `
+    <div class="letter-amount" style="font-style:normal;margin-bottom:12px;color:var(--warn);border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)">
+      ⚠️ ${esc(t('cleaning_warning'))}
+    </div>
+    <div class="tbl-wrap" style="margin-bottom:0">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th>${t('billing_date')}</th>
+            <th>${t('billing_patient')}</th>
+            <th>${t('billing_doctor_col')}</th>
+            <th>${t('billing_status')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${oldAppts.slice(0, 200).map((a, i) => {
+            const doc = docById(a.doctorId);
+            return `<tr>
+              <td style="text-align:center;color:var(--text-muted)">${i+1}</td>
+              <td>${fmtDateFR(a.date)} ${a.time}</td>
+              <td>${esc(a.patientName)}</td>
+              <td>${esc(doc?.name || '—')}</td>
+              <td>${statusTag(a.status)}</td>
+            </tr>`;
+          }).join('')}
+          ${oldAppts.length > 200 ? `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-style:italic">… ${t('cleaning_more').replace('{n}', oldAppts.length - 200)}</td></tr>` : ''}
+        </tbody>
+      </table>
+    </div>
+  `;
+  const actions = `
+    <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+    <button class="pill-btn danger" onclick="askCleanOldAppointments()">🧽 ${t('cleaning_btn')}</button>
+  `;
+  openModal('🧽 ' + t('cleaning'), `${oldAppts.length} ${t('cleaning_old')}`, body, actions, true);
+}
+function askCleanOldAppointments(){
+  const oldAppts = getOldAppointments();
+  if(!oldAppts.length){
+    toast(t('cleaning_empty'), 'info');
+    return;
+  }
+  openModal('🧽 ' + t('cleaning'),
+    t('cleaning_confirm').replace('{n}', oldAppts.length),
+    `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)">
+      ⚠️ ${esc(t('cleaning_warning'))}
+    </div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="doCleanOldAppointments()">🗑️ ${t('delete')}</button>`);
+}
+function doCleanOldAppointments(){
+  const oldAppts = getOldAppointments();
+  const ids = oldAppts.map(a => a.id);
+  if(!ids.length){
+    closeModal();
+    toast(t('cleaning_empty'), 'info');
+    return;
+  }
+  ids.forEach(id => _pendingDeletes.appointments.push(id));
+  savePendingDeletes();
+  DB.appointments = DB.appointments.filter(a => !ids.includes(a.id));
+  saveDB();
+  closeModal();
+  render();
+  toast('🧽 ' + t('cleaning_deleted').replace('{n}', ids.length), 'success');
 }
 
 /* ===== Messagerie ===== */
@@ -5482,10 +5676,7 @@ function lookupPhone(){
 }
 
 /* ============================================================
-   ✅ MODIF 2 : Nouvelle étiquette RDV patient
-   - Toute la carte cliquable (bouton principal)
-   - Chevron à droite
-   - Actions séparées en bas
+   ✅ MODIFICATION 2 : REFONTE ÉTIQUETTE PATIENT (carte entière cliquable)
    ============================================================ */
 function patientApptHTML(a){
   const doc = docById(a.doctorId);
@@ -5494,34 +5685,31 @@ function patientApptHTML(a){
   const lockIcon = a.patientPassword ? ' 🔒' : '';
   const docN = (a.documents||[]).length;
   return `
-    <div class="appt patient-appt ${a.internal?'internal':''}">
-      <button type="button" class="appt-main" onclick="openPatientApptDetail('${a.id}')" title="${esc(t('appt_detail'))}">
+    <div class="appt patient-appt ${a.internal?'internal':''}" onclick="openPatientApptDetail('${a.id}')" title="${t('appt_detail')}">
+      <div class="pa-head">
         <div class="appt-time">
           <div class="h">${a.time}</div>
           <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
         </div>
-        <div class="appt-body">
-          <div class="appt-patient">
-            <span>${esc(doc?.name||'—')}</span>
-            <span class="appt-spec">· ${esc(doc?.specialty||'')}</span>
-          </div>
+        <div class="pa-body">
+          <div class="appt-patient">${esc(doc?.name||'—')} <span style="font-weight:400;color:var(--text-muted);font-size:11px">· ${esc(doc?.specialty||'')}</span></div>
           <div class="appt-meta">
-            ${statusTag(a.status)}
+            <span>${statusTag(a.status)}</span>
             ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
-            <span class="appt-meta-item">🆔 ${a.id}${lockIcon}</span>
-            ${a.motif?`<span class="appt-meta-item">📝 ${esc(a.motif)}</span>`:''}
-            ${a.patientWilaya?`<span class="appt-meta-item">🗺️ ${esc(a.patientWilaya)}</span>`:''}
-            ${a.services&&a.services.length?`<span class="appt-meta-item">💉 ${a.services.length}</span>`:''}
-            ${docN?`<span class="appt-meta-item">📎 ${docN}</span>`:''}
             ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
+            <span>🆔 ${a.id}${lockIcon}</span>
+            ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
+            ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
+            ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
+            ${docN?`<span class="doc-chip">📎 ${docN}</span>`:''}
           </div>
         </div>
-        <div class="appt-chevron" aria-hidden="true">›</div>
-      </button>
-      <div class="appt-actions">
-        ${canModify?`<button class="mini-btn ghost" onclick="event.stopPropagation();patientProtectedAction('${a.id}','modify')">✏️ ${t('modify_appt')}</button>`:''}
-        ${canCancel?`<button class="mini-btn out-red" onclick="event.stopPropagation();patientProtectedAction('${a.id}','cancel')">✕ ${t('cancel')}</button>`:''}
-        <button class="mini-btn ghost" title="${t('hide_from_view')}" onclick="event.stopPropagation();hidePatientAppt('${a.id}')">✕</button>
+        <div class="pa-detail-chip">📄 ${t('appt_detail')}</div>
+      </div>
+      <div class="pa-actions" onclick="event.stopPropagation()">
+        ${canModify?`<button class="mini-btn ghost" onclick="patientProtectedAction('${a.id}','modify')">✏️ ${t('modify_appt')}</button>`:''}
+        ${canCancel?`<button class="mini-btn out-red" onclick="patientProtectedAction('${a.id}','cancel')">✕ ${t('cancel')}</button>`:''}
+        <button class="mini-btn ghost" title="${t('hide_from_view')}" onclick="hidePatientAppt('${a.id}')">✕</button>
       </div>
     </div>
   `;
@@ -6960,6 +7148,7 @@ async function changePwd(){
   state.doctor.password = hashed;
   saveDB(); toast(t('password_updated'),'success');
 }
+
 function openChangeSessionPwdModal(){
   const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
   if(!doc) return;
@@ -6986,6 +7175,7 @@ function openChangeSessionPwdModal(){
    <button class="pill-btn primary" onclick="saveSessionPwd()">💾 ${t('save')}</button>`);
   setTimeout(()=>{ const el=document.getElementById('curSessionPwd'); if(el) el.focus(); }, 40);
 }
+
 async function saveSessionPwd(){
   const cur = ($('#curSessionPwd')?.value||'');
   const nw  = ($('#newSessionPwd')?.value||'');
@@ -7008,6 +7198,7 @@ async function saveSessionPwd(){
   render();
   toast(t('password_updated'),'success');
 }
+
 function openDoctorForm(id, isSelf){
   isSelf = !!isSelf; const isEdit = !!id;
   const d = isEdit ? docById(id) : {
@@ -7280,10 +7471,14 @@ async function saveDoctor(id, isSelf){
   const feeInput = $('#fFee');
   const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
-  let pwd, recettePwd;
-  let pwdPlain = '', recettePwdPlain = '';
+  let pwd;
+  let recettePwd;
+  let pwdPlain = '';
+  let recettePwdPlain = '';
+
   const pwdRaw = ($('#fPwd')?.value||'').trim();
   const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
+
   if(isSelf){
     const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
     if(pwdRaw){
@@ -7317,6 +7512,7 @@ async function saveDoctor(id, isSelf){
   const workEnd = $('#fEnd')?.value || '17:00';
   const workDays = [...(window._workDays || [])].sort((a,b)=>a-b);
   const disabledSlots = [...(window._disabledSlots || [])];
+
   if(!name || !specialty || !wilaya){ toast(t('required_fields'),'error'); return; }
   if(!isSelf && !email){ toast('Email obligatoire (sert d\'identifiant)','error'); return; }
   if(toMin(workStart) >= toMin(workEnd)){ toast('Heure de fin doit être après le début','error'); return; }
@@ -7325,7 +7521,9 @@ async function saveDoctor(id, isSelf){
   if(!DB.wilayas.includes(wilaya)) DB.wilayas.push(wilaya);
   if(!DB.communes[wilaya]) DB.communes[wilaya] = [];
   if(commune && !DB.communes[wilaya].includes(commune)) DB.communes[wilaya].push(commune);
+
   const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, workDays, workStart, workEnd, disabledSlots, password: pwd};
+
   if(isSelf){
     if(id){
       const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
@@ -7339,6 +7537,7 @@ async function saveDoctor(id, isSelf){
     toast(t('profile_saved'),'success');
     return;
   }
+
   const bTypeEl = document.getElementById('fBillingType');
   const billingType = bTypeEl ? (bTypeEl.value || 'none') : 'none';
   const commissionAmountInput = $('#fCommissionAmount');
@@ -7349,6 +7548,7 @@ async function saveDoctor(id, isSelf){
   const trialEndInput = $('#fTrialEnd');
   const trialStart = trialStartInput && trialStartInput.value ? new Date(trialStartInput.value + 'T00:00:00').toISOString() : null;
   const trialEnd = trialEndInput && trialEndInput.value ? new Date(trialEndInput.value + 'T00:00:00').toISOString() : null;
+
   if(billingType === 'commission'){
     if(commissionAmount == null || isNaN(commissionAmount) || commissionAmount < 0){
       toast('Montant de commission invalide','error'); return;
@@ -7361,6 +7561,7 @@ async function saveDoctor(id, isSelf){
     if(!trialStart || !trialEnd){ toast('Dates d\'essai manquantes','error'); return; }
     if(new Date(trialEnd).getTime() <= new Date(trialStart).getTime()){ toast('La date de fin doit être après la date de début','error'); return; }
   }
+
   let billingFields;
   if(billingType === 'commission'){
     billingFields = {billingType:'commission', commissionAmount, subStart:null, subTrialEnd:null};
@@ -7371,6 +7572,7 @@ async function saveDoctor(id, isSelf){
   } else {
     billingFields = {billingType:'none', commissionAmount:null, subStart:null, subTrialEnd:null};
   }
+
   if(id){
     const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
     const oldId = d.id;
@@ -8563,6 +8765,7 @@ function viewAdminRevenue(){
     </div>
   `;
 }
+
 function printQuickRevenueDetails(){
   const qResult = computeQuickRevenue();
   if(!qResult){ toast(t('billing_choose_day'),'error'); return; }
@@ -8723,6 +8926,7 @@ function printQuickRevenueDetails(){
 </body></html>`);
   toast('🖨️ ' + t('quick_revenue_print_details'), 'success');
 }
+
 function onBillingDoctorInput(v){
   v = (v||'').trim();
   if(!v){ return; }
@@ -8820,6 +9024,7 @@ function buildSubscriptionInvoiceData(doc){
     finalPrice
   };
 }
+
 function getInvoiceRegistryKey(doctorId, periodType, periodKey){
   return `${doctorId}_${periodType}_${periodKey}`;
 }
@@ -9219,6 +9424,7 @@ function buildMessageInvoiceHTML(doc, appts, periodLabel, total, isSub, isTrial,
   } else {
     headerTitle = invNo ? `${t('billing_invoice')} N° ${invNo}` : t('billing_invoice');
   }
+
   if(isTrial){
     const startISO = doc.subStart ? String(doc.subStart).slice(0,10) : '';
     const endISO = doc.subTrialEnd ? String(doc.subTrialEnd).slice(0,10) : '';
@@ -9658,86 +9864,14 @@ function adminApptRow(a){
 }
 
 /* ============================================================
-   ✅ MODIF 1 : Section "Nettoyage" — RDV de plus de 2 ans
+   ✅ MODIFICATION 1 : SECTION NETTOYAGE (ajoutée dans Paramètres)
    ============================================================ */
-function getStaleAppointments(){
-  const cutoffDate = new Date();
-  cutoffDate.setFullYear(cutoffDate.getFullYear() - 2);
-  const cutoffISO = localISO(cutoffDate);
-  return DB.appointments.filter(a => a.date < cutoffISO);
-}
-function openCleaningModal(){
-  const stale = getStaleAppointments();
-  if(!stale.length){
-    toast(t('cleaning_none'), 'info');
-    return;
-  }
-  const sorted = stale.slice().sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
-  const preview = sorted.slice(0, 60);
-  const more = sorted.length > 60
-    ? `<div style="text-align:center;font-size:11.5px;color:var(--text-muted);padding:8px;font-style:italic">+ ${sorted.length - 60} autre(s)…</div>`
-    : '';
-  const rowsHTML = preview.map(a => {
-    const doc = docById(a.doctorId);
-    return `<div class="list-item">
-      <span class="tag muted" style="font-family:var(--font-numbers);min-width:74px;justify-content:center">${fmtDateFR(a.date)}</span>
-      <span class="tag muted" style="font-family:var(--font-numbers);min-width:46px;justify-content:center">${a.time}</span>
-      <span class="li-name">${esc(a.patientName)} → ${esc(doc?.name||'—')}</span>
-      ${statusTag(a.status)}
-    </div>`;
-  }).join('');
-  openModal(
-    '🧽 ' + t('cleaning_title'),
-    t('cleaning_sub'),
-    `<div class="stats-tags" style="margin-bottom:12px">
-       ${statTag(t('cleaning_total'), stale.length, 'danger', true)}
-       ${statTag(t('cleaning_older_than'), '> 2 ' + (state.lang==='ar' ? 'سنة' : 'ans'), 'warn', true)}
-     </div>
-     <div style="max-height:340px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:6px;background:var(--glass-bg-3)">
-       ${rowsHTML}${more}
-     </div>
-     <div class="letter-amount" style="margin-top:12px;font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)">
-       ⚠️ <strong>Attention :</strong> ${esc(t('cleaning_hint'))}
-     </div>`,
-    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
-     <button class="pill-btn danger" onclick="confirmDeleteStaleAppointments()">🗑️ ${t('cleaning_delete_all')}</button>`,
-    true
-  );
-}
-function confirmDeleteStaleAppointments(){
-  const stale = getStaleAppointments();
-  const n = stale.length;
-  if(!n){ toast(t('cleaning_none'), 'info'); closeModal(); return; }
-  openModal(
-    '🗑️ ' + t('cleaning_delete_all'),
-    t('cleaning_confirm').replace('{n}', n),
-    '',
-    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
-     <button class="pill-btn danger" onclick="deleteStaleAppointments()">🗑️ ${t('delete')}</button>`
-  );
-}
-function deleteStaleAppointments(){
-  const stale = getStaleAppointments();
-  const ids = stale.map(a => a.id);
-  if(!ids.length){ toast(t('cleaning_none'), 'info'); closeModal(); return; }
-  ids.forEach(id => {
-    if(!_pendingDeletes.appointments.includes(id)){
-      _pendingDeletes.appointments.push(id);
-    }
-  });
-  savePendingDeletes();
-  DB.appointments = DB.appointments.filter(a => !ids.includes(a.id));
-  saveDB();
-  closeModal();
-  render();
-  toast(t('cleaning_deleted').replace('{n}', ids.length), 'success');
-}
 function viewAdminSettings(){
   const lastSize = state.lastExportSize ? (state.lastExportSize/1024).toFixed(1) + ' KB' : '—';
   const m = getSubscriptionMonthlyPrice();
   const y = getSubscriptionYearlyPrice();
   const d = getSubscriptionDiscount();
-  const staleCount = getStaleAppointments().length;
+  const oldAppts = getOldAppointments();
   return `
     <div class="grid grid-2">
       <div class="card">
@@ -9768,20 +9902,15 @@ function viewAdminSettings(){
         </div>
       </div>
     </div>
-    <!-- ✅ MODIF 1 : Section Nettoyage -->
-    <div class="card" style="margin-top:14px;border:1.5px solid ${staleCount>0?'rgba(239,68,68,.35)':'var(--glass-border)'};background:${staleCount>0?'linear-gradient(135deg,rgba(239,68,68,.06),rgba(245,158,11,.03))':'var(--glass-bg)'}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:220px">
-          <div class="card-title" style="font-size:15px">🧽 ${t('cleaning_title')}</div>
-          <div class="card-sub" style="margin-bottom:0">${t('cleaning_hint')}</div>
-        </div>
-        <button class="pill-btn danger" onclick="openCleaningModal()" ${staleCount===0?'disabled':''}>
-          🧽 ${t('cleaning_view')}
-        </button>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title" style="font-size:15px">🧽 ${t('cleaning')}</div>
+      <div class="card-sub">${t('cleaning_sub')}</div>
+      <div class="stats-tags">
+        ${statTag(t('cleaning_old'), oldAppts.length, oldAppts.length > 0 ? 'warn' : 'muted', true)}
       </div>
-      <div class="stats-tags" style="margin-top:12px">
-        ${statTag(t('cleaning_total'), staleCount, staleCount>0?'danger':'success', true)}
-        ${statTag(t('cleaning_older_than'), '> 2 ' + (state.lang==='ar' ? 'سنة' : 'ans'), 'warn', true)}
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pill-btn primary" onclick="openCleaningModal()">🔍 ${t('cleaning_details')}</button>
+        <button class="pill-btn danger" onclick="askCleanOldAppointments()" ${oldAppts.length === 0 ? 'disabled' : ''}>🧽 ${t('cleaning_btn')}</button>
       </div>
     </div>
   `;
@@ -9991,8 +10120,8 @@ Object.assign(window, {
   openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
   hashPassword, verifyPassword,
   subscribeRealtime,
-  /* ✅ MODIF 1 : Section Nettoyage */
-  getStaleAppointments, openCleaningModal, confirmDeleteStaleAppointments, deleteStaleAppointments
+  /* ✅ MODIFICATION 1 : Fonctions Nettoyage */
+  getOldAppointments, openCleaningModal, askCleanOldAppointments, doCleanOldAppointments
 });
 </script>
 </body>
