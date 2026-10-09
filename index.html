@@ -156,7 +156,7 @@ body[dir="rtl"] .nav-item .badge{margin-left:0;margin-right:5px}
   color:var(--text-main);font-family:inherit;font-size:14px;
   transition:var(--transition);outline:none;-webkit-appearance:none;appearance:none}
 .input:hover,.select:hover,.textarea:hover{border-color:var(--input-border-hover)}
-.select{background-image:url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='#8b5cf6' d='M6 9L1 4h10z'/></svg>");
+.select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
 body[dir="rtl"] .select{background-position:left 12px center;padding-right:14px;padding-left:34px}
 .input:focus,.select:focus,.textarea:focus{border-color:var(--accent-primary);
@@ -1032,7 +1032,7 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 <div id="modal-root"></div>
 <div id="subModalRoot"></div>
 <!-- ⬇️ La suite (le <script>) est dans la PARTIE 2 ⬇️ -->
-<script>
+ <script>
   /* ============================================================
    SUPABASE — CONFIG
    ⚠️ REMPLACE CES 2 VALEURS PAR LES TIENNES
@@ -1159,7 +1159,7 @@ function numberToFrenchWords(n){
   const tens = ['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
   function under100(x){
     if(x < 20) return units[x];
-    const t = Math.floor(x/10), u = x;
+    const t = Math.floor(x/10), u = x%10;
     if(t === 7 || t === 9){
       const base = t === 7 ? 'soixante' : 'quatre-vingt';
       const sub = units[10+u];
@@ -1172,7 +1172,7 @@ function numberToFrenchWords(n){
     return tens[t] + '-' + units[u];
   }
   function under1000(x){
-    const c = Math.floor(x/100), r = x0;
+    const c = Math.floor(x/100), r = x%100;
     let out = '';
     if(c > 0){
       out += (c === 1 ? 'cent' : units[c] + ' cent');
@@ -1183,7 +1183,7 @@ function numberToFrenchWords(n){
     return out;
   }
   function under1M(x){
-    const m = Math.floor(x/1000), r = x00;
+    const m = Math.floor(x/1000), r = x%1000;
     let out = '';
     if(m > 0){
       out += (m === 1 ? 'mille' : under1000(m) + ' mille');
@@ -1194,7 +1194,7 @@ function numberToFrenchWords(n){
   }
   if(n < 1000) return under1000(n);
   if(n < 1000000) return under1M(n);
-  const mi = Math.floor(n/1000000), r = n00000;
+  const mi = Math.floor(n/1000000), r = n%1000000;
   let out = (mi === 1 ? 'un million' : under1M(mi) + ' millions');
   if(r > 0) out += ' ' + under1M(r);
   return out;
@@ -3121,7 +3121,7 @@ const fmtLongDate = iso => { const d=new Date(iso+'T00:00:00'); const l=state.la
 const todayISO = () => localISO(new Date());
 const nowISO = () => new Date().toISOString();
 const toMin = hhmm => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
-const toHHMM = min => String(Math.floor(min/60)).padStart(2,'0')+':'+String(min`).padStart(2,'0');
+const toHHMM = min => String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0');
 const currentMonth = () => new Date().getMonth()+1;
 const currentYear  = () => new Date().getFullYear();
 const fmtDateFR = iso => { const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
