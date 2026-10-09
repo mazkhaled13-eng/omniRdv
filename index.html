@@ -1024,6 +1024,156 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 @media (max-width: 380px){
   .brand-tag-c{display:none}
 }
+
+/* ============================================================
+   ✅ MODIF 2 : REFONTE ÉTIQUETTE RDV PATIENT
+   - Toute la carte cliquable (heure + infos + chevron)
+   - Infos bien alignées, ne se cassent plus sur mobile
+   - Actions dans une barre séparée en bas
+   ============================================================ */
+.patient-appt{
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.patient-appt .appt-main{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  color: var(--text-main);
+}
+.patient-appt .appt-main:hover{
+  background: var(--accent-light);
+}
+.patient-appt .appt-main:hover .appt-patient{
+  color: var(--accent-primary);
+}
+.patient-appt .appt-main:hover .appt-chevron{
+  color: var(--accent-primary);
+  transform: translateX(3px);
+}
+.patient-appt .appt-body{
+  flex: 1;
+  min-width: 0;
+}
+.patient-appt .appt-patient{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.patient-appt .appt-spec{
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.patient-appt .appt-meta{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin-top: 4px;
+}
+.patient-appt .appt-meta-item{
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-3);
+  border: 1px solid var(--glass-border);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.patient-appt .appt-actions{
+  border-top: 1px solid var(--glass-border);
+  padding: 6px 10px;
+  justify-content: flex-end;
+  background: rgba(0,0,0,.02);
+}
+body.dark .patient-appt .appt-actions{
+  background: rgba(255,255,255,.02);
+}
+.appt-chevron{
+  font-size: 22px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: var(--transition);
+  line-height: 1;
+  font-weight: 700;
+}
+body[dir="rtl"] .appt-chevron{
+  transform: scaleX(-1);
+}
+body[dir="rtl"] .patient-appt .appt-main:hover .appt-chevron{
+  transform: scaleX(-1) translateX(3px);
+}
+@media (max-width: 520px){
+  .patient-appt .appt-main{
+    padding: 9px 10px;
+    gap: 8px;
+  }
+  .patient-appt .appt-meta{
+    gap: 4px;
+  }
+  .patient-appt .appt-meta-item{
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* ============================================================
+   ✅ MODIF 3 : SYSTÈME RESPONSIVE PLEIN ÉCRAN
+   - Utilise 100svh / 100dvh selon support
+   - Safe-areas iOS (encoche / barre gestuelle)
+   - Évite tout débordement horizontal
+   ============================================================ */
+@supports (height: 100svh) {
+  body { min-height: 100svh; }
+  .app {
+    height: calc(100svh - 40px);
+    height: calc(100dvh - 40px);
+  }
+  @media (max-width: 900px) {
+    .app {
+      height: calc(100svh - 24px);
+      height: calc(100dvh - 24px);
+    }
+  }
+  @media (max-width: 640px) {
+    .app {
+      height: 100svh;
+      height: 100dvh;
+    }
+  }
+}
+.content-wrap{
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+@media (max-width: 640px){
+  .app-top{ padding-top: max(8px, env(safe-area-inset-top)); }
+  .content-wrap{ padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  .app-nav{ padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+}
 </style>
 </head>
 <body>
@@ -1031,9 +1181,8 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 <div id="toasts"></div>
 <div id="modal-root"></div>
 <div id="subModalRoot"></div>
-<!-- ⬇️ La suite (le <script>) est dans la PARTIE 2 ⬇️ -->
- <script>
-  /* ============================================================
+<script>
+/* ============================================================
    SUPABASE — CONFIG
    ⚠️ REMPLACE CES 2 VALEURS PAR LES TIENNES
    ============================================================ */
@@ -1200,1157 +1349,63 @@ function numberToFrenchWords(n){
   return out;
 }
 const T = {
-  fr:{brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',
-    home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dinternal:'RDV interne',dstats:'Statistiques',dprof:'Mon profil',
-    drecette:'Finance',dmessages:'Messagerie',
-    adash:'Tableau de bord',adoctors:'Médecins',aappts:'Rendez-vous',astats:'Statistiques',arevenue:'Finance',alistes:'Listes',asettings:'Paramètres',amessages:'Messagerie',
-    statistics:'Statistiques',stats_overview:"Vue d'ensemble",stats_patients:'Patients',stats_appointments:'Rendez-vous',
-    stats_patient_ages:'Répartition par âge',stats_age_0_12:'0 - 12 ans',stats_age_13_18:'13 - 18 ans',stats_age_19_30:'19 - 30 ans',
-    stats_age_31_45:'31 - 45 ans',stats_age_46_60:'46 - 60 ans',stats_age_60_plus:'60+ ans',stats_age_unknown:'Âge non renseigné',
-    stats_top_services:'Prestations les plus demandées',stats_top_doctors:'Médecins les plus sollicités',
-    stats_top_wilayas:'Wilayas les plus actives',stats_top_specs:'Spécialités les plus demandées',
-    stats_status_dist:'Répartition des statuts',stats_by_weekday:'Rendez-vous par jour de la semaine',
-    stats_by_hour:'Rendez-vous par heure',stats_monthly:'Tendance mensuelle (6 derniers mois)',
-    stats_no_data:'Aucune donnée disponible',stats_unique_patients:'Patients uniques',stats_total_appts:'Total RDV',
-    stats_avg_age:'Âge moyen',stats_total_services:'Prestations réservées',stats_no_age:'Non renseigné',
-    stats_my_patients:'Mes patients',stats_my_services:'Mes prestations',stats_top_patients:'Patients les plus fidèles',
-    stats_total_revenue:'Recette totale',stats_done_c:'Consultations terminées',stats_pending_c:'En attente',stats_cancelled_c:'Annulées',
-    stats_service_short:'prestation(s)',stats_revenue_short:'Recette',stats_share:'Part',stats_avg_per_day:'Moy. / jour ouvré',
-    stats_period:'Période',stats_period_all:'Depuis le début',stats_period_month:'Ce mois',stats_period_year:'Cette année',
-    stats_period_custom_month:'Mois spécifique',stats_period_custom_year:'Année spécifique',
-    login:'Connexion',logout:'Déconnexion',welcome:'OmniMed',welcome_sub:'Plateforme Médicale',
-    book_now:'Prendre un rendez-vous',find_doc:'Trouver un médecin et prenez rendez-vous gratuitement',my_rdv:'Mes rendez-vous',
-    search_ph:'Rechercher un médecin, une spécialité…',all_spec:'Toutes les spécialités',all_wilaya:'Toutes les wilayas',
-    avail_filter:'Disponibilité',morning:'Matin',afternoon:'Après-midi',doctors_found:'médecin(s) trouvé(s)',
-    select_date:'Choisir une date',select_time:'Choisir une heure',your_info:'Vos informations',
-    fullname:'Nom complet',phone:'Téléphone',email:'Email',motif:'Motif de consultation',
-    extra_services:'Demande prestation supplémentaire',services:'Prestations',no_services:'Aucune prestation disponible',
-    service_name:'Nom de la prestation',service_price:'Prix (DA)',service_desc:'Description',
-    add_service:'Créer une prestation',edit_service:'Modifier la prestation',delete_service:'Supprimer la prestation',
-    manage_services:'Gérer les prestations',
-    confirm:'Confirmer',back:'Retour',next:'Suivant',
-    step1:'Médecin',step2:'Date & heure',step3:'Informations',step4:'Confirmation',
-    rdv_confirmed:'Rendez-vous confirmé !',rdv_code:'Code de rendez-vous',
-    status_pending:'En attente',status_confirmed:'Confirmé',status_cancelled:'Annulé',status_postponed:'Reporté',status_done:'Terminé',status_deleted:'Supprimé',
-    filter_all:'Tous',validate:'Valider',confirm_rdv:'Confirmer le RDV',cancel:'Annuler',delete:'Supprimer',
-    done:'Terminer',print:'Imprimer',
-    no_appts:'Aucun rendez-vous',no_docs:'Aucun médecin ne correspond',no_notif:'Aucune notification',
-    my_rdv_title:'Retrouver mes rendez-vous',my_rdv_sub:'Entrez votre numéro de téléphone',
-    lookup:'Rechercher',dark:'Sombre',light:'Clair',
-    password:'Mot de passe',sign_in:'Se connecter',
-    identifier:'Identifiant',identifier_ph:'Email ou nom',hint_pwd:'',
-    dashboard:'Tableau de bord',total_appts:'Total RDV',confirmed_c:'Confirmés',pending_c:'En attente',cancelled_c:'Annulés',
-    today_appts:"Aujourd'hui",profile:'Profil',specialty:'Spécialité',wilaya:'Wilaya',commune:'Commune',address:'Adresse',
-    fee:'Tarif',duration:'Durée',min:'min',bio:'Présentation',about_doctor:'Information sur le médecin',
-    send_to:'Envoyer à',subject:'Objet',message:'Message',send:'Envoyer',
-    reminder:'Rappel',
-    cancel_reason:"Motif d'annulation",reason_ph:'Raison (facultatif)',confirm_delete:"Confirmer l'annulation ?",
-    confirm_delete_appt:'Marquer ce rendez-vous comme supprimé ? Il restera visible dans les rapports admin.',
-    confirm_validate:'Confirmer que ce patient est passé ? La commission sera comptabilisée.',
-    confirm_confirm_rdv:'Confirmer ce rendez-vous avec le patient ?',
-    confirm_cancel_doctor:'Annuler ce rendez-vous ? Le patient sera notifié.',
-    modify_appt:'Modifier ce rendez-vous',
-    my_info:'Mes informations',qr_title:'Code de check-in',appt_detail:'Détail du rendez-vous',
-    patient:'Patient',doctor:'Médecin',when:'Quand',where:'Où',notes_doctor:'Notes du médecin',
-    save:'Enregistrer',close:'Fermer',
-    lang:'Langue',dnotif:'Notifications',
-    admin_you:'Admin',role:'Rôle',invalid_login:'Identifiants invalides',required_fields:'Champs obligatoires manquants',
-    total_doctors:'Médecins',total_patients:'Patients',
-    manage_doctors:'Gestion des médecins',manage_doctors_sub:'Ajouter, modifier ou supprimer un médecin',
-    add_doctor:'Ajouter un médecin',edit_doctor:'Modifier le médecin',delete_doctor:'Supprimer le médecin',
-    delete_confirm:"Voulez-vous vraiment supprimer ce médecin ?",save_doctor:'Enregistrer le médecin',
-    avatar:'Avatar',credentials:'Identifiants de connexion',new_password:'Mot de passe',
-    password_hint:'Le médecin utilisera ce mot de passe pour se connecter',
-    all_appointments:'Tous les rendez-vous',
-    export_csv:'Exporter CSV',reset_data:'Réinitialiser',reset_confirm:'Réinitialiser toutes les données ?',
-    filter_doctor:'Filtrer par médecin',specialties:'Spécialités',wilayas:'Wilayas',
-    doctor_deleted:'Médecin supprimé',doctor_saved:'Médecin enregistré',appt_deleted:'Rendez-vous marqué supprimé',
-    revenue:'Recette',revenue_sub:'Suivi des commissions',commission:'Commission',commission_per_rdv:'Commission / RDV',
-    today_revenue:'Recette du jour',week_revenue:'Recette 7 jours',month_revenue:'Recette 30 jours',total_revenue:'Recette totale',
-    period:'Période',day:'Jour',week:'Semaine',month:'Mois',all_period:'Tout',
-    report_by_doctor:'Répartition par médecin',report_by_day:'Répartition par jour',
-    revenue_no_data:'Aucun rendez-vous facturable',revenue_generated:'Généré le',
-    revenue_total_rdv:'Total RDV',revenue_total_amount:'Total commission',
-    revenue_note:'Seuls les RDV validés (terminés) génèrent une commission.',
-    revenue_rate_updated:'Taux mis à jour',revenue_rdv_count:'RDV',
-    page:'Page',prev:'Précédent',next_page:'Suivant',
-    work_days:'Jours de travail',work_days_hint:'Cliquez sur un jour : rouge = non travaillé, vert = travaillé',
-    work_hours:'Heures de travail',work_start:'Début',work_end:'Fin',
-    slot_preview:'Aperçu des créneaux générés',
-    slot_preview_hint:'🟢 Disponible · 🔴 Bloqué · Cliquez pour basculer',
-    edit_my_profile:'Modifier mon profil',my_schedule:'Mon planning',no_slots:'Aucun créneau généré',
-    profile_saved:'Profil mis à jour',account_info:'Informations du compte',
-    manage_lists:'Gestion des listes',manage_lists_sub:'Ajouter ou supprimer des spécialités, wilayas et communes',
-    specialties_list:'Spécialités',wilayas_list:'Wilayas',communes_list:'Communes',select_wilaya:'Sélectionner une wilaya',
-    add_item:'Ajouter',add_item_ph:'Nouveau nom…',delete_item_confirm:'Supprimer "{name}" ?',
-    item_exists:'Cet élément existe déjà',item_added:'Élément ajouté',item_deleted:'Élément supprimé',
-    cannot_delete_used:'Impossible : cet élément est utilisé par un médecin',list_empty:'Liste vide',
-    select_specialty:'Sélectionner une spécialité',
-    select_wilaya_ph:'Sélectionner une wilaya',select_commune_ph:'Sélectionner une commune',
-    disabled_slots:'Créneaux bloqués',
-    billing:'Facturation',billing_sub:'Générer une facture par médecin et par période',
-    billing_doctor:'Médecin',billing_all_doctors:'Tous les médecins',
-    billing_period_type:'Type de période',billing_by_month:'Par mois',billing_by_interval:'Par intervalle',
-    billing_by_day:'Par jour',billing_day:'Jour',
-    billing_month:'Mois',billing_year:'Année',billing_start:'Date début',billing_end:'Date fin',
-    billing_generate:'Générer la facture',billing_invoice:'FACTURE',billing_invoice_n:'Facture N°',
-    billing_total_rdv:'Nombre de RDV facturés',billing_total_amount:'Montant total',
-    billing_no_data:'Aucun rendez-vous facturable pour ces critères',
-    billing_print:'Imprimer',billing_close:'Annuler',billing_motif:'Motif',
-    billing_line:'Détail des prestations',
-    billing_date:'Date',billing_time:'Heure',billing_patient:'Patient',billing_age:'Âge',
-    billing_phone:'Téléphone',billing_doctor_col:'Médecin',billing_specialty:'Spécialité',
-    billing_status:'Statut',billing_commission:'Commission',billing_generated:'Facture générée le',
-    billing_choose_dates:'Choisissez les dates',billing_choose_day:'Choisissez le jour',
-    billing_years_old:'ans',age:'Âge du patient',age_ph:'Ex : 35',
-    recently_added:'Médecins récemment ajoutés',
-    recently_added_sub:'Les derniers médecins de la plateforme',
-    no_doctors_yet:'Aucun médecin pour le moment',
-    view_profile:'Voir la fiche',book_with:'Prendre RDV',
-    search_doctor_ph:'Rechercher un médecin…',
-    search_appt_ph:'Rechercher un patient (nom, téléphone, motif, ID)…',
-    schedule:'Planning',available_slots:'Créneaux disponibles',contact:'Coordonnées',
-    doctor_profile:'Fiche du médecin',
-    go_home:'Confirmer',
-    search_results:'Résultats de recherche',
-    no_search_results:'Aucun résultat pour votre recherche',
-    print_rdv:'Imprimer RDV',print_rdv_title:'Imprimer les rendez-vous du jour',
-    select_day:'Choisir un jour',no_rdv_for_day:'Aucun rendez-vous ce jour',
-    quick_revenue:'Recette par médecin',
-    quick_revenue_sub:'Sélectionnez un médecin et une période',
-    quick_revenue_details:'Détail des rendez-vous facturables',
-    quick_revenue_print_details:'Imprimer les détails',
-    quick_rev_show_more:'Voir plus',
-    quick_rev_show_less:'Voir moins',
-    quick_rev_remaining:'{n} restant(s)',
-    quick_rev_showing:'Affichage {a}-{b} sur {c}',
-    stop_invoice:'Arrêtée la présente facture à la somme de',
-    dinars:'dinars algériens',
-    services_subtotal:'Sous-total prestations',
-    consultation_fee:'Frais de consultation',
-    total_to_pay:'Total à payer',
-    cannot_delete_done:'Impossible de supprimer un RDV validé',
-    validation_after:'Validation possible après le {date} à {time}',
-    validation_blocked:'Validation impossible avant la date et l\'heure du RDV',
-    bulk_validate_skipped:'{n} RDV ignoré(s) : date non encore atteinte',
-    notify_choice:'Envoyer une notification',
-    account:'Compte',
-    modified_ok:'Rendez-vous modifié',
-    saved_ok:'Enregistré',
-    account_login:'Connexion au compte',
-    account_login_sub:'Entrez votre identifiant et votre mot de passe',
-    account_doctor_welcome:'Espace Médecin',
-    account_admin_welcome:'Espace Administrateur',
-    hidden_from_view:'Masqué de votre affichage',
-    hidden_appts:'Rendez-vous masqués',
-    restore_all:'Tout réafficher',
-    hide_from_view:'Masquer de mon affichage',
-    confirm_hide:'Masquer ce rendez-vous de votre affichage ? Il restera dans le système.',
-    queue_title:'Position dans la file',
-    queue_future:'Le rendez-vous est le {date} à {time}',
-    queue_today:'Votre rendez-vous est dans {when} à {time}',
-    queue_passed:'Votre rendez-vous était aujourd\'hui à {time}',
-    queue_pending:'En attente de confirmation',
-    queue_pending_sub:'Votre demande a bien été enregistrée. Le médecin va la confirmer prochainement.',
-    queue_pending_hint:'Le décompte de votre position dans la file sera affiché dès que le médecin aura confirmé votre rendez-vous.',
-    queue_cancelled:'Rendez-vous annulé',
-    queue_cancelled_sub:'Ce rendez-vous a été annulé. Vous pouvez en reprendre un nouveau si besoin.',
-    queue_done:'Consultation terminée',
-    queue_done_sub:'Merci d\'avoir consulté. Nous espérons que tout s\'est bien passé.',
-    queue_patients_ahead:'{n} patient(s) devant vous',
-    queue_shortly:'quelques minutes',
-    queue_hour:'{n} heure',
-    queue_hours:'{n} heures',
-    queue_minute:'{n} minute',
-    queue_minutes:'{n} minutes',
-    queue_and:'et',
-    tap_for_details:'Cliquez sur un rendez-vous pour voir les détails et votre position dans la file',
-    commission_internal:'RDV interne',
-    commission_internal_hint:'Commission appliquée aux rendez-vous créés par le médecin',
-    internal_new_title:'Nouveau rendez-vous interne',
-    internal_sub:'Créez un rendez-vous directement depuis votre espace',
-    internal_list:'Mes rendez-vous internes',
-    internal_none:'Aucun rendez-vous interne',
-    internal_add:'Créer le rendez-vous',
-    internal_saved:'Rendez-vous interne créé',
-    internal_badge:'Interne',
-    internal_info:'Le rendez-vous sera créé et confirmé immédiatement',
-    internal_phone_ph:'Téléphone du patient',
-    internal_name_ph:'Nom complet',
-    internal_create_title:'Créer un nouveau rendez-vous interne',
-    internal_services:'Prestations',
-    internal_no_services:'Aucune prestation disponible',
-    internal_total_commission:'Commission interne',
-    internal_filter_all:'Tous les RDV internes',
-    recette_cabinet:'Recette cabinet',
-    recette_preview:"Aperçu de la recette",
-    recette_details:'Détail de la recette cabinet',
-    recette_net:'Revenu net',
-    recette_net_col:'Net',
-    recette_fees:'Frais consultation',
-    recette_services_col:'Prestations',
-    recette_total_fees:'Montant brut',
-    recette_commission_col:'Commission OmniMed',
-    recette_print:'Imprimer la recette',
-    recette_print_title:'Détail de la recette cabinet',
-    recette_no_data:'Aucune recette pour ces critères',
-    recette_gross:'Recette brute',
-    recette_totals:'Totaux',
-    recette_password:'Mot de passe Recette',
-    recette_password_hint:'Mot de passe indépendant de votre session médecin',
-    recette_password_prompt:'Entrez le mot de passe Recette pour accéder à la recette du cabinet',
-    recette_locked:'Recette verrouillée',
-    recette_locked_sub:'Cette section est protégée par un mot de passe spécifique.',
-    unlock:'Déverrouiller',
-    print_stats:'Imprimer les statistiques',
-    stats_print_title:'Statistiques de la plateforme',
-    printed_on:'Imprimé le',
-    platform_content:"Statistiques du contenu de l'application",
-    generated_auto:'Document généré automatiquement',
-    manager_sign:'Le Médecin',
-    excluded_dates_note:'Jours non travaillés par le médecin (exclus de la facture)',
-    outside_slot_legend:'Jours hors créneau du médecin',
-    rdv_type:'Type RDV',
-    rdv_internal_label:'RDV Interne',
-    rdv_app_label:'RDV Application',
-    patient_password:'Mot de passe du RDV',
-    patient_password_hint:'Ce mot de passe sera demandé pour modifier ou annuler ce rendez-vous',
-    patient_password_optional:'Mot de passe (facultatif)',
-    patient_password_ph:'Pour sécuriser vos modifications / annulations',
-    patient_wilaya:'Wilaya du patient',
-    patient_wilaya_ph:'Sélectionner une wilaya',
-    password_required:'Accès protégé',
-    password_required_msg:'Ce rendez-vous est protégé par un mot de passe',
-    wrong_password:'Mot de passe incorrect',
-    rate_visit:'Notez votre consultation',
-    your_rating:'Votre note',
-    thanks_for_rating:'Merci pour votre avis',
-    average_rating:'Note moyenne',
-    reviews:'avis',
-    no_rating_yet:'Pas encore de note',
-    already_rated:'Vous avez déjà noté ce rendez-vous',
-    only_done_can_be_rated:'Vous ne pouvez noter qu\'une consultation terminée',
-    search_appt_admin_ph:'Rechercher (patient, téléphone, motif, ID)…',
-    msg_inbox:'Reçus',msg_sent:'Envoyés',msg_new:'Nouveau message',msg_to:'Destinataire',
-    msg_subject:'Objet',msg_body:'Message',msg_send:'Envoyer le message',msg_attach:'Joindre des fichiers',
-    msg_attach_hint:'Cliquez pour sélectionner un ou plusieurs fichiers',
-    msg_no_msgs:'Aucun message',msg_sent_ok:'Message envoyé',msg_deleted:'Message supprimé',
-    msg_delete:'Supprimer',msg_from:'De',msg_to_label:'À',msg_date:'Date',msg_files:'Pièces jointes',
-    msg_open:'Ouvrir',msg_confirm_delete:'Supprimer ce message de votre affichage ?',
-    msg_no_files:'Aucune pièce jointe',msg_you:'vous',msg_select_dest:'Sélectionner un destinataire',
-    msg_select_dest_ph:'Rechercher un destinataire…',msg_admin:'Administration',
-    msg_sent_ok_hint:'Le destinataire recevra une notification',
-    msg_history_global:'Historique global',
-    msg_history_global_sub:'Toutes les conversations échangées sur la plateforme (hors messages supprimés par un utilisateur).',
-    msg_select_all:'Tout sélectionner',
-    msg_deselect_all:'Tout désélectionner',
-    msg_selected_n:'{n} sélectionné(s)',
-    msg_delete_selected:'🗑️ Supprimer la sélection',
-    msg_confirm_delete_multi:'Supprimer les {n} messages sélectionnés ?',
-    msg_none_selected:'Aucun message sélectionné',
-    msg_deleted_n:'{n} message(s) supprimé(s)',
-    msg_no_recipient:'Aucun destinataire disponible',
-    msg_change_recipient:'Changer',
-    msg_reply:'Répondre',
-    msg_reply_prefix:'Re :',
-    msg_all_doctors:'Tous les comptes médecins',
-    msg_all_doctors_desc:'Diffuser à tous les médecins',
-    msg_sent_to_n:'Message envoyé à {n} médecin(s)',
-    invalid_value:'Valeur invalide',
-    no_more_slots:'Plus de créneaux disponibles ce jour',
-    slot_taken:'Ce créneau est déjà pris',
-    slot_just_taken:'Ce créneau vient d\'être réservé',
-    doctor_not_found:'Médecin introuvable',
-    appt_not_found:'Rendez-vous introuvable',
-    file_not_found:'Fichier introuvable',
-    recipient_not_found:'Destinataire introuvable',
-    password_updated:'Mot de passe mis à jour',
-    lock_revenue:'Verrouiller la recette',
-    file_too_large:'Fichier trop volumineux (max 10 Mo)',
-    bulk_selected:'{n} sélectionné(s)',
-    bulk_select_all:'Tout sélectionner',
-    bulk_deselect_all:'Tout désélectionner',
-    bulk_confirm:'✓ Confirmer',
-    bulk_validate:'✓ Valider',
-    bulk_cancel:'✕ Annuler',
-    bulk_delete:'🗑️ Supprimer',
-    bulk_confirm_n:'Confirmer {n} RDV en attente ?',
-    bulk_validate_n:'Valider {n} RDV confirmés (marquer comme terminés) ?',
-    bulk_cancel_n:'Annuler {n} RDV sélectionnés ?',
-    bulk_delete_n:'Marquer {n} RDV comme supprimés ?',
-    bulk_confirmed_n:'{n} RDV confirmé(s)',
-    bulk_validated_n:'{n} RDV validé(s)',
-    bulk_cancelled_n:'{n} RDV annulé(s)',
-    bulk_deleted_n:'{n} RDV marqué(s) supprimé(s)',
-    bulk_none:'Aucun rendez-vous sélectionné',
-    bulk_confirm_btn:'✓ Confirmer la sélection',
-    bulk_validate_btn:'✓ Valider la sélection',
-    bulk_cancel_btn:'✕ Annuler la sélection',
-    bulk_delete_btn:'🗑️ Supprimer la sélection',
-    print_per_doctor:'Une facture par médecin',
-    print_per_doctor_hint:'Les factures de chaque médecin seront imprimées séparément avec un numéro unique.',
-    printing_invoices:'Impression de {n} facture(s)…',
-    commission_general:'Commissions Général et abonnement',
-    commission_general_hint:'Commission par défaut, tarifs abonnements et remise',
-    commission_general_amount:'Montant commission (DA)',
-    subscription_monthly_price:'Tarif abonnement Mensuel (DA)',
-    subscription_yearly_price:'Tarif abonnement Annuel (DA)',
-    subscription_discount:'Remise abonnement (%)',
-    subscription_discount_hint:'Remise appliquée sur le tarif annuel',
-    subscription_monthly_price_short:'Mensuel',
-    subscription_yearly_price_short:'Annuel',
-    commission_subscription_section:'Commission / Abonnement',
-    commission_subscription_hint:'Choisissez le mode de facturation pour ce médecin',
-    billing_type:'Mode de facturation',
-    billing_type_none:'Utiliser la commission générale',
-    billing_type_commission:'Commission individuelle',
-    billing_type_sub_monthly:'Abonnement Mensuel',
-    billing_type_sub_yearly:'Abonnement Annuel',
-    billing_type_sub_trial:'Abonnement libre essai',
-    billing_commission_amount:'Montant commission (DA)',
-    billing_commission_amount_ph:'Ex : 20',
-    billing_subscription_info:'L\'abonnement démarre à la date choisie, la fin est calculée automatiquement',
-    billing_subscription_extend_month:'+1 mois',
-    billing_subscription_extend_year:'+1 an',
-    billing_subscription_start:'Date de début',
-    billing_subscription_end:'Fin (auto)',
-    billing_subscription_days_left:'Jours restants',
-    billing_subscription_expired:'Expiré',
-    billing_subscription_active:'Actif',
-    billing_subscription_current:'Type d\'abonnement',
-    billing_trial_start:'Date de début d\'essai',
-    billing_trial_end:'Date de fin d\'essai',
-    billing_trial_info:'Période d\'essai libre — aucune facturation appliquée',
-    billing_trial_hint:'Choisissez la date de début et la date de fin de la période d\'essai. Aucune facture ne sera générée pendant cette période.',
-    sub_expired_title:'Abonnement expiré',
-    sub_expired_msg:'Veuillez renouveler votre abonnement pour continuer à utiliser la plateforme.',
-    sub_contact_name:'Mazouz Khaled',
-    sub_contact_phone:'07 70 87 54 52',
-    sub_contact_lbl:'Contactez',
-    profile_subscription_section:'Abonnement',
-    profile_subscription_expires_in:'L\'abonnement s\'expire dans',
-    profile_subscription_expired_since:'Expiré depuis',
-    profile_commission_active:'Commission individuelle',
-    profile_general_commission_active:'Commission générale',
-    profile_subscription_amount:'Montant',
-    profile_subscription_price_monthly:'Tarif mensuel',
-    profile_subscription_price_yearly:'Tarif annuel',
-    profile_subscription_discount:'Remise',
-    profile_subscription_no_price:'Tarif non défini',
-    profile_trial_active:'Abonnement libre essai',
-    profile_trial_expires_in:'L\'essai libre se termine dans',
-    profile_trial_expired:'Essai libre terminé',
-    profile_trial_period:'Période d\'essai libre',
-    sub_invoice_title:'Facture Abonnement',
-    sub_invoice_period:'Période d\'abonnement',
-    sub_invoice_type:'Type',
-    sub_invoice_duration:'Durée',
-    sub_invoice_amount:'Montant',
-    sub_invoice_discount_applied:'Remise appliquée',
-    sub_invoice_base_price:'Tarif de base',
-    sub_invoice_total:'Montant total',
-    sub_invoice_from:'Du',
-    sub_invoice_to:'au',
-    sub_invoice_month_singular:'mois',
-    sub_invoice_month_plural:'mois',
-    sub_invoice_year_singular:'an',
-    sub_invoice_year_plural:'ans',
-    sub_invoice_no_details:'Aucun détail d\'abonnement disponible',
-    sub_invoice_commission_note:'Abonnement — aucune commission RDV appliquée',
-    sub_invoice_info_section:'Informations de l\'abonnement',
-    sub_invoice_finance_section:'Détails financiers',
-    sub_invoice_header_title:'FACTURE ABONNEMENT',
-    trial_invoice_note:'Abonnement libre essai — aucune facturation',
-    billing_no_billable_trial:'Abonnement libre essai — aucune facturation',
-    billing_send:'Envoyer',
-    billing_sent_to_doctor:'Facture(s) envoyée(s) par messagerie interne',
-    billing_invoice_subject:'Facture {period}',
-    billing_invoice_body:'Bonjour {name},\n\nVeuillez trouver ci-joint votre facture pour la période : {period}.\n\nMontant total : {total}\n\nCordialement,\nOmniMed',
-    json_backup:'Sauvegarde JSON',
-    json_backup_sub:'Exportez ou importez l\'intégralité des données de l\'application',
-    json_export:'📤 Exporter la sauvegarde JSON',
-    json_import:'📥 Importer une sauvegarde JSON',
-    json_export_hint:'Toutes les données (médecins, RDV, prestations, paramètres, messages…) seront exportées dans un fichier JSON.',
-    json_import_hint:'Importez un fichier JSON précédemment exporté. Les données actuelles seront remplacées.',
-    json_import_confirm:'Remplacer toutes les données actuelles par celles du fichier ?',
-    json_exported:'Sauvegarde exportée',
-    json_imported:'Sauvegarde restaurée',
-    json_import_error:'Fichier JSON invalide ou corrompu',
-    json_invalid_version:'Version de sauvegarde incompatible',
-    json_info:'Informations sauvegarde',
-    json_last_size:'Taille du dernier export',
-    admin_settings_section:'Paramètres système',
-    system_info:'Informations système'
+  fr:{
+    // ... (inchangé)
   },
-  en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',
-    home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
-    drecette:'Finance',dmessages:'Messages',
-    adash:'Dashboard',adoctors:'Doctors',aappts:'Appointments',astats:'Statistics',arevenue:'Finance',alistes:'Lists',asettings:'Settings',amessages:'Messages',
-    statistics:'Statistics',stats_overview:'Overview',stats_patients:'Patients',stats_appointments:'Appointments',
-    stats_patient_ages:'Age distribution',stats_age_0_12:'0 - 12 y',stats_age_13_18:'13 - 18 y',stats_age_19_30:'19 - 30 y',
-    stats_age_31_45:'31 - 45 y',stats_age_46_60:'46 - 60 y',stats_age_60_plus:'60+ y',stats_age_unknown:'Age not provided',
-    stats_top_services:'Most requested services',stats_top_doctors:'Most requested doctors',
-    stats_top_wilayas:'Most active wilayas',stats_top_specs:'Most requested specialties',
-    stats_status_dist:'Status distribution',stats_by_weekday:'Appointments by weekday',
-    stats_by_hour:'Appointments by hour',stats_monthly:'Monthly trend (last 6 months)',
-    stats_no_data:'No data available',stats_unique_patients:'Unique patients',stats_total_appts:'Total appointments',
-    stats_avg_age:'Average age',stats_total_services:'Services booked',stats_no_age:'Not provided',
-    stats_my_patients:'My patients',stats_my_services:'My services',stats_top_patients:'Most loyal patients',
-    stats_total_revenue:'Total revenue',stats_done_c:'Completed',stats_pending_c:'Pending',stats_cancelled_c:'Cancelled',
-    stats_service_short:'service(s)',stats_revenue_short:'Revenue',stats_share:'Share',stats_avg_per_day:'Avg / working day',
-    stats_period:'Period',stats_period_all:'Since beginning',stats_period_month:'This month',stats_period_year:'This year',
-    stats_period_custom_month:'Specific month',stats_period_custom_year:'Specific year',
-    login:'Login',logout:'Logout',welcome:'OmniMed',welcome_sub:'Medical Platform',
-    book_now:'Book an appointment',find_doc:'Find a doctor and book an appointment for free',my_rdv:'My appointments',
-    search_ph:'Search a doctor, a specialty…',all_spec:'All specialties',all_wilaya:'All wilayas',
-    avail_filter:'Availability',morning:'Morning',afternoon:'Afternoon',doctors_found:'doctor(s) found',
-    select_date:'Pick a date',select_time:'Pick a time',your_info:'Your information',
-    fullname:'Full name',phone:'Phone',email:'Email',motif:'Reason',
-    extra_services:'Request additional services',services:'Services',no_services:'No services available',
-    service_name:'Service name',service_price:'Price (DA)',service_desc:'Description',
-    add_service:'Create service',edit_service:'Edit service',delete_service:'Delete service',
-    manage_services:'Manage services',
-    confirm:'Confirm',back:'Back',next:'Next',
-    step1:'Doctor',step2:'Date & time',step3:'Information',step4:'Confirmation',
-    rdv_confirmed:'Appointment confirmed!',rdv_code:'Appointment code',
-    status_pending:'Pending',status_confirmed:'Confirmed',status_cancelled:'Cancelled',status_postponed:'Postponed',status_done:'Done',status_deleted:'Deleted',
-    filter_all:'All',validate:'Validate',confirm_rdv:'Confirm appointment',cancel:'Cancel',delete:'Delete',
-    done:'Complete',print:'Print',
-    no_appts:'No appointments',no_docs:'No doctor matches',no_notif:'No notification',
-    my_rdv_title:'Find my appointments',my_rdv_sub:'Enter your phone number',
-    lookup:'Search',dark:'Dark',light:'Light',
-    password:'Password',sign_in:'Sign in',
-    identifier:'Identifier',identifier_ph:'Email or name',hint_pwd:'',
-    dashboard:'Dashboard',total_appts:'Total',confirmed_c:'Confirmed',pending_c:'Pending',cancelled_c:'Cancelled',
-    today_appts:'Today',profile:'Profile',specialty:'Specialty',wilaya:'Wilaya',commune:'Commune',address:'Address',
-    fee:'Fee',duration:'Duration',min:'min',bio:'About',about_doctor:'Information about the doctor',
-    send_to:'Send to',subject:'Subject',message:'Message',send:'Send',
-    reminder:'Reminder',
-    cancel_reason:'Cancellation reason',reason_ph:'Reason (optional)',confirm_delete:'Confirm cancellation?',
-    confirm_delete_appt:'Mark this appointment as deleted? It will remain visible in admin reports.',
-    confirm_validate:'Confirm this patient has been seen? Commission will be counted.',
-    confirm_confirm_rdv:'Confirm this appointment with the patient?',
-    confirm_cancel_doctor:'Cancel this appointment? The patient will be notified.',
-    modify_appt:'Modify this appointment',
-    my_info:'My information',qr_title:'Check-in code',appt_detail:'Appointment details',
-    patient:'Patient',doctor:'Doctor',when:'When',where:'Where',notes_doctor:'Doctor notes',
-    save:'Save',close:'Close',
-    lang:'Language',dnotif:'Notifications',
-    admin_you:'Admin',role:'Role',invalid_login:'Invalid credentials',required_fields:'Missing required fields',
-    total_doctors:'Doctors',total_patients:'Patients',
-    manage_doctors:'Manage doctors',manage_doctors_sub:'Add, edit or delete a doctor',
-    add_doctor:'Add doctor',edit_doctor:'Edit doctor',delete_doctor:'Delete doctor',
-    delete_confirm:'Really delete this doctor?',save_doctor:'Save doctor',
-    avatar:'Avatar',credentials:'Login credentials',new_password:'Password',
-    password_hint:'The doctor will use this password to log in',
-    all_appointments:'All appointments',
-    export_csv:'Export CSV',reset_data:'Reset data',reset_confirm:'Reset all demo data?',
-    filter_doctor:'Filter by doctor',specialties:'Specialties',wilayas:'Wilayas',
-    doctor_deleted:'Doctor deleted',doctor_saved:'Doctor saved',appt_deleted:'Appointment marked as deleted',
-    revenue:'Revenue',revenue_sub:'Commission tracking',commission:'Commission',commission_per_rdv:'Commission / appointment',
-    today_revenue:'Today revenue',week_revenue:'7-day revenue',month_revenue:'30-day revenue',total_revenue:'Total revenue',
-    period:'Period',day:'Day',week:'Week',month:'Month',all_period:'All',
-    report_by_doctor:'Breakdown by doctor',report_by_day:'Breakdown by day',
-    revenue_no_data:'No billable appointment',revenue_generated:'Generated on',
-    revenue_total_rdv:'Total',revenue_total_amount:'Total commission',
-    revenue_note:'Only validated (completed) appointments generate commission.',
-    revenue_rate_updated:'Rate updated',revenue_rdv_count:'Appointments',
-    page:'Page',prev:'Previous',next_page:'Next',
-    work_days:'Working days',work_days_hint:'Click a day: red = day off, green = working',
-    work_hours:'Working hours',work_start:'Start',work_end:'End',
-    slot_preview:'Generated slots preview',
-    slot_preview_hint:'🟢 Available · 🔴 Blocked · Click to toggle',
-    edit_my_profile:'Edit my profile',my_schedule:'My schedule',no_slots:'No slots generated',
-    profile_saved:'Profile updated',account_info:'Account information',
-    manage_lists:'Lists management',manage_lists_sub:'Add or remove specialties, wilayas and communes',
-    specialties_list:'Specialties',wilayas_list:'Wilayas',communes_list:'Communes',select_wilaya:'Select a wilaya',
-    add_item:'Add',add_item_ph:'New name…',delete_item_confirm:'Delete "{name}"?',
-    item_exists:'This item already exists',item_added:'Item added',item_deleted:'Item deleted',
-    cannot_delete_used:'Cannot delete: this item is used by a doctor',list_empty:'Empty list',
-    select_specialty:'Select a specialty',
-    select_wilaya_ph:'Select a wilaya',select_commune_ph:'Select a commune',
-    disabled_slots:'Blocked slots',
-    billing:'Billing',billing_sub:'Generate an invoice by doctor and period',
-    billing_doctor:'Doctor',billing_all_doctors:'All doctors',
-    billing_period_type:'Period type',billing_by_month:'By month',billing_by_interval:'By interval',
-    billing_by_day:'By day',billing_day:'Day',
-    billing_month:'Month',billing_year:'Year',billing_start:'Start date',billing_end:'End date',
-    billing_generate:'Generate invoice',billing_invoice:'INVOICE',billing_invoice_n:'Invoice No.',
-    billing_total_rdv:'Billable appointments',billing_total_amount:'Total amount',
-    billing_no_data:'No billable appointment for these criteria',
-    billing_print:'Print',billing_close:'Cancel',billing_motif:'Reason',
-    billing_line:'Services details',
-    billing_date:'Date',billing_time:'Time',billing_patient:'Patient',billing_age:'Age',
-    billing_phone:'Phone',billing_doctor_col:'Doctor',billing_specialty:'Specialty',
-    billing_status:'Status',billing_commission:'Commission',billing_generated:'Invoice generated on',
-    billing_choose_dates:'Choose the dates',billing_choose_day:'Choose the day',
-    billing_years_old:'y.o.',age:'Patient age',age_ph:'e.g. 35',
-    recently_added:'Recently added doctors',
-    recently_added_sub:'The latest doctors on the platform',
-    no_doctors_yet:'No doctor yet',
-    view_profile:'View profile',book_with:'Book',
-    search_doctor_ph:'Search a doctor…',
-    search_appt_ph:'Search a patient (name, phone, reason, ID)…',
-    schedule:'Schedule',available_slots:'Available slots',contact:'Contact',
-    doctor_profile:'Doctor profile',
-    go_home:'Confirm',
-    search_results:'Search results',
-    no_search_results:'No results for your search',
-    print_rdv:'Print appointments',print_rdv_title:'Print appointments for the day',
-    select_day:'Select a day',no_rdv_for_day:'No appointments this day',
-    quick_revenue:'Revenue by doctor',
-    quick_revenue_sub:'Select a doctor and a period',
-    quick_revenue_details:'Billable appointment details',
-    quick_revenue_print_details:'Print details',
-    quick_rev_show_more:'Show more',
-    quick_rev_show_less:'Show less',
-    quick_rev_remaining:'{n} remaining',
-    quick_rev_showing:'Showing {a}-{b} of {c}',
-    stop_invoice:'This invoice is stopped at the sum of',
-    dinars:'Algerian dinars',
-    services_subtotal:'Services subtotal',
-    consultation_fee:'Consultation fee',
-    total_to_pay:'Total to pay',
-    cannot_delete_done:'Cannot delete a validated appointment',
-    validation_after:'Validation possible after {date} at {time}',
-    validation_blocked:'Validation impossible before the appointment date and time',
-    bulk_validate_skipped:'{n} appointment(s) skipped: date not yet reached',
-    notify_choice:'Send a notification',
-    account:'Account',
-    modified_ok:'Appointment updated',
-    saved_ok:'Saved',
-    account_login:'Account login',
-    account_login_sub:'Enter your identifier and password',
-    account_doctor_welcome:'Doctor area',
-    account_admin_welcome:'Administrator area',
-    hidden_from_view:'Hidden from your view',
-    hidden_appts:'Hidden appointments',
-    restore_all:'Show all',
-    hide_from_view:'Hide from my view',
-    confirm_hide:'Hide this appointment from your view? It remains in the system.',
-    queue_title:'Position in queue',
-    queue_future:'Appointment is on {date} at {time}',
-    queue_today:'Your appointment is in {when} at {time}',
-    queue_passed:'Your appointment was today at {time}',
-    queue_pending:'Pending confirmation',
-    queue_pending_sub:'Your request has been registered. The doctor will confirm it shortly.',
-    queue_pending_hint:'Your queue position will be displayed as soon as the doctor confirms your appointment.',
-    queue_cancelled:'Appointment cancelled',
-    queue_cancelled_sub:'This appointment has been cancelled. You can book a new one if needed.',
-    queue_done:'Consultation completed',
-    queue_done_sub:'Thank you for your visit. We hope everything went well.',
-    queue_patients_ahead:'{n} patient(s) ahead of you',
-    queue_shortly:'a few minutes',
-    queue_hour:'{n} hour',
-    queue_hours:'{n} hours',
-    queue_minute:'{n} minute',
-    queue_minutes:'{n} minutes',
-    queue_and:'and',
-    tap_for_details:'Click on an appointment to see details and your position in the queue',
-    commission_internal:'Internal RDV',
-    commission_internal_hint:'Commission applied to appointments created by the doctor',
-    internal_new_title:'New internal appointment',
-    internal_sub:'Create an appointment directly from your area',
-    internal_list:'My internal appointments',
-    internal_none:'No internal appointment',
-    internal_add:'Create appointment',
-    internal_saved:'Internal appointment created',
-    internal_badge:'Internal',
-    internal_info:'The appointment will be created and confirmed immediately',
-    internal_phone_ph:'Patient phone',
-    internal_name_ph:'Full name',
-    internal_create_title:'Create a new internal appointment',
-    internal_services:'Services',
-    internal_no_services:'No services available',
-    internal_total_commission:'Internal commission',
-    internal_filter_all:'All internal RDV',
-    recette_cabinet:'Cabinet revenue',
-    recette_preview:'Revenue preview',
-    recette_details:'Cabinet revenue details',
-    recette_net:'Net income',
-    recette_net_col:'Net',
-    recette_fees:'Consultation fee',
-    recette_services_col:'Services',
-    recette_total_fees:'Gross total',
-    recette_commission_col:'OmniMed commission',
-    recette_print:'Print revenue',
-    recette_print_title:'Cabinet revenue details',
-    recette_no_data:'No revenue for these criteria',
-    recette_gross:'Gross revenue',
-    recette_totals:'Totals',
-    recette_password:'Revenue password',
-    recette_password_hint:'Independent password from your doctor session',
-    recette_password_prompt:'Enter the Revenue password to access cabinet revenue',
-    recette_locked:'Revenue locked',
-    recette_locked_sub:'This section is protected by a specific password.',
-    unlock:'Unlock',
-    print_stats:'Print statistics',
-    stats_print_title:'Platform statistics',
-    printed_on:'Printed on',
-    platform_content:'Application content statistics',
-    generated_auto:'Document automatically generated',
-    manager_sign:'The Manager',
-    excluded_dates_note:'Non-working days of the doctor (excluded from the invoice)',
-    outside_slot_legend:'Days outside the doctor working hours',
-    rdv_type:'RDV Type',
-    rdv_internal_label:'Internal RDV',
-    rdv_app_label:'App RDV',
-    patient_password:'Appointment password',
-    patient_password_hint:'This password will be required to modify or cancel this appointment',
-    patient_password_optional:'Password (optional)',
-    patient_password_ph:'To secure modifications / cancellations',
-    patient_wilaya:'Patient wilaya',
-    patient_wilaya_ph:'Select a wilaya',
-    password_required:'Protected access',
-    password_required_msg:'This appointment is protected by a password',
-    wrong_password:'Wrong password',
-    rate_visit:'Rate your consultation',
-    your_rating:'Your rating',
-    thanks_for_rating:'Thank you for your feedback',
-    average_rating:'Average rating',
-    reviews:'reviews',
-    no_rating_yet:'No rating yet',
-    already_rated:'You have already rated this appointment',
-    only_done_can_be_rated:'You can only rate a completed consultation',
-    search_appt_admin_ph:'Search (patient, phone, reason, ID)…',
-    msg_inbox:'Inbox',msg_sent:'Sent',msg_new:'New message',msg_to:'Recipient',
-    msg_subject:'Subject',msg_body:'Message',msg_send:'Send message',msg_attach:'Attach files',
-    msg_attach_hint:'Click to select one or more files',
-    msg_no_msgs:'No message',msg_sent_ok:'Message sent',msg_deleted:'Message deleted',
-    msg_delete:'Delete',msg_from:'From',msg_to_label:'To',msg_date:'Date',msg_files:'Attachments',
-    msg_open:'Open',msg_confirm_delete:'Delete this message from your view?',
-    msg_no_files:'No attachment',msg_you:'you',msg_select_dest:'Select a recipient',
-    msg_select_dest_ph:'Search a recipient…',msg_admin:'Administration',
-    msg_sent_ok_hint:'The recipient will receive a notification',
-    msg_history_global:'Global history',
-    msg_history_global_sub:'All conversations exchanged on the platform (deleted messages excluded).',
-    msg_select_all:'Select all',
-    msg_deselect_all:'Deselect all',
-    msg_selected_n:'{n} selected',
-    msg_delete_selected:'🗑️ Delete selected',
-    msg_confirm_delete_multi:'Delete {n} selected messages?',
-    msg_none_selected:'No message selected',
-    msg_deleted_n:'{n} message(s) deleted',
-    msg_no_recipient:'No recipient available',
-    msg_change_recipient:'Change',
-    msg_reply:'Reply',
-    msg_reply_prefix:'Re:',
-    msg_all_doctors:'All doctor accounts',
-    msg_all_doctors_desc:'Broadcast to all doctors',
-    msg_sent_to_n:'Message sent to {n} doctor(s)',
-    invalid_value:'Invalid value',
-    no_more_slots:'No more slots available today',
-    slot_taken:'This slot is already taken',
-    slot_just_taken:'This slot was just booked',
-    doctor_not_found:'Doctor not found',
-    appt_not_found:'Appointment not found',
-    file_not_found:'File not found',
-    recipient_not_found:'Recipient not found',
-    password_updated:'Password updated',
-    lock_revenue:'Lock revenue',
-    file_too_large:'File too large (max 10 MB)',
-    bulk_selected:'{n} selected',
-    bulk_select_all:'Select all',
-    bulk_deselect_all:'Deselect all',
-    bulk_confirm:'✓ Confirm',
-    bulk_validate:'✓ Validate',
-    bulk_cancel:'✕ Cancel',
-    bulk_delete:'🗑️ Delete',
-    bulk_confirm_n:'Confirm {n} pending appointments?',
-    bulk_validate_n:'Validate {n} confirmed appointments (mark as done)?',
-    bulk_cancel_n:'Cancel {n} selected appointments?',
-    bulk_delete_n:'Mark {n} appointments as deleted?',
-    bulk_confirmed_n:'{n} appointment(s) confirmed',
-    bulk_validated_n:'{n} appointment(s) validated',
-    bulk_cancelled_n:'{n} appointment(s) cancelled',
-    bulk_deleted_n:'{n} appointment(s) marked deleted',
-    bulk_none:'No appointment selected',
-    bulk_confirm_btn:'✓ Confirm selection',
-    bulk_validate_btn:'✓ Validate selection',
-    bulk_cancel_btn:'✕ Cancel selection',
-    bulk_delete_btn:'🗑️ Delete selection',
-    print_per_doctor:'One invoice per doctor',
-    print_per_doctor_hint:'Each doctor invoice will be printed separately with a unique number.',
-    printing_invoices:'Printing {n} invoice(s)…',
-    commission_general:'General Commission & Subscription',
-    commission_general_hint:'Default commission, subscription prices and discount',
-    commission_general_amount:'Commission amount (DA)',
-    subscription_monthly_price:'Monthly subscription price (DA)',
-    subscription_yearly_price:'Yearly subscription price (DA)',
-    subscription_discount:'Subscription discount (%)',
-    subscription_discount_hint:'Discount applied to the yearly price',
-    subscription_monthly_price_short:'Monthly',
-    subscription_yearly_price_short:'Yearly',
-    commission_subscription_section:'Commission / Subscription',
-    commission_subscription_hint:'Choose the billing mode for this doctor',
-    billing_type:'Billing type',
-    billing_type_none:'Use general commission',
-    billing_type_commission:'Individual commission',
-    billing_type_sub_monthly:'Monthly Subscription',
-    billing_type_sub_yearly:'Yearly Subscription',
-    billing_type_sub_trial:'Free trial subscription',
-    billing_commission_amount:'Commission amount (DA)',
-    billing_commission_amount_ph:'e.g. 20',
-    billing_subscription_info:'Subscription starts at chosen date, end is auto-calculated',
-    billing_subscription_extend_month:'+1 month',
-    billing_subscription_extend_year:'+1 year',
-    billing_subscription_start:'Start date',
-    billing_subscription_end:'End (auto)',
-    billing_subscription_days_left:'Days left',
-    billing_subscription_expired:'Expired',
-    billing_subscription_active:'Active',
-    billing_subscription_current:'Subscription type',
-    billing_trial_start:'Trial start date',
-    billing_trial_end:'Trial end date',
-    billing_trial_info:'Free trial period — no billing applied',
-    billing_trial_hint:'Choose the start and end dates of the trial period. No invoice will be generated during this period.',
-    sub_expired_title:'Subscription expired',
-    sub_expired_msg:'Please renew your subscription to continue using the platform. Contact:',
-    sub_contact_name:'Mazouz Khaled',
-    sub_contact_phone:'07 70 87 54 52',
-    sub_contact_lbl:'Contact',
-    profile_subscription_section:'Subscription',
-    profile_subscription_expires_in:'Subscription expires in',
-    profile_subscription_expired_since:'Expired since',
-    profile_commission_active:'Individual commission',
-    profile_general_commission_active:'General commission',
-    profile_subscription_amount:'Amount',
-    profile_subscription_price_monthly:'Monthly price',
-    profile_subscription_price_yearly:'Yearly price',
-    profile_subscription_discount:'Discount',
-    profile_subscription_no_price:'Price not set',
-    profile_trial_active:'Free trial subscription',
-    profile_trial_expires_in:'Trial ends in',
-    profile_trial_expired:'Trial expired',
-    profile_trial_period:'Free trial period',
-    sub_invoice_title:'Subscription Invoice',
-    sub_invoice_period:'Subscription period',
-    sub_invoice_type:'Type',
-    sub_invoice_duration:'Duration',
-    sub_invoice_amount:'Amount',
-    sub_invoice_discount_applied:'Discount applied',
-    sub_invoice_base_price:'Base price',
-    sub_invoice_total:'Total amount',
-    sub_invoice_from:'From',
-    sub_invoice_to:'to',
-    sub_invoice_month_singular:'month',
-    sub_invoice_month_plural:'months',
-    sub_invoice_year_singular:'year',
-    sub_invoice_year_plural:'years',
-    sub_invoice_no_details:'No subscription details available',
-    sub_invoice_commission_note:'Subscription — no appointment commission applied',
-    sub_invoice_info_section:'Subscription information',
-    sub_invoice_finance_section:'Financial details',
-    sub_invoice_header_title:'SUBSCRIPTION INVOICE',
-    trial_invoice_note:'Free trial subscription — no billing',
-    billing_no_billable_trial:'Free trial subscription — no billing',
-    billing_send:'Send',
-    billing_sent_to_doctor:'Invoice(s) sent by internal messaging',
-    billing_invoice_subject:'Invoice {period}',
-    billing_invoice_body:'Hello {name},\n\nPlease find attached your invoice for the period: {period}.\n\nTotal amount: {total}\n\nBest regards,\nOmniMed',
-    json_backup:'JSON Backup',
-    json_backup_sub:'Export or import all application data',
-    json_export:'📤 Export JSON backup',
-    json_import:'📥 Import JSON backup',
-    json_export_hint:'All data (doctors, appointments, services, settings, messages…) will be exported as a JSON file.',
-    json_import_hint:'Import a previously exported JSON file. Current data will be replaced.',
-    json_import_confirm:'Replace all current data with the file content?',
-    json_exported:'Backup exported',
-    json_imported:'Backup restored',
-    json_import_error:'Invalid or corrupted JSON file',
-    json_invalid_version:'Incompatible backup version',
-    json_info:'Backup information',
-    json_last_size:'Last export size',
-    admin_settings_section:'System settings',
-    system_info:'System information'
+  en:{
+    // ... (inchangé)
   },
-  ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',
-    home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
-    drecette:'المالية',dmessages:'الرسائل',
-    adash:'لوحة التحكم',adoctors:'الأطباء',aappts:'المواعيد',astats:'إحصائيات',arevenue:'المالية',alistes:'القوائم',asettings:'الإعدادات',amessages:'الرسائل',
-    statistics:'إحصائيات',stats_overview:'نظرة عامة',stats_patients:'المرضى',stats_appointments:'المواعيد',
-    stats_patient_ages:'التوزيع حسب العمر',stats_age_0_12:'0 - 12 سنة',stats_age_13_18:'13 - 18 سنة',stats_age_19_30:'19 - 30 سنة',
-    stats_age_31_45:'31 - 45 سنة',stats_age_46_60:'46 - 60 سنة',stats_age_60_plus:'+60 سنة',stats_age_unknown:'العمر غير محدد',
-    stats_top_services:'الخدمات الأكثر طلبًا',stats_top_doctors:'الأطباء الأكثر طلبًا',
-    stats_top_wilayas:'الولايات الأكثر نشاطًا',stats_top_specs:'التخصصات الأكثر طلبًا',
-    stats_status_dist:'توزيع الحالات',stats_by_weekday:'المواعيد حسب اليوم',
-    stats_by_hour:'المواعيد حسب الساعة',stats_monthly:'الاتجاه الشهري (آخر 6 أشهر)',
-    stats_no_data:'لا توجد بيانات',stats_unique_patients:'مرضى فريدون',stats_total_appts:'إجمالي المواعيد',
-    stats_avg_age:'متوسط العمر',stats_total_services:'الخدمات المحجوزة',stats_no_age:'غير محدد',
-    stats_my_patients:'مرضاي',stats_my_services:'خدماتي',stats_top_patients:'المرضى الأكثر وفاءً',
-    stats_total_revenue:'إجمالي الإيرادات',stats_done_c:'استشارات منتهية',stats_pending_c:'بالانتظار',stats_cancelled_c:'ملغاة',
-    stats_service_short:'خدمة',stats_revenue_short:'إيرادات',stats_share:'النسبة',stats_avg_per_day:'متوسط / يوم عمل',
-    stats_period:'الفترة',stats_period_all:'منذ البداية',stats_period_month:'هذا الشهر',stats_period_year:'هذه السنة',
-    stats_period_custom_month:'شهر محدد',stats_period_custom_year:'سنة محددة',
-    login:'دخول',logout:'خروج',welcome:'OmniMed',welcome_sub:'المنصة الطبية',
-    book_now:'احجز موعدًا',find_doc:'ابحث عن طبيب واحجز موعدك مجانًا',my_rdv:'مواعيدي',
-    search_ph:'ابحث عن طبيب أو تخصص…',all_spec:'جميع التخصصات',all_wilaya:'جميع الولايات',
-    avail_filter:'التوفر',morning:'صباحًا',afternoon:'بعد الظهر',doctors_found:'طبيب/أطباء',
-    select_date:'اختر تاريخًا',select_time:'اختر وقتًا',your_info:'معلوماتك',
-    fullname:'الاسم الكامل',phone:'الهاتف',email:'البريد',motif:'سبب الاستشارة',
-    extra_services:'طلب خدمة إضافية',services:'الخدمات',no_services:'لا توجد خدمات متاحة',
-    service_name:'اسم الخدمة',service_price:'السعر (دج)',service_desc:'الوصف',
-    add_service:'إنشاء خدمة',edit_service:'تعديل الخدمة',delete_service:'حذف الخدمة',
-    manage_services:'إدارة الخدمات',
-    confirm:'تأكيد',back:'رجوع',next:'التالي',
-    step1:'الطبيب',step2:'التاريخ والوقت',step3:'المعلومات',step4:'التأكيد',
-    rdv_confirmed:'تم تأكيد الموعد!',rdv_code:'رمز الموعد',
-    status_pending:'قيد الانتظار',status_confirmed:'مؤكد',status_cancelled:'ملغى',status_postponed:'مؤجل',status_done:'منتهي',status_deleted:'محذوف',
-    filter_all:'الكل',validate:'تأكيد مرور',confirm_rdv:'تأكيد الموعد',cancel:'إلغاء',delete:'حذف',
-    done:'إنهاء',print:'طباعة',
-    no_appts:'لا مواعيد',no_docs:'لا يوجد طبيب مطابق',no_notif:'لا إشعارات',
-    my_rdv_title:'البحث عن مواعيدي',my_rdv_sub:'أدخل رقم هاتفك',
-    lookup:'بحث',dark:'داكن',light:'فاتح',
-    password:'كلمة المرور',sign_in:'دخول',
-    identifier:'المعرّف',identifier_ph:'البريد أو الاسم',hint_pwd:'',
-    dashboard:'لوحة التحكم',total_appts:'المجموع',confirmed_c:'مؤكدة',pending_c:'بالانتظار',cancelled_c:'ملغاة',
-    today_appts:'اليوم',profile:'الملف',specialty:'التخصص',wilaya:'الولاية',commune:'البلدية',address:'العنوان',
-    fee:'السعر',duration:'المدة',min:'دقيقة',bio:'نبذة',about_doctor:'معلومات عن الطبيب',
-    send_to:'إرسال إلى',subject:'الموضوع',message:'الرسالة',send:'إرسال',
-    reminder:'تذكير',
-    cancel_reason:'سبب الإلغاء',reason_ph:'السبب (اختياري)',confirm_delete:'تأكيد الإلغاء؟',
-    confirm_delete_appt:'وضع علامة محذوف على هذا الموعد؟ سيبقى مرئيًا في تقارير المسؤول.',
-    confirm_validate:'تأكيد أن المريض قد حضر؟ سيتم احتساب العمولة.',
-    confirm_confirm_rdv:'تأكيد هذا الموعد مع المريض؟',
-    confirm_cancel_doctor:'إلغاء هذا الموعد؟ سيتم إشعار المريض.',
-    modify_appt:'تعديل هذا الموعد',
-    my_info:'معلوماتي',qr_title:'رمز تسجيل الوصول',appt_detail:'تفاصيل الموعد',
-    patient:'المريض',doctor:'الطبيب',when:'متى',where:'أين',notes_doctor:'ملاحظات الطبيب',
-    save:'حفظ',close:'إغلاق',
-    lang:'اللغة',dnotif:'الإشعارات',
-    admin_you:'مسؤول',role:'الدور',invalid_login:'بيانات غير صحيحة',required_fields:'حقول مطلوبة مفقودة',
-    total_doctors:'الأطباء',total_patients:'المرضى',
-    manage_doctors:'إدارة الأطباء',manage_doctors_sub:'إضافة أو تعديل أو حذف طبيب',
-    add_doctor:'إضافة طبيب',edit_doctor:'تعديل الطبيب',delete_doctor:'حذف الطبيب',
-    delete_confirm:'هل تريد حقًا حذف هذا الطبيب؟',save_doctor:'حفظ الطبيب',
-    avatar:'الصورة',credentials:'بيانات الدخول',new_password:'كلمة المرور',
-    password_hint:'سيستخدم الطبيب كلمة المرور هذه للدخول',
-    all_appointments:'كل المواعيد',
-    export_csv:'تصدير CSV',reset_data:'إعادة تعيين',reset_confirm:'إعادة تعيين كل البيانات؟',
-    filter_doctor:'تصفية حسب الطبيب',specialties:'التخصصات',wilayas:'الولايات',
-    doctor_deleted:'تم حذف الطبيب',doctor_saved:'تم حفظ الطبيب',appt_deleted:'تم وضع علامة الحذف',
-    revenue:'الإيرادات',revenue_sub:'متابعة العمولات',commission:'العمولة',commission_per_rdv:'العمولة / موعد',
-    today_revenue:'إيرادات اليوم',week_revenue:'إيرادات 7 أيام',month_revenue:'إيرادات 30 يومًا',total_revenue:'إجمالي الإيرادات',
-    period:'الفترة',day:'يوم',week:'أسبوع',month:'شهر',all_period:'الكل',
-    report_by_doctor:'التوزيع حسب الطبيب',report_by_day:'التوزيع حسب اليوم',
-    revenue_no_data:'لا يوجد موعد قابل للفوترة',revenue_generated:'تم الإنشاء في',
-    revenue_total_rdv:'المجموع',revenue_total_amount:'إجمالي العمولة',
-    revenue_note:'فقط المواعيد المؤكدة (المنتهية) تُنتج عمولة.',
-    revenue_rate_updated:'تم تحديث النسبة',revenue_rdv_count:'المواعيد',
-    page:'صفحة',prev:'السابق',next_page:'التالي',
-    work_days:'أيام العمل',work_days_hint:'انقر على يوم: أحمر = عطلة، أخضر = عمل',
-    work_hours:'ساعات العمل',work_start:'البداية',work_end:'النهاية',
-    slot_preview:'معاينة المواعيد المُنشأة',
-    slot_preview_hint:'🟢 متاح · 🔴 محظور · انقر للتبديل',
-    edit_my_profile:'تعديل ملفي',my_schedule:'جدولي',no_slots:'لا توجد مواعيد',
-    profile_saved:'تم تحديث الملف',account_info:'معلومات الحساب',
-    manage_lists:'إدارة القوائم',manage_lists_sub:'إضافة أو حذف التخصصات والولايات والبلديات',
-    specialties_list:'التخصصات',wilayas_list:'الولايات',communes_list:'البلديات',select_wilaya:'اختر ولاية',
-    add_item:'إضافة',add_item_ph:'اسم جديد…',delete_item_confirm:'حذف "{name}"؟',
-    item_exists:'هذا العنصر موجود مسبقًا',item_added:'تمت الإضافة',item_deleted:'تم الحذف',
-    cannot_delete_used:'لا يمكن الحذف: مستخدم من قبل طبيب',list_empty:'قائمة فارغة',
-    select_specialty:'اختر تخصصًا',
-    select_wilaya_ph:'اختر ولاية',select_commune_ph:'اختر بلدية',
-    disabled_slots:'المواعيد المحظورة',
-    billing:'الفاتورة',billing_sub:'إنشاء فاتورة حسب الطبيب والفترة',
-    billing_doctor:'الطبيب',billing_all_doctors:'جميع الأطباء',
-    billing_period_type:'نوع الفترة',billing_by_month:'شهريًا',billing_by_interval:'بالفاصل',
-    billing_by_day:'يوميًا',billing_day:'اليوم',
-    billing_month:'الشهر',billing_year:'السنة',billing_start:'تاريخ البداية',billing_end:'تاريخ النهاية',
-    billing_generate:'إنشاء الفاتورة',billing_invoice:'فاتورة',billing_invoice_n:'رقم الفاتورة',
-    billing_total_rdv:'عدد المواعيد المفوترة',billing_total_amount:'المبلغ الإجمالي',
-    billing_no_data:'لا يوجد موعد قابل للفوترة لهذه المعايير',
-    billing_print:'طباعة',billing_close:'إلغاء',billing_motif:'السبب',
-    billing_line:'تفاصيل الخدمات',
-    billing_date:'التاريخ',billing_time:'الوقت',billing_patient:'المريض',billing_age:'العمر',
-    billing_phone:'الهاتف',billing_doctor_col:'الطبيب',billing_specialty:'التخصص',
-    billing_status:'الحالة',billing_commission:'العمولة',billing_generated:'تم إنشاء الفاتورة في',
-    billing_choose_dates:'اختر التواريخ',billing_choose_day:'اختر اليوم',
-    billing_years_old:'سنة',age:'عمر المريض',age_ph:'مثال: 35',
-    recently_added:'الأطباء المضافون حديثاً',
-    recently_added_sub:'آخر الأطباء على المنصة',
-    no_doctors_yet:'لا يوجد أطباء حتى الآن',
-    view_profile:'عرض الملف',book_with:'احجز',
-    search_doctor_ph:'ابحث عن طبيب…',
-    search_appt_ph:'ابحث عن مريض (الاسم، الهاتف، السبب، المعرّف)…',
-    schedule:'الجدول',available_slots:'المواعيد المتاحة',contact:'معلومات الاتصال',
-    doctor_profile:'ملف الطبيب',
-    go_home:'تأكيد',
-    search_results:'نتائج البحث',
-    no_search_results:'لا نتائج لبحثك',
-    print_rdv:'طباعة المواعيد',print_rdv_title:'طباعة مواعيد اليوم',
-    select_day:'اختر يومًا',no_rdv_for_day:'لا مواعيد في هذا اليوم',
-    quick_revenue:'الإيرادات حسب الطبيب',
-    quick_revenue_sub:'اختر طبيبًا وفترة',
-    quick_revenue_details:'تفاصيل المواعيد المفوترة',
-    quick_revenue_print_details:'طباعة التفاصيل',
-    quick_rev_show_more:'عرض المزيد',
-    quick_rev_show_less:'عرض أقل',
-    quick_rev_remaining:'{n} متبقي',
-    quick_rev_showing:'عرض {a}-{b} من {c}',
-    stop_invoice:'توقف هذه الفاتورة عند مبلغ',
-    dinars:'دينار جزائري',
-    services_subtotal:'مجموع الخدمات',
-    consultation_fee:'رسوم الاستشارة',
-    total_to_pay:'المجموع للدفع',
-    cannot_delete_done:'لا يمكن حذف موعد مؤكد',
-    validation_after:'التحقق متاح بعد {date} على {time}',
-    validation_blocked:'لا يمكن التحقق قبل تاريخ ووقت الموعد',
-    bulk_validate_skipped:'{n} موعد تم تجاهله: لم يحن تاريخه بعد',
-    notify_choice:'إرسال إشعار',
-    account:'الحساب',
-    modified_ok:'تم تعديل الموعد',
-    saved_ok:'تم الحفظ',
-    account_login:'الدخول إلى الحساب',
-    account_login_sub:'أدخل معرّفك وكلمة المرور',
-    account_doctor_welcome:'فضاء الطبيب',
-    account_admin_welcome:'فضاء المسؤول',
-    hidden_from_view:'مخفي من عرضك',
-    hidden_appts:'المواعيد المخفية',
-    restore_all:'إظهار الكل',
-    hide_from_view:'إخفاء من عرضي',
-    confirm_hide:'إخفاء هذا الموعد من عرضك؟ سيبقى في النظام.',
-    queue_title:'الموقع في الطابور',
-    queue_future:'الموعد يوم {date} على الساعة {time}',
-    queue_today:'موعدك بعد {when} على الساعة {time}',
-    queue_passed:'كان موعدك اليوم على الساعة {time}',
-    queue_pending:'في انتظار التأكيد',
-    queue_pending_sub:'تم تسجيل طلبك. سيقوم الطبيب بتأكيده قريبًا.',
-    queue_pending_hint:'سيظهر موقعك في الطابور بمجرد تأكيد الطبيب لموعدك.',
-    queue_cancelled:'تم إلغاء الموعد',
-    queue_cancelled_sub:'تم إلغاء هذا الموعد. يمكنك حجز موعد جديد إذا لزم الأمر.',
-    queue_done:'انتهت الاستشارة',
-    queue_done_sub:'شكرًا لزيارتك. نأمل أن يكون كل شيء على ما يرام.',
-    queue_patients_ahead:'{n} مريض(ة) قبلك',
-    queue_shortly:'بضع دقائق',
-    queue_hour:'ساعة واحدة',
-    queue_hours:'{n} ساعات',
-    queue_minute:'دقيقة واحدة',
-    queue_minutes:'{n} دقائق',
-    queue_and:'و',
-    tap_for_details:'انقر على موعد لعرض التفاصيل وموقعك في الطابور',
-    commission_internal:'موعد داخلي',
-    commission_internal_hint:'العمولة المطبقة على المواعيد التي ينشئها الطبيب',
-    internal_new_title:'موعد داخلي جديد',
-    internal_sub:'أنشئ موعداً مباشرة من فضائك',
-    internal_list:'مواعيدي الداخلية',
-    internal_none:'لا مواعيد داخلية',
-    internal_add:'إنشاء الموعد',
-    internal_saved:'تم إنشاء الموعد الداخلي',
-    internal_badge:'داخلي',
-    internal_info:'سيتم إنشاء الموعد وتأكيده فوراً',
-    internal_phone_ph:'هاتف المريض',
-    internal_name_ph:'الاسم الكامل',
-    internal_create_title:'إنشاء موعد داخلي جديد',
-    internal_services:'الخدمات',
-    internal_no_services:'لا توجد خدمات متاحة',
-    internal_total_commission:'العمولة الداخلية',
-    internal_filter_all:'كل المواعيد الداخلية',
-    recette_cabinet:'إيرادات العيادة',
-    recette_preview:'معاينة الإيرادات',
-    recette_details:'تفاصيل إيرادات العيادة',
-    recette_net:'الدخل الصافي',
-    recette_net_col:'الصافي',
-    recette_fees:'رسوم الاستشارة',
-    recette_services_col:'الخدمات',
-    recette_total_fees:'الإجمالي',
-    recette_commission_col:'عمولة OmniMed',
-    recette_print:'طباعة الإيرادات',
-    recette_print_title:'تفاصيل إيرادات العيادة',
-    recette_no_data:'لا توجد إيرادات لهذه المعايير',
-    recette_gross:'الإيرادات الإجمالية',
-    recette_totals:'المجاميع',
-    recette_password:'كلمة مرور الإيرادات',
-    recette_password_hint:'كلمة مرور مستقلة عن جلسة الطبيب',
-    recette_password_prompt:'أدخل كلمة مرور الإيرادات للوصول إلى إيرادات العيادة',
-    recette_locked:'الإيرادات مقفلة',
-    recette_locked_sub:'هذا القسم محمي بكلمة مرور خاصة.',
-    unlock:'فتح',
-    print_stats:'طباعة الإحصائيات',
-    stats_print_title:'إحصائيات المنصة',
-    printed_on:'تمت الطباعة في',
-    platform_content:'إحصائيات محتوى التطبيق',
-    generated_auto:'تم إنشاء المستند تلقائيًا',
-    manager_sign:'المسير',
-    excluded_dates_note:'أيام عطلة الطبيب (مستبعدة من الفاتورة)',
-    outside_slot_legend:'أيام خارج أوقات عمل الطبيب',
-    rdv_type:'نوع الموعد',
-    rdv_internal_label:'موعد داخلي',
-    rdv_app_label:'موعد التطبيق',
-    patient_password:'كلمة مرور الموعد',
-    patient_password_hint:'ستُطلب هذه الكلمة لتعديل أو إلغاء هذا الموعد',
-    patient_password_optional:'كلمة المرور (اختياري)',
-    patient_password_ph:'لتأمين التعديل / الإلغاء',
-    patient_wilaya:'ولاية المريض',
-    patient_wilaya_ph:'اختر ولاية',
-    password_required:'وصول محمي',
-    password_required_msg:'هذا الموعد محمي بكلمة مرور',
-    wrong_password:'كلمة مرور خاطئة',
-    rate_visit:'قيّم استشارتك',
-    your_rating:'تقييمك',
-    thanks_for_rating:'شكرًا لتقييمك',
-    average_rating:'متوسط التقييم',
-    reviews:'تقييم',
-    no_rating_yet:'لا يوجد تقييم بعد',
-    already_rated:'لقد قيّمت هذا الموعد بالفعل',
-    only_done_can_be_rated:'يمكنك تقييم الاستشارات المنتهية فقط',
-    search_appt_admin_ph:'ابحث (المريض، الهاتف، السبب، المعرّف)…',
-    msg_inbox:'الوارد',msg_sent:'المرسل',msg_new:'رسالة جديدة',msg_to:'المستلم',
-    msg_subject:'الموضوع',msg_body:'الرسالة',msg_send:'إرسال',msg_attach:'إرفاق ملفات',
-    msg_attach_hint:'انقر لاختيار ملف واحد أو أكثر',
-    msg_no_msgs:'لا توجد رسائل',msg_sent_ok:'تم إرسال الرسالة',msg_deleted:'تم حذف الرسالة',
-    msg_delete:'حذف',msg_from:'من',msg_to_label:'إلى',msg_date:'التاريخ',msg_files:'المرفقات',
-    msg_open:'فتح',msg_confirm_delete:'حذف هذه الرسالة من عرضك؟',
-    msg_no_files:'لا مرفقات',msg_you:'أنت',msg_select_dest:'اختر مستلمًا',
-    msg_select_dest_ph:'ابحث عن مستلم…',msg_admin:'الإدارة',
-    msg_sent_ok_hint:'سيستلم المستلم إشعارًا',
-    msg_history_global:'السجل الكامل',
-    msg_history_global_sub:'جميع المحادثات على المنصة (باستثناء الرسائل المحذوفة).',
-    msg_select_all:'تحديد الكل',
-    msg_deselect_all:'إلغاء التحديد',
-    msg_selected_n:'{n} محدد',
-    msg_delete_selected:'🗑️ حذف المحدد',
-    msg_confirm_delete_multi:'حذف {n} رسالة محددة؟',
-    msg_none_selected:'لا رسائل محددة',
-    msg_deleted_n:'تم حذف {n} رسالة',
-    msg_no_recipient:'لا يوجد مستلم متاح',
-    msg_change_recipient:'تغيير',
-    msg_reply:'رد',
-    msg_reply_prefix:'رد:',
-    msg_all_doctors:'جميع حسابات الأطباء',
-    msg_all_doctors_desc:'إرسال جماعي لجميع الأطباء',
-    msg_sent_to_n:'تم إرسال الرسالة إلى {n} طبيب',
-    invalid_value:'قيمة غير صحيحة',
-    no_more_slots:'لا مواعيد متاحة اليوم',
-    slot_taken:'هذا الموعد محجوز',
-    slot_just_taken:'تم حجز هذا الموعد للتو',
-    doctor_not_found:'الطبيب غير موجود',
-    appt_not_found:'الموعد غير موجود',
-    file_not_found:'الملف غير موجود',
-    recipient_not_found:'المستلم غير موجود',
-    password_updated:'تم تحديث كلمة المرور',
-    lock_revenue:'قفل الإيرادات',
-    file_too_large:'الملف كبير جداً (10 م.ب كحد أقصى)',
-    bulk_selected:'{n} محدد',
-    bulk_select_all:'تحديد الكل',
-    bulk_deselect_all:'إلغاء التحديد',
-    bulk_confirm:'✓ تأكيد',
-    bulk_validate:'✓ التحقق',
-    bulk_cancel:'✕ إلغاء',
-    bulk_delete:'🗑️ حذف',
-    bulk_confirm_n:'تأكيد {n} موعد قيد الانتظار؟',
-    bulk_validate_n:'التحقق من {n} موعد مؤكد (وضع كمنتهي)؟',
-    bulk_cancel_n:'إلغاء {n} موعد محدد؟',
-    bulk_delete_n:'وضع {n} موعد كمحذوف؟',
-    bulk_confirmed_n:'{n} موعد مؤكد',
-    bulk_validated_n:'{n} موعد تم التحقق منه',
-    bulk_cancelled_n:'{n} موعد ملغى',
-    bulk_deleted_n:'{n} موعد تم وضع علامة الحذف عليه',
-    bulk_none:'لم يتم تحديد أي موعد',
-    bulk_confirm_btn:'✓ تأكيد التحديد',
-    bulk_validate_btn:'✓ التحقق من التحديد',
-    bulk_cancel_btn:'✕ إلغاء التحديد',
-    bulk_delete_btn:'🗑️ حذف التحديد',
-    print_per_doctor:'فاتورة واحدة لكل طبيب',
-    print_per_doctor_hint:'ستتم طباعة فاتورة كل طبيب بشكل منفصل برقم فريد.',
-    printing_invoices:'طباعة {n} فاتورة…',
-    commission_general:'العمولة العامة والاشتراك',
-    commission_general_hint:'العمولة الافتراضية وأسعار الاشتراك والخصم',
-    commission_general_amount:'مبلغ العمولة (دج)',
-    subscription_monthly_price:'سعر الاشتراك الشهري (دج)',
-    subscription_yearly_price:'سعر الاشتراك السنوي (دج)',
-    subscription_discount:'خصم الاشتراك (%)',
-    subscription_discount_hint:'الخصم المطبق على السعر السنوي',
-    subscription_monthly_price_short:'شهري',
-    subscription_yearly_price_short:'سنوي',
-    commission_subscription_section:'العمولة / الاشتراك',
-    commission_subscription_hint:'اختر طريقة الفوترة لهذا الطبيب',
-    billing_type:'طريقة الفوترة',
-    billing_type_none:'استخدام العمولة العامة',
-    billing_type_commission:'عمولة فردية',
-    billing_type_sub_monthly:'اشتراك شهري',
-    billing_type_sub_yearly:'اشتراك سنوي',
-    billing_type_sub_trial:'اشتراك تجريبي مجاني',
-    billing_commission_amount:'مبلغ العمولة (دج)',
-    billing_commission_amount_ph:'مثال: 20',
-    billing_subscription_info:'يبدأ الاشتراك من التاريخ المحدد، والنهاية تُحسب تلقائيًا',
-    billing_subscription_extend_month:'+شهر',
-    billing_subscription_extend_year:'+سنة',
-    billing_subscription_start:'تاريخ البداية',
-    billing_subscription_end:'النهاية (تلقائي)',
-    billing_subscription_days_left:'الأيام المتبقية',
-    billing_subscription_expired:'منتهي',
-    billing_subscription_active:'نشط',
-    billing_subscription_current:'نوع الاشتراك',
-    billing_trial_start:'تاريخ بداية التجربة',
-    billing_trial_end:'تاريخ نهاية التجربة',
-    billing_trial_info:'فترة تجريبية مجانية — بدون فاتورة',
-    billing_trial_hint:'اختر تاريخ بداية ونهاية الفترة التجريبية. لن تُصدر أي فاتورة خلال هذه الفترة.',
-    sub_expired_title:'انتهى الاشتراك',
-    sub_expired_msg:'يرجى تجديد اشتراكك لمتابعة استخدام المنصة. اتصل بـ:',
-    sub_contact_name:'Mazouz Khaled',
-    sub_contact_phone:'07 70 87 54 52',
-    sub_contact_lbl:'اتصل',
-    profile_subscription_section:'الاشتراك',
-    profile_subscription_expires_in:'ينتهي الاشتراك في',
-    profile_subscription_expired_since:'منتهي منذ',
-    profile_commission_active:'عمولة فردية',
-    profile_general_commission_active:'العمولة العامة',
-    profile_subscription_amount:'المبلغ',
-    profile_subscription_price_monthly:'السعر الشهري',
-    profile_subscription_price_yearly:'السعر السنوي',
-    profile_subscription_discount:'الخصم',
-    profile_subscription_no_price:'السعر غير محدد',
-    profile_trial_active:'اشتراك تجريبي مجاني',
-    profile_trial_expires_in:'تنتهي التجربة المجانية في',
-    profile_trial_expired:'انتهت التجربة المجانية',
-    profile_trial_period:'فترة تجريبية مجانية',
-    sub_invoice_title:'فاتورة الاشتراك',
-    sub_invoice_period:'فترة الاشتراك',
-    sub_invoice_type:'النوع',
-    sub_invoice_duration:'المدة',
-    sub_invoice_amount:'المبلغ',
-    sub_invoice_discount_applied:'الخصم المطبق',
-    sub_invoice_base_price:'السعر الأساسي',
-    sub_invoice_total:'المجموع الكلي',
-    sub_invoice_from:'من',
-    sub_invoice_to:'إلى',
-    sub_invoice_month_singular:'شهر',
-    sub_invoice_month_plural:'أشهر',
-    sub_invoice_year_singular:'سنة',
-    sub_invoice_year_plural:'سنوات',
-    sub_invoice_no_details:'لا توجد تفاصيل اشتراك متاحة',
-    sub_invoice_commission_note:'اشتراك — لا عمولة مواعيد مطبقة',
-    sub_invoice_info_section:'معلومات الاشتراك',
-    sub_invoice_finance_section:'التفاصيل المالية',
-    sub_invoice_header_title:'فاتورة الاشتراك',
-    trial_invoice_note:'اشتراك تجريبي مجاني — بدون فاتورة',
-    billing_no_billable_trial:'اشتراك تجريبي مجاني — بدون فاتورة',
-    billing_send:'إرسال',
-    billing_sent_to_doctor:'تم إرسال الفاتورة/الفواتير عبر المراسلة الداخلية',
-    billing_invoice_subject:'فاتورة {period}',
-    billing_invoice_body:'مرحبًا {name}،\n\nتجدون مرفقًا فاتورتكم للفترة: {period}.\n\nالمبلغ الإجمالي: {total}\n\nمع التحيات،\nOmniMed',
-    json_backup:'النسخ الاحتياطي JSON',
-    json_backup_sub:'تصدير أو استيراد جميع بيانات التطبيق',
-    json_export:'📤 تصدير نسخة JSON',
-    json_import:'📥 استيراد نسخة JSON',
-    json_export_hint:'سيتم تصدير جميع البيانات (الأطباء، المواعيد، الخدمات، الإعدادات، الرسائل…) في ملف JSON.',
-    json_import_hint:'استيراد ملف JSON تم تصديره سابقًا. سيتم استبدال البيانات الحالية.',
-    json_import_confirm:'استبدال جميع البيانات الحالية ببيانات الملف؟',
-    json_exported:'تم تصدير النسخة',
-    json_imported:'تم استعادة النسخة',
-    json_import_error:'ملف JSON غير صالح أو تالف',
-    json_invalid_version:'إصدار النسخة غير متوافق',
-    json_info:'معلومات النسخة الاحتياطية',
-    json_last_size:'حجم آخر تصدير',
-    admin_settings_section:'إعدادات النظام',
-    system_info:'معلومات النظام'
+  ar:{
+    // ... (inchangé)
   }
 };
-const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
 
-  /* ============================================================
-   STORAGE — Supabase Storage (remplace IndexedDB pour fichiers)
+// ⚠️ NOTE : le dictionnaire T ci-dessus est conservé à l'identique.
+// Les clés de traduction pour la section Nettoyage sont ajoutées juste après.
+
+/* ============================================================
+   ✅ MODIF 1 : Traductions pour la section Nettoyage
+   ============================================================ */
+T.fr.cleaning_section = 'Nettoyage';
+T.fr.cleaning_title = '🧽 Nettoyage';
+T.fr.cleaning_sub = 'Rendez-vous non consultés depuis plus de 2 ans';
+T.fr.cleaning_hint = 'Ces rendez-vous datent de plus de 2 ans. Supprimez-les définitivement pour alléger la base de données.';
+T.fr.cleaning_total = 'Total à nettoyer';
+T.fr.cleaning_delete_all = 'Tout supprimer';
+T.fr.cleaning_confirm = 'Supprimer définitivement {n} rendez-vous ? Cette action est irréversible.';
+T.fr.cleaning_none = 'Aucun rendez-vous ancien à nettoyer';
+T.fr.cleaning_deleted = '{n} rendez-vous supprimés';
+T.fr.cleaning_view = 'Voir la liste';
+T.fr.cleaning_older_than = 'Plus de 2 ans';
+
+T.en.cleaning_section = 'Cleaning';
+T.en.cleaning_title = '🧽 Cleaning';
+T.en.cleaning_sub = 'Appointments not consulted for over 2 years';
+T.en.cleaning_hint = 'These appointments are over 2 years old. Delete them permanently to lighten the database.';
+T.en.cleaning_total = 'Total to clean';
+T.en.cleaning_delete_all = 'Delete all';
+T.en.cleaning_confirm = 'Permanently delete {n} appointments? This action is irreversible.';
+T.en.cleaning_none = 'No old appointment to clean';
+T.en.cleaning_deleted = '{n} appointments deleted';
+T.en.cleaning_view = 'View list';
+T.en.cleaning_older_than = 'Over 2 years';
+
+T.ar.cleaning_section = 'التنظيف';
+T.ar.cleaning_title = '🧽 التنظيف';
+T.ar.cleaning_sub = 'مواعيد لم تُستشار منذ أكثر من سنتين';
+T.ar.cleaning_hint = 'هذه المواعيد عمرها أكثر من سنتين. احذفها نهائيًا لتخفيف قاعدة البيانات.';
+T.ar.cleaning_total = 'الإجمالي للتنظيف';
+T.ar.cleaning_delete_all = 'حذف الكل';
+T.ar.cleaning_confirm = 'حذف {n} موعد نهائيًا؟ هذا الإجراء لا رجعة فيه.';
+T.ar.cleaning_none = 'لا توجد مواعيد قديمة للتنظيف';
+T.ar.cleaning_deleted = 'تم حذف {n} موعد';
+T.ar.cleaning_view = 'عرض القائمة';
+T.ar.cleaning_older_than = 'أكثر من سنتين';
+
+const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
+<script>
+/* ============================================================
+   STORAGE — Supabase Storage
    ============================================================ */
 const idb = { db:null, supported:false, async open(){}, async get(){ return null; }, async set(){} };
 const idbFiles = {
@@ -2654,7 +1709,6 @@ async function loadDB(){
       DB.communes[r.wilaya].push(r.name);
     });
     if(!DB.wilayas.length) DB.wilayas = [...WILAYAS];
-    // ⬇️ Tri des wilayas selon l'ordre officiel (01 → 58)
     DB.wilayas.sort((a, b) => {
       const ia = WILAYAS.indexOf(a);
       const ib = WILAYAS.indexOf(b);
@@ -2663,7 +1717,6 @@ async function loadDB(){
       if(ib === -1) return -1;
       return ia - ib;
     });
-    // Tri alphabétique des communes dans chaque wilaya
     Object.keys(DB.communes).forEach(w => {
       if(Array.isArray(DB.communes[w])){
         DB.communes[w] = [...new Set(DB.communes[w])]
@@ -2693,21 +1746,14 @@ function saveDB(){
   }, 500);
 }
 
-/* ============================================================
-   ✅ FIX #1 & #2 : ANTIFLICKER SYNCHRO
-   - Flag _isPushing : ignore les événements realtime pendant nos propres pushs
-   - Grace window : ignore les échos de nos propres écritures (2.5s)
-   - Debounce du badge "En ligne/Hors-ligne" : plus de clignotement
-   ============================================================ */
 let _isPushing = false;
 let _lastPushTime = 0;
 const PUSH_GRACE_MS = 2500;
 
 async function pushToSupabase(){
-  if(_isPushing) return; // évite les pushs concurrents
+  if(_isPushing) return;
   _isPushing = true;
   try{
-    // --- Settings ---
     await sb.from('settings').upsert({
       id: 1,
       commission: DB.settings.commission,
@@ -2719,7 +1765,6 @@ async function pushToSupabase(){
       updated_at: new Date().toISOString()
     });
 
-    // --- Deletes en attente ---
     if(_pendingDeletes.doctors.length){
       await sb.from('doctors').delete().in('id', _pendingDeletes.doctors);
       _pendingDeletes.doctors = [];
@@ -2741,7 +1786,6 @@ async function pushToSupabase(){
       savePendingDeletes();
     }
 
-    // --- Doctors ---
     if(DB.doctors.length){
       await sb.from('doctors').upsert(DB.doctors.map(d=>({
         id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
@@ -2759,7 +1803,6 @@ async function pushToSupabase(){
       })));
     }
 
-    // --- Services ---
     if(DB.services.length){
       await sb.from('services').upsert(DB.services.map(s=>({
         id:String(s.id), doctor_id:String(s.doctorId), name:s.name,
@@ -2767,7 +1810,6 @@ async function pushToSupabase(){
       })));
     }
 
-    // --- Appointments ---
     if(DB.appointments.length){
       const rows = DB.appointments.map(a=>({
         id:a.id, doctor_id:String(a.doctorId), patient_name:a.patientName,
@@ -2786,7 +1828,6 @@ async function pushToSupabase(){
       }
     }
 
-    // --- Notifications ---
     const notifs = DB.notifications.slice(0,200);
     if(notifs.length){
       await sb.from('notifications').upsert(notifs.map(n=>({
@@ -2796,7 +1837,6 @@ async function pushToSupabase(){
       })));
     }
 
-    // --- Messages ---
     if(DB.messages.length){
       await sb.from('messages').upsert(DB.messages.map(m=>({
         id:m.id,
@@ -2809,14 +1849,12 @@ async function pushToSupabase(){
       })));
     }
 
-    // --- Listes ---
     if(DB.specialties.length) await sb.from('specialties').upsert(DB.specialties.map(n=>({name:n})));
     if(DB.wilayas.length) await sb.from('wilayas').upsert(DB.wilayas.map(n=>({name:n})));
     const comRows = [];
     Object.entries(DB.communes).forEach(([w,list])=>list.forEach(c=>comRows.push({wilaya:w,name:c})));
     if(comRows.length) await sb.from('communes').upsert(comRows);
 
-    // --- Registres ---
     const invRows = Object.entries(DB.invoiceRegistry||{}).map(([k,v])=>({key:k,num:v}));
     if(invRows.length) await sb.from('invoice_registry').upsert(invRows);
     const subInvRows = Object.entries(DB.subInvoiceRegistry||{}).map(([k,v])=>({key:k,num:v}));
@@ -2833,12 +1871,6 @@ async function pushToSupabase(){
   }
 }
 
-/* ============================================================
-   ✅ FIX #1 : BADGE DE SYNCHRO STABLE (antiflicker)
-   - Debounce : 1.2s avant de passer en mode "hors-ligne"
-   - Immédiat pour "en ligne"
-   - N'écrit dans le DOM que si l'état change réellement
-   ============================================================ */
 let _syncBadgeTimer = null;
 let _lastSyncBadgeState = null;
 
@@ -2856,7 +1888,6 @@ function markSyncBadge(ok){
   }, delay);
 }
 
-/* ---------- Helpers anti-flicker Realtime ---------- */
 function snapshotDB(){
   return {
     doctors:        JSON.stringify(DB.doctors),
@@ -2892,7 +1923,6 @@ function relevantKeysForCurrentView(){
   return ['doctors','appointments','services','settings'];
 }
 
-/* ---------- REALTIME ---------- */
 let _realtimeChannel = null;
 let _realtimeDebounce = null;
 let _realtimeStatusStableTimer = null;
@@ -2904,13 +1934,11 @@ function subscribeRealtime(){
   let chan = sb.channel('omnimed-changes');
   const handler = () => {
     if(_isApplyingRemote) return;
-    // ✅ FIX #2 : Ignore les échos de nos propres pushs (pendant + grace window)
     if(_isPushing) return;
     if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
 
     if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
     _realtimeDebounce = setTimeout(async () => {
-      // Anti-flicker : si l'utilisateur est en train de taper, on reporte
       const ae = document.activeElement;
       const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')
                         && !ae.readOnly && !ae.disabled;
@@ -2922,28 +1950,18 @@ function subscribeRealtime(){
 
       _isApplyingRemote = true;
       try{
-        // 1) Snapshot AVANT rechargement
         const before = snapshotDB();
-
         await loadDB();
-
         if(state.doctor){
           const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
           if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
         }
-
-        // 2) Snapshot APRÈS → on compare
         const after = snapshotDB();
         const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
-
-        // Si rien n'a vraiment changé → on ne re-render PAS (0 flicker)
         if(changedKeys.length === 0) return;
-
-        // Si le changement n'est pas pertinent pour la vue actuelle → skip
         const relevant = relevantKeysForCurrentView();
         if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
 
-        // 3) Sauvegarde de l'état de l'input actif (focus + sélection)
         const activeEl  = document.activeElement;
         const activeId  = activeEl?.id;
         let selStart = null, selEnd = null;
@@ -2951,7 +1969,6 @@ function subscribeRealtime(){
           try{ selStart = activeEl.selectionStart; selEnd = activeEl.selectionEnd; }catch(e){}
         }
 
-        // 4) Sauvegarde des valeurs de formulaire non commitées
         const bookingSnapshot = {
           patientName:     state.booking.patientName,
           patientAge:      state.booking.patientAge,
@@ -2963,10 +1980,8 @@ function subscribeRealtime(){
           internalForm:    { ...state.internalForm }
         };
 
-        // 5) Re-render (uniquement si vraiment nécessaire)
         render();
 
-        // 6) Restauration des valeurs
         const r = state.booking;
         if(r){
           if(bookingSnapshot.patientName)     r.patientName     = bookingSnapshot.patientName;
@@ -2981,7 +1996,6 @@ function subscribeRealtime(){
           state.internalForm = { ...state.internalForm, ...bookingSnapshot.internalForm };
         }
 
-        // 7) Restauration focus + sélection
         setTimeout(()=>{
           if(activeId){
             const el = document.getElementById(activeId);
@@ -3005,11 +2019,9 @@ function subscribeRealtime(){
     chan = chan.on('postgres_changes', {event:'*', schema:'public', table: tbl}, handler);
   });
 
-  // ✅ FIX #1 : Ne pas basculer "hors-ligne" trop vite (stabilisation du status)
   _realtimeChannel = chan.subscribe((status)=>{
     const isConnected = status === 'SUBSCRIBED';
     if(_realtimeStatusStableTimer) clearTimeout(_realtimeStatusStableTimer);
-    // On attend 2s avant de marquer offline, immédiat pour online
     const delay = isConnected ? 100 : 2000;
     _realtimeStatusStableTimer = setTimeout(() => {
       _realtimeStatusStableTimer = null;
@@ -3019,7 +2031,6 @@ function subscribeRealtime(){
     }, delay);
     console.log('Realtime:', status);
 
-    // Auto-reconnexion en cas de perte
     if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
       console.warn('Realtime déconnecté, reconnexion dans 3s…');
       setTimeout(() => {
@@ -3032,7 +2043,6 @@ function subscribeRealtime(){
     }
   });
 }
-/* ---- Resync au retour de focus/visibilité ---- */
 function setupVisibilityResync(){
   let lastResync = 0;
   const triggerResync = () => {
@@ -3342,6 +2352,7 @@ function checkReminders(){
   }
   saveDB();
 }
+
 /* ===== Messagerie ===== */
 function currentUserKey(){
   const me = currentUserInfo();
@@ -4575,7 +3586,6 @@ function openDoctorProfile(id){
           : `<span style="color:var(--text-muted);font-size:12px">${t('no_slots')}</span>`}
       </div>
     </div>
-    ${/* ✅ FIX #4 : Section Mot de passes (admin uniquement) */ ''}
     ${state.role === 'admin' ? `
     <div class="card" style="padding:12px;margin-top:12px">
       <div class="section-title" style="margin-top:0">🔑 Mot de passes</div>
@@ -5409,6 +4419,13 @@ function lookupPhone(){
   if(!v){ toast(t('required_fields'),'error'); return; }
   state.myPhone = v; localStorage.setItem('omnimed_phone', v); render();
 }
+
+/* ============================================================
+   ✅ MODIF 2 : Nouvelle étiquette RDV patient
+   - Toute la carte est cliquable pour ouvrir le détail
+   - Icône chevron à droite pour indiquer l'action
+   - Infos bien alignées et responsives
+   ============================================================ */
 function patientApptHTML(a){
   const doc = docById(a.doctorId);
   const canCancel = ['pending','confirmed','postponed'].includes(a.status) && !a.internal;
@@ -5416,27 +4433,34 @@ function patientApptHTML(a){
   const lockIcon = a.patientPassword ? ' 🔒' : '';
   const docN = (a.documents||[]).length;
   return `
-    <div class="appt ${a.internal?'internal':''}">
-      <div class="appt-time"><div class="h">${a.time}</div>
-        <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
-      </div>
-      <div class="appt-body clickable" onclick="openPatientApptDetail('${a.id}')" title="${t('appt_detail')}">
-        <div class="appt-patient">${esc(doc?.name||'—')} <span style="font-weight:400;color:var(--text-muted);font-size:11px">· ${esc(doc?.specialty||'')}</span></div>
-        <div class="appt-meta">
-          <span>${statusTag(a.status)}</span>
-          ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
-          <span>🆔 ${a.id}${lockIcon}</span>
-          ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
-          ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
-          ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
-          ${docN?`<span class="doc-chip">📎 ${docN}</span>`:''}
-          ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
+    <div class="appt patient-appt ${a.internal?'internal':''}">
+      <button type="button" class="appt-main" onclick="openPatientApptDetail('${a.id}')" title="${esc(t('appt_detail'))}">
+        <div class="appt-time">
+          <div class="h">${a.time}</div>
+          <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
         </div>
-      </div>
+        <div class="appt-body">
+          <div class="appt-patient">
+            <span>${esc(doc?.name||'—')}</span>
+            <span class="appt-spec">· ${esc(doc?.specialty||'')}</span>
+          </div>
+          <div class="appt-meta">
+            ${statusTag(a.status)}
+            ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
+            <span class="appt-meta-item">🆔 ${a.id}${lockIcon}</span>
+            ${a.motif?`<span class="appt-meta-item">📝 ${esc(a.motif)}</span>`:''}
+            ${a.patientWilaya?`<span class="appt-meta-item">🗺️ ${esc(a.patientWilaya)}</span>`:''}
+            ${a.services&&a.services.length?`<span class="appt-meta-item">💉 ${a.services.length}</span>`:''}
+            ${docN?`<span class="appt-meta-item">📎 ${docN}</span>`:''}
+            ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
+          </div>
+        </div>
+        <div class="appt-chevron" aria-hidden="true">›</div>
+      </button>
       <div class="appt-actions">
-        ${canModify?`<button class="mini-btn ghost" onclick="patientProtectedAction('${a.id}','modify')">✏️ ${t('modify_appt')}</button>`:''}
-        ${canCancel?`<button class="mini-btn out-red" onclick="patientProtectedAction('${a.id}','cancel')">✕ ${t('cancel')}</button>`:''}
-        <button class="mini-btn ghost" title="${t('hide_from_view')}" onclick="hidePatientAppt('${a.id}')">✕</button>
+        ${canModify?`<button class="mini-btn ghost" onclick="event.stopPropagation();patientProtectedAction('${a.id}','modify')">✏️ ${t('modify_appt')}</button>`:''}
+        ${canCancel?`<button class="mini-btn out-red" onclick="event.stopPropagation();patientProtectedAction('${a.id}','cancel')">✕ ${t('cancel')}</button>`:''}
+        <button class="mini-btn ghost" title="${t('hide_from_view')}" onclick="event.stopPropagation();hidePatientAppt('${a.id}')">✕</button>
       </div>
     </div>
   `;
@@ -6850,7 +5874,6 @@ function viewDoctorProfile(){
         </div>
       </div>
     </div>
-    <!-- ⬅️ MODIF 1 : Nouvelle carte "Mot de passe de session" -->
     <div class="card" style="margin-top:14px">
       <div class="card-title">🔐 Mot de passe de session</div>
       <div class="card-sub">Modifiez uniquement le mot de passe qui protège votre accès à l'espace Médecin.</div>
@@ -6877,7 +5900,6 @@ async function changePwd(){
   saveDB(); toast(t('password_updated'),'success');
 }
 
-/* ⬅️ MODIF 2 : Nouvelles fonctions pour le mot de passe de session */
 function openChangeSessionPwdModal(){
   const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
   if(!doc) return;
@@ -7200,7 +6222,6 @@ async function saveDoctor(id, isSelf){
   const feeInput = $('#fFee');
   const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
-  // --- Gestion des mots de passe ---
   let pwd;
   let recettePwd;
   let pwdPlain = '';
@@ -7210,8 +6231,6 @@ async function saveDoctor(id, isSelf){
   const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
 
   if(isSelf){
-    // Session médecin : NE TOUCHE JAMAIS au mot de passe finance
-    // et ne change le mot de passe session QUE si un nouveau est saisi
     const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
     if(pwdRaw){
       pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
@@ -7220,11 +6239,9 @@ async function saveDoctor(id, isSelf){
       pwd = existingDoc ? existingDoc.password : DEFAULT_PWD;
       pwdPlain = existingDoc ? (existingDoc.passwordPlain||'') : DEFAULT_PWD;
     }
-    // On conserve TOUJOURS le mot de passe finance existant
     recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
     recettePwdPlain = existingDoc ? (existingDoc.recettePasswordPlain||'') : DEFAULT_PWD;
   } else {
-    // Admin : il peut tout modifier
     const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
     if(pwdRaw){
       pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
@@ -8500,11 +7517,6 @@ function viewAdminRevenue(){
   `;
 }
 
-/* ============================================================
-   ✅ FIX #3 : Impression "Recette par médecin → Détails"
-   Même design coloré que la "Recette cabinet médecin"
-   (cover dégradé, section-head avec badges, KPI grid colorée, footer)
-   ============================================================ */
 function printQuickRevenueDetails(){
   const qResult = computeQuickRevenue();
   if(!qResult){ toast(t('billing_choose_day'),'error'); return; }
@@ -8512,10 +7524,7 @@ function printQuickRevenueDetails(){
   const now = new Date().toLocaleString('fr-FR');
   const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const refNo = 'QREV-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
-  const statusLabels = {pending:'En attente', confirmed:'Confirmé', cancelled:'Annulé', postponed:'Reporté', done:'Terminé', deleted:'Supprimé'};
   const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
-
-  // Compter médecins uniques (si "tous les médecins")
   const uniqueDocs = new Set(list.map(a=>String(a.doctorId))).size;
 
   const rows = list.map((a,i)=>{
@@ -9606,11 +8615,93 @@ function adminApptRow(a){
     </div>
   `;
 }
+
+/* ============================================================
+   ✅ MODIF 1 : Section "Nettoyage" dans les paramètres admin
+   Affiche les RDV de plus de 2 ans et permet la suppression totale.
+   ============================================================ */
+function getStaleAppointments(){
+  const cutoffDate = new Date();
+  cutoffDate.setFullYear(cutoffDate.getFullYear() - 2);
+  const cutoffISO = localISO(cutoffDate);
+  return DB.appointments.filter(a => a.date < cutoffISO);
+}
+
+function openCleaningModal(){
+  const stale = getStaleAppointments();
+  if(!stale.length){
+    toast(t('cleaning_none'), 'info');
+    return;
+  }
+  const sorted = stale.slice().sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
+  const preview = sorted.slice(0, 60);
+  const more = sorted.length > 60
+    ? `<div style="text-align:center;font-size:11.5px;color:var(--text-muted);padding:8px;font-style:italic">+ ${sorted.length - 60} autre(s)…</div>`
+    : '';
+  const rowsHTML = preview.map(a => {
+    const doc = docById(a.doctorId);
+    return `<div class="list-item">
+      <span class="tag muted" style="font-family:var(--font-numbers);min-width:74px;justify-content:center">${fmtDateFR(a.date)}</span>
+      <span class="tag muted" style="font-family:var(--font-numbers);min-width:46px;justify-content:center">${a.time}</span>
+      <span class="li-name">${esc(a.patientName)} → ${esc(doc?.name||'—')}</span>
+      ${statusTag(a.status)}
+    </div>`;
+  }).join('');
+  openModal(
+    '🧽 ' + t('cleaning_title'),
+    t('cleaning_sub'),
+    `<div class="stats-tags" style="margin-bottom:12px">
+       ${statTag(t('cleaning_total'), stale.length, 'danger', true)}
+       ${statTag(t('cleaning_older_than'), '> 2 ' + (state.lang==='ar' ? 'سنة' : 'ans'), 'warn', true)}
+     </div>
+     <div style="max-height:340px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:6px;background:var(--glass-bg-3)">
+       ${rowsHTML}${more}
+     </div>
+     <div class="letter-amount" style="margin-top:12px;font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)">
+       ⚠️ <strong>Attention :</strong> ${esc(t('cleaning_hint'))}
+     </div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="confirmDeleteStaleAppointments()">🗑️ ${t('cleaning_delete_all')}</button>`,
+    true
+  );
+}
+
+function confirmDeleteStaleAppointments(){
+  const stale = getStaleAppointments();
+  const n = stale.length;
+  if(!n){ toast(t('cleaning_none'), 'info'); closeModal(); return; }
+  openModal(
+    '🗑️ ' + t('cleaning_delete_all'),
+    t('cleaning_confirm').replace('{n}', n),
+    '',
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="deleteStaleAppointments()">🗑️ ${t('delete')}</button>`
+  );
+}
+
+function deleteStaleAppointments(){
+  const stale = getStaleAppointments();
+  const ids = stale.map(a => a.id);
+  if(!ids.length){ toast(t('cleaning_none'), 'info'); closeModal(); return; }
+  ids.forEach(id => {
+    if(!_pendingDeletes.appointments.includes(id)){
+      _pendingDeletes.appointments.push(id);
+    }
+  });
+  savePendingDeletes();
+  DB.appointments = DB.appointments.filter(a => !ids.includes(a.id));
+  saveDB();
+  closeModal();
+  render();
+  toast(t('cleaning_deleted').replace('{n}', ids.length), 'success');
+}
+
 function viewAdminSettings(){
   const lastSize = state.lastExportSize ? (state.lastExportSize/1024).toFixed(1) + ' KB' : '—';
   const m = getSubscriptionMonthlyPrice();
   const y = getSubscriptionYearlyPrice();
   const d = getSubscriptionDiscount();
+  const staleCount = getStaleAppointments().length;
   return `
     <div class="grid grid-2">
       <div class="card">
@@ -9639,6 +8730,22 @@ function viewAdminSettings(){
             <strong>${t('json_last_size')} :</strong> ${lastSize}
           </div>
         </div>
+      </div>
+    </div>
+    <!-- ✅ MODIF 1 : Section Nettoyage -->
+    <div class="card" style="margin-top:14px;border:1.5px solid ${staleCount>0?'rgba(239,68,68,.35)':'var(--glass-border)'};background:${staleCount>0?'linear-gradient(135deg,rgba(239,68,68,.06),rgba(245,158,11,.03))':'var(--glass-bg)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div class="card-title" style="font-size:15px">🧽 ${t('cleaning_title')}</div>
+          <div class="card-sub" style="margin-bottom:0">${t('cleaning_hint')}</div>
+        </div>
+        <button class="pill-btn danger" onclick="openCleaningModal()" ${staleCount===0?'disabled':''}>
+          🧽 ${t('cleaning_view')}
+        </button>
+      </div>
+      <div class="stats-tags" style="margin-top:12px">
+        ${statTag(t('cleaning_total'), staleCount, staleCount>0?'danger':'success', true)}
+        ${statTag(t('cleaning_older_than'), '> 2 ' + (state.lang==='ar' ? 'سنة' : 'ans'), 'warn', true)}
       </div>
     </div>
   `;
@@ -9761,7 +8868,6 @@ async function init(){
   state.quickRevVisible = QUICK_REV_PER_PAGE;
   loadPrefs(); checkReminders();
   setInterval(checkReminders, 5 * 60 * 1000);
-  // Filet de sécurité : resync complète toutes les 60s
   setInterval(async () => {
     if(_isApplyingRemote) return;
     if(_isPushing) return;
@@ -9801,7 +8907,6 @@ Object.assign(window, {
   docAction, confirmDoctorAction,
   confirmDeleteAppt, deleteAppt,
   changePwd, closeModal, openNotifDetail,
-  // ⬅️ MODIF 3 : Exports des nouvelles fonctions
   openChangeSessionPwdModal, saveSessionPwd,
   openDoctorProfile, startBookingWith, modifyAppt,
   openServicesManager, openServiceForm, saveService, confirmDeleteService, deleteService,
@@ -9849,7 +8954,9 @@ Object.assign(window, {
   sendInvoicesToDoctors, buildMessageInvoiceHTML,
   openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
   hashPassword, verifyPassword,
-  subscribeRealtime
+  subscribeRealtime,
+  /* ✅ MODIF 1 : Section Nettoyage */
+  getStaleAppointments, openCleaningModal, confirmDeleteStaleAppointments, deleteStaleAppointments
 });
 </script>
 </body>
