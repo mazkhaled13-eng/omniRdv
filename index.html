@@ -1030,6 +1030,7 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
 <div id="toasts"></div>
 <div id="modal-root"></div>
 <div id="subModalRoot"></div>
+<!-- ⬇️ La suite (le <script>) est dans la PARTIE 2 ⬇️ -->
 
 <script>
   /* ============================================================
@@ -1197,9 +1198,10 @@ function numberToFrenchWords(n){
   let out = (mi === 1 ? 'un million' : under1M(mi) + ' millions');
   if(r > 0) out += ' ' + under1M(r);
   return out;
-           }
-  const T = {
-  fr:{brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',
+}
+const T = {
+  fr:{
+    brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',
     home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dinternal:'RDV interne',dstats:'Statistiques',dprof:'Mon profil',
     drecette:'Finance',dmessages:'Messagerie',
     adash:'Tableau de bord',adoctors:'Médecins',aappts:'Rendez-vous',astats:'Statistiques',arevenue:'Finance',alistes:'Listes',asettings:'Paramètres',amessages:'Messagerie',
@@ -3291,8 +3293,8 @@ function checkReminders(){
     }
   }
   saveDB();
-  }
-  /* ===== Messagerie ===== */
+}
+/* ===== Messagerie ===== */
 function currentUserKey(){
   const me = currentUserInfo();
   return me ? me.key : null;
@@ -4611,8 +4613,8 @@ function hoverStars(btn){
 }
 function resetStarHover(widget){
   widget.querySelectorAll('button').forEach(b => b.classList.remove('hover'));
-  }
-  function openPatientApptDetail(id){
+}
+function openPatientApptDetail(id){
   const a = DB.appointments.find(x=>x.id===id);
   if(!a) return;
   const doc = docById(a.doctorId);
@@ -5598,8 +5600,8 @@ function renderTopListCard(title, icon, entries, color){
         ${entries.map(([k,v])=>statBarRow(k, v, max, color||'var(--accent-primary)')).join('')}
       </div>
     </div>`;
-                       }
-  function renderDoctorView(){
+}
+function renderDoctorView(){
   switch(state.view){
     case 'ddash': return viewDoctorDash();
     case 'dappts': return viewDoctorAppts();
@@ -6779,6 +6781,21 @@ function viewDoctorProfile(){
         </div>
       </div>
     </div>
+    <!-- ⬅️ MODIF 1 : Nouvelle carte "Mot de passe de session" -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">🔐 Mot de passe de session</div>
+      <div class="card-sub">Modifiez uniquement le mot de passe qui protège votre accès à l'espace Médecin.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;background:var(--glass-bg-3);border:1px dashed var(--glass-border);border-radius:var(--radius-md)">
+        <div style="min-width:0">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:2px">🔑 Mot de passe d'accès session</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">Utilisé pour vous connecter à votre espace médecin (identifiant : ${esc(d.email||d.name)})</div>
+        </div>
+        <button class="pill-btn primary" onclick="openChangeSessionPwdModal()">✏️ Changer le mot de passe</button>
+      </div>
+      <div class="letter-amount" style="font-style:normal;margin-top:10px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
+        🔒 <strong>Note :</strong> Le mot de passe <strong>Finance (Recette cabinet)</strong> est indépendant et protégé. Sa modification est réservée à l'administrateur.
+      </div>
+    </div>
   `;
 }
 async function changePwd(){
@@ -6789,6 +6806,57 @@ async function changePwd(){
   if(doc) doc.password = hashed;
   state.doctor.password = hashed;
   saveDB(); toast(t('password_updated'),'success');
+}
+
+/* ⬅️ MODIF 2 : Nouvelles fonctions pour le mot de passe de session */
+function openChangeSessionPwdModal(){
+  const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
+  if(!doc) return;
+  openModal('🔐 Modifier le mot de passe de session',
+    'Ce mot de passe protège votre accès à l\'espace Médecin', `
+    <div class="field">
+      <label>Mot de passe actuel *</label>
+      <input class="input" id="curSessionPwd" type="password" placeholder="••••" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label>Nouveau mot de passe *</label>
+      <input class="input" id="newSessionPwd" type="password" placeholder="••••" autocomplete="new-password">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 4 caractères</div>
+    </div>
+    <div class="field">
+      <label>Confirmer le nouveau mot de passe *</label>
+      <input class="input" id="confirmSessionPwd" type="password" placeholder="••••" autocomplete="new-password">
+    </div>
+    <div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
+      🔒 <strong>Rappel :</strong> Cette action modifie uniquement le mot de passe de <strong>session</strong>. Le mot de passe <strong>Finance (Recette cabinet)</strong> reste inchangé.
+    </div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="saveSessionPwd()">💾 ${t('save')}</button>`);
+  setTimeout(()=>{ const el=document.getElementById('curSessionPwd'); if(el) el.focus(); }, 40);
+}
+
+async function saveSessionPwd(){
+  const cur = ($('#curSessionPwd')?.value||'');
+  const nw  = ($('#newSessionPwd')?.value||'');
+  const cf  = ($('#confirmSessionPwd')?.value||'');
+  if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
+  if(nw.length < 4){ toast('4 caractères minimum','error'); return; }
+  if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
+  const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
+  if(!doc){ toast(t('doctor_not_found'),'error'); return; }
+  const stored = doc.password || DEFAULT_PWD;
+  const ok = await verifyPassword(cur, stored);
+  if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
+  const hashed = await hashPassword(nw);
+  doc.password = hashed;
+  doc.passwordPlain = nw;
+  state.doctor.password = hashed;
+  state.doctor.passwordPlain = nw;
+  saveDB();
+  closeModal();
+  render();
+  toast(t('password_updated'),'success');
 }
 
 function openDoctorForm(id, isSelf){
@@ -7301,8 +7369,8 @@ function openNotifDetail(notifId){
     actionsHTML = `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`;
   }
   openModal(n.title, n.message, body, actionsHTML);
-  }
-  function renderAdminView(){
+}
+function renderAdminView(){
   switch(state.view){
     case 'adash': return viewAdminDash();
     case 'adoctors': return viewAdminDoctors();
@@ -9577,6 +9645,8 @@ Object.assign(window, {
   docAction, confirmDoctorAction,
   confirmDeleteAppt, deleteAppt,
   changePwd, closeModal, openNotifDetail,
+  // ⬅️ MODIF 3 : Exports des nouvelles fonctions
+  openChangeSessionPwdModal, saveSessionPwd,
   openDoctorProfile, startBookingWith, modifyAppt,
   openServicesManager, openServiceForm, saveService, confirmDeleteService, deleteService,
   confirmApptWithNotify, doConfirmApptWithNotify, toggleBookingService,
