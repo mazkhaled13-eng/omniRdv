@@ -86,7 +86,6 @@ body[dir="rtl"]{direction:rtl}
 .app-nav.stack{flex-direction:column-reverse;align-items:stretch;gap:8px}
 .app-nav.stack .nav-items{width:100%;justify-content:flex-start}
 .app-nav.stack .nav-controls{justify-content:flex-end}
-/* ✅ MODIFICATION : nav-items enroule sur plusieurs lignes, plus de scroll horizontal */
 .nav-items{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:0;padding:2px 0;row-gap:5px}
 .nav-item{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
   border-radius:var(--radius-pill);cursor:pointer;color:var(--text-muted);
@@ -992,7 +991,6 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
     padding: 7px 10px;
     gap: 6px;
   }
-  /* ✅ MODIFICATION : plus de scroll horizontal, enroule sur plusieurs lignes */
   .nav-items{
     flex: 1 1 100%;
     order: 1;
@@ -1211,7 +1209,6 @@ html,body{
 /* ============================================================
    📁 DOSSIER MÉDICAL
    ============================================================ */
-/* ✅ MODIFICATION : tabs enroulent sur plusieurs lignes, plus de scroll horizontal */
 .tabs{display:flex;gap:4px;row-gap:2px;flex-wrap:wrap;border-bottom:2px solid var(--glass-border);margin-bottom:14px;padding-bottom:0}
 .tab{padding:9px 14px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text-muted);border:none;background:transparent;font-family:inherit;white-space:nowrap;border-bottom:3px solid transparent;transition:var(--transition);display:inline-flex;align-items:center;gap:5px}
 .tab.active{color:var(--accent-primary);border-bottom-color:var(--accent-primary)}
@@ -1836,7 +1833,6 @@ const T = {
     cleaning_warning:'Ces rendez-vous n\'ont pas été consultés (statut ≠ Terminé) et datent de plus de 2 ans. La suppression est définitive.',
     cleaning_details:'Détails des anciens rendez-vous',
     cleaning_more:'et {n} autre(s)',
-    /* 📁 DOSSIER MÉDICAL */
     dossiers_medical:'Dossiers patients', dossier:'Dossier médical', dossier_new:'Nouveau dossier',
     dossier_open:'Ouvrir dossier', dossier_none:'Aucun dossier patient', dossier_create:'Créer le dossier',
     dossier_archived:'Dossier archivé', dossier_archive:'Archiver', dossier_unarchive:'Restaurer',
@@ -1901,7 +1897,6 @@ const T = {
     merge_explained:'Combine deux dossiers du même patient (numéros différents).',
     section_saved:'Enregistré', confirm_delete_item:'Supprimer cet élément ?',
     no_data_yet:'Aucune donnée',
-    /* 💾 SAUVEGARDES INDÉPENDANTES */
     backup_wc:'Wilayas & Communes',
     backup_wc_hint:'Sauvegarde / restauration des wilayas et communes',
     backup_meds:'Médicaments',
@@ -2854,9 +2849,8 @@ const T = {
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
-
-  /* ============================================================
-   STORAGE — Supabase Storage (remplace IndexedDB pour fichiers)
+/* ============================================================
+   STORAGE — Supabase Storage
    ============================================================ */
 const idb = { db:null, supported:false, async open(){}, async get(){ return null; }, async set(){} };
 const idbFiles = {
@@ -2895,6 +2889,7 @@ const state = {
   adminDoctorsSearch:'', adminDoctorsPage:1,
   recentPage:1,
   apptsPage:1, listTab:'specialties', listSelectedWilaya:'Alger',
+  medSearch:'',
   billing:{doctorId:'all', periodType:'month', month:'', year:'', startDate:'', endDate:'', dayDate:'', currentInvoiceNo:null, doctorSearch:''},
   quickRev:{doctorId:'all', periodType:'month', month:'', year:'', startDate:'', endDate:'', dayDate:''},
   quickRevVisible: QUICK_REV_PER_PAGE,
@@ -2911,7 +2906,6 @@ const state = {
   lastExportSize: 0,
   realtimeConnected: false,
 
-  /* 📁 DOSSIER MÉDICAL */
   dossier: {
     fileId: null,
     tab: 'summary',
@@ -4989,6 +4983,51 @@ function mfSwitchTab(tab){
 }
 function mfEmpty(icon, label){
   return `<div class="empty" style="padding:26px"><div class="empty-ico">${icon}</div>${esc(label)}</div>`;
+}
+
+/* ============================================================
+   🔎 RECHERCHES PATIENTS — LOGS (localStorage)
+   ============================================================ */
+const LS_SEARCH_LOGS = 'omnimed_search_logs';
+function getSearchLogs(){
+  try { return JSON.parse(localStorage.getItem(LS_SEARCH_LOGS) || '[]'); } catch(e){ return []; }
+}
+function saveSearchLogs(logs){
+  try { localStorage.setItem(LS_SEARCH_LOGS, JSON.stringify(logs)); } catch(e){}
+}
+let _searchLogTimers = {};
+function logSearch(type, value, debounce){
+  if(!value || !String(value).trim()) return;
+  const doLog = () => {
+    _searchLogTimers[type] = null;
+    const v = String(value).trim();
+    const logs = getSearchLogs();
+    const last = logs[logs.length - 1];
+    if(last && last.type === type && last.value === v){
+      const age = Date.now() - new Date(last.date).getTime();
+      if(age < 60000) return;
+    }
+    logs.push({ id: uid('SRCH-'), type, value: v, date: nowISO() });
+    if(logs.length > 1000) logs.splice(0, logs.length - 1000);
+    saveSearchLogs(logs);
+  };
+  if(debounce){
+    if(_searchLogTimers[type]) clearTimeout(_searchLogTimers[type]);
+    _searchLogTimers[type] = setTimeout(doLog, 800);
+  } else {
+    doLog();
+  }
+}
+function getFilteredSearchLogs(){
+  let logs = getSearchLogs();
+  const sp = state.statsPeriod || {type:'all'};
+  if(sp.type === 'month' && sp.year && sp.month){
+    const key = `${sp.year}-${String(sp.month).padStart(2,'0')}`;
+    logs = logs.filter(l => String(l.date).startsWith(key));
+  } else if(sp.type === 'year' && sp.year){
+    logs = logs.filter(l => String(l.date).startsWith(String(sp.year)));
+  }
+  return logs;
 }
 /* ============================================================
    RENDER PRINCIPAL
@@ -8494,17 +8533,17 @@ function viewHome(){
         </div>
         <div class="home-search-row">
           <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
-          <select class="select" onchange="state.search.specialty=this.value;render()">
+          <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()">
             <option value="">${t('all_spec')}</option>
             ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
           </select>
         </div>
         <div class="home-search-row">
-          <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';render()">
+          <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()">
             <option value="">${t('all_wilaya')}</option>
             ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
           </select>
-          <select class="select" onchange="state.search.commune=this.value;render()" ${!wilaya?'disabled style="opacity:.5"':''}>
+          <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()" ${!wilaya?'disabled style="opacity:.5"':''}>
             <option value="">${t('commune')} — ${t('filter_all')}</option>
             ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
           </select>
@@ -8549,6 +8588,7 @@ function filterDoctorsForSearch(){
 }
 function onHomeSearchInput(v){
   state.search.q = v;
+  logSearch('q', v, true);
   render();
 }
 function searchResultLabelHTML(d){
@@ -8631,15 +8671,15 @@ function bookStep1(){
       <div class="card-title">🔍 ${t('find_doc')}</div>
       <div class="grid grid-2" style="margin-top:10px">
         <input class="input" id="bookSearchQ" placeholder="${t('search_ph')}" value="${esc(f.q)}" oninput="onBookSearchInput(this.value)">
-        <select class="select" onchange="state.search.specialty=this.value;refreshBookDoctorList()">
+        <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);refreshBookDoctorList()">
           <option value="">${t('all_spec')}</option>
           ${DB.specialties.map(x=>`<option ${f.specialty===x?'selected':''}>${esc(x)}</option>`).join('')}
         </select>
-        <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';refreshBookDoctorList()">
+        <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);refreshBookDoctorList()">
           <option value="">${t('all_wilaya')}</option>
           ${DB.wilayas.map(x=>`<option ${f.wilaya===x?'selected':''}>${esc(x)}</option>`).join('')}
         </select>
-        <select class="select" onchange="state.search.commune=this.value;refreshBookDoctorList()" ${!f.wilaya?'disabled style="opacity:.5"':''}>
+        <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);refreshBookDoctorList()" ${!f.wilaya?'disabled style="opacity:.5"':''}>
           <option value="">${t('commune')} — ${t('filter_all')}</option>
           ${communesForWilaya.map(x=>`<option ${f.commune===x?'selected':''}>${esc(x)}</option>`).join('')}
         </select>
@@ -8657,6 +8697,7 @@ function bookStep1(){
 }
 function onBookSearchInput(v){
   state.search.q = v;
+  logSearch('q', v, true);
   refreshBookDoctorList();
 }
 function refreshBookDoctorList(){
@@ -9460,6 +9501,67 @@ function viewAdminDash(){
     </div>
   `;
 }
+
+/* ===== NOUVELLE FONCTION — Statistiques des recherches ===== */
+function renderSearchStatsSection(){
+  const logs = getFilteredSearchLogs();
+  const periodLabel = getStatsPeriodLabel();
+  if(!logs.length){
+    return `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title">🔎 Recherches</div>
+        <div class="card-sub">Statistiques des recherches patients · <strong>${esc(periodLabel)}</strong></div>
+        <div class="empty" style="padding:24px"><div class="empty-ico">🔎</div>${t('stats_no_data')}</div>
+      </div>`;
+  }
+  const typesMeta = {
+    specialty: { label:'Spécialités les plus recherchées', ico:'🩺', color:'#8b5cf6' },
+    wilaya:    { label:'Wilayas les plus recherchées',     ico:'🗺️', color:'#0ea5e9' },
+    commune:   { label:'Communes les plus recherchées',    ico:'🏙️', color:'#10b981' },
+    q:         { label:'Termes de recherche (patients)',   ico:'🔤', color:'#ec4899' }
+  };
+  const grouped = {};
+  Object.keys(typesMeta).forEach(k => grouped[k] = {});
+  logs.forEach(l => {
+    if(grouped[l.type]) grouped[l.type][l.value] = (grouped[l.type][l.value] || 0) + 1;
+  });
+  const blocks = Object.keys(typesMeta).map(type => {
+    const entries = Object.entries(grouped[type]).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+    if(!entries.length) return '';
+    const max = Math.max(1, ...entries.map(e=>e[1]));
+    const total = entries.reduce((s,e)=>s+e[1],0);
+    return `
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="font-size:13.5px">
+          ${typesMeta[type].ico} ${typesMeta[type].label}
+          <span class="tag accent">${total}</span>
+        </div>
+        <div style="margin-top:8px">
+          ${entries.map(([k,v])=>statBarRow(k, v, max, typesMeta[type].color)).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  const totalSearches = logs.length;
+  const uniqueSpecialties = new Set(logs.filter(l=>l.type==='specialty').map(l=>l.value)).size;
+  const uniqueWilayas = new Set(logs.filter(l=>l.type==='wilaya').map(l=>l.value)).size;
+  const uniqueTerms = new Set(logs.filter(l=>l.type==='q').map(l=>l.value)).size;
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🔎 Recherches</div>
+      <div class="card-sub">Statistiques des recherches patients · <strong>${esc(periodLabel)}</strong></div>
+      <div class="stats-tags" style="margin-top:12px">
+        ${statTag('Total recherches', totalSearches, 'accent', true)}
+        ${statTag('Spécialités recherchées', uniqueSpecialties, 'accent', true)}
+        ${statTag('Wilayas recherchées', uniqueWilayas, 'accent', true)}
+        ${statTag('Termes uniques', uniqueTerms, 'accent', true)}
+      </div>
+    </div>
+    <div class="grid grid-2">
+      ${blocks || `<div class="card"><div class="empty">${t('stats_no_data')}</div></div>`}
+    </div>
+  `;
+}
+
 function viewAdminStats(){
   const appts = getStatsAppts();
   const s = computeCommonStats(appts);
@@ -9509,6 +9611,7 @@ function viewAdminStats(){
       ${renderHourSection(s.sortedHours)}
     </div>
     ${renderMonthlySection(s.monthly)}
+    ${renderSearchStatsSection()}
   `;
 }
 function printAdminStats(){
@@ -9995,16 +10098,21 @@ function printDoctorStats(){
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
 }
+
+/* ===== ADMIN LISTES (avec nouvel onglet Médicaments) ===== */
 function viewAdminListes(){
   const tab = state.listTab || 'specialties';
+  const medsCount = (DB.medications||[]).length;
   const tabs = `
     <div class="chips" style="margin-bottom:14px">
       <button class="chip ${tab==='specialties'?'active':''}" onclick="state.listTab='specialties';render()">🩺 ${t('specialties_list')} <span class="tag muted" style="margin-left:4px">${DB.specialties.length}</span></button>
       <button class="chip ${tab==='wilayas'?'active':''}" onclick="state.listTab='wilayas';render()">🗺️ ${t('wilayas_list')} <span class="tag muted" style="margin-left:4px">${DB.wilayas.length}</span></button>
       <button class="chip ${tab==='communes'?'active':''}" onclick="state.listTab='communes';render()">🏙️ ${t('communes_list')}</button>
+      <button class="chip ${tab==='medications'?'active':''}" onclick="state.listTab='medications';render()">💊 ${t('backup_meds')} <span class="tag muted" style="margin-left:4px">${medsCount}</span></button>
     </div>`;
   if(tab==='specialties') return tabs + renderSpecialtiesManager();
   if(tab==='wilayas') return tabs + renderWilayasManager();
+  if(tab==='medications') return tabs + renderMedicationsManager();
   return tabs + renderCommunesManager();
 }
 function renderSpecialtiesManager(){
@@ -10087,6 +10195,106 @@ function renderCommunesManager(){
       </div>
     </div>
   `;
+}
+/* ===== NOUVEAU — Gestion des médicaments (dans Listes admin) ===== */
+function renderMedicationsManager(){
+  const all = DB.medications || [];
+  const q = (state.medSearch || '').trim().toLowerCase();
+  const list = q ? all.filter(m => {
+    const n = typeof m === 'string' ? m : (m.name || '');
+    const sub = typeof m === 'string' ? '' : `${m.dosage||''} ${m.form||''}`;
+    return (n + ' ' + sub).toLowerCase().includes(q);
+  }) : all;
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">💊 ${t('backup_meds')} <span class="tag accent">${all.length}</span></div>
+      <div class="card-sub">${t('backup_meds_hint')}</div>
+      <div class="field" style="margin-top:12px">
+        <input class="input" id="medSearchInput" placeholder="🔎 Rechercher un médicament (nom, dosage, forme)…" value="${esc(state.medSearch||'')}" oninput="state.medSearch=this.value;render()">
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="pill-btn primary" onclick="openMedicationForm(-1)">+ ${t('add_item')}</button>
+      </div>
+    </div>
+    <div class="card">
+      ${list.length ? list.map((m, i) => {
+        const idx = all.indexOf(m);
+        const name = typeof m === 'string' ? m : (m.name || '—');
+        const form = typeof m === 'string' ? '' : (m.form || '');
+        const dosage = typeof m === 'string' ? '' : (m.dosage || '');
+        const notes = typeof m === 'string' ? '' : (m.notes || '');
+        return `
+          <div class="list-item">
+            <span class="tag muted" style="min-width:24px;justify-content:center">${i+1}</span>
+            <span class="li-name">
+              <strong>${esc(name)}</strong>
+              ${(form || dosage) ? `<span style="color:var(--text-muted);font-size:11px;margin-left:6px">${form?esc(mfFormLabel(form)):''}${form&&dosage?' · ':''}${dosage?esc(dosage):''}</span>` : ''}
+              ${notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(notes)}</div>`:''}
+            </span>
+            <button class="mini-btn ghost" onclick="openMedicationForm(${idx})" title="Modifier">✏️</button>
+            <button class="mini-btn out-red" onclick="confirmDeleteMedication(${idx})" title="Supprimer">🗑️</button>
+          </div>`;
+      }).join('') : `<div class="empty">${q ? t('no_search_results') : t('list_empty')}</div>`}
+    </div>
+  `;
+}
+function openMedicationForm(idx){
+  const isEdit = idx >= 0;
+  const all = DB.medications || [];
+  const m = isEdit ? (all[idx] || {}) : {name:'', form:'cp', dosage:'', notes:''};
+  const name = typeof m === 'string' ? m : (m.name||'');
+  const form = typeof m === 'string' ? 'cp' : (m.form||'cp');
+  const dosage = typeof m === 'string' ? '' : (m.dosage||'');
+  const notes = typeof m === 'string' ? '' : (m.notes||'');
+  openModal(isEdit ? '✏️ Modifier médicament' : '💊 Ajouter un médicament', '', `
+    <div class="field"><label>Nom du médicament *</label>
+      <input class="input" id="medFormName" value="${esc(name)}"></div>
+    <div class="field"><label>Forme</label>
+      <select class="select" id="medFormForm">
+        ${['cp','gel','sirop','inj','creme','suppo','collyre','pommade','autre'].map(k=>`<option value="${k}" ${form===k?'selected':''}>${mfFormLabel(k)}</option>`).join('')}
+      </select></div>
+    <div class="field"><label>Dosage</label>
+      <input class="input" id="medFormDosage" value="${esc(dosage)}" placeholder="Ex : 500 mg"></div>
+    <div class="field"><label>Notes</label>
+      <textarea class="textarea" id="medFormNotes" style="min-height:60px">${esc(notes)}</textarea></div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="saveMedicationForm(${idx})">💾 ${t('save')}</button>`);
+  setTimeout(()=>{ const el=document.getElementById('medFormName'); if(el) el.focus(); }, 40);
+}
+function saveMedicationForm(idx){
+  const name = ($('#medFormName')?.value||'').trim();
+  if(!name){ toast(t('required_fields'),'error'); return; }
+  const form = $('#medFormForm')?.value || 'cp';
+  const dosage = ($('#medFormDosage')?.value||'').trim();
+  const notes = ($('#medFormNotes')?.value||'').trim();
+  if(!DB.medications) DB.medications = [];
+  const obj = { name, form, dosage, notes };
+  if(idx >= 0){
+    DB.medications[idx] = obj;
+  } else {
+    const dup = DB.medications.findIndex(m => {
+      const n = typeof m === 'string' ? m : (m.name||'');
+      return n.toLowerCase() === name.toLowerCase();
+    });
+    if(dup >= 0){ toast(t('item_exists'),'info'); return; }
+    DB.medications.push(obj);
+  }
+  saveDB(); closeModal(); render();
+  toast(t('saved_ok'),'success');
+}
+function confirmDeleteMedication(idx){
+  const m = (DB.medications||[])[idx];
+  const name = typeof m === 'string' ? m : (m?.name||'—');
+  openModal('🗑️ Supprimer médicament', t('delete_item_confirm').replace('{name}', name), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="doDeleteMedication(${idx})">🗑️ ${t('delete')}</button>`);
+}
+function doDeleteMedication(idx){
+  if(!DB.medications || idx < 0 || idx >= DB.medications.length) return;
+  DB.medications.splice(idx, 1);
+  saveDB(); closeModal(); render();
+  toast(t('item_deleted'),'success');
 }
 function addSpecialtyAdmin(){
   const inp = $('#newSpecialty'); if(!inp) return;
@@ -12001,7 +12209,8 @@ function onBillingDoctorInput(v){
 }
 
 /* ============================================================
-   ✅ VIEW ADMIN SETTINGS — 4 SAUVEGARDES INDÉPENDANTES
+   ✅ VIEW ADMIN SETTINGS — Reorganisé
+   (suppression carte JSON vide + commissions reorganisées)
    ============================================================ */
 function viewAdminSettings(){
   const m = getSubscriptionMonthlyPrice();
@@ -12019,27 +12228,53 @@ function viewAdminSettings(){
     msgs: DB.messages.length
   };
   return `
-    <div class="grid grid-2">
-      <div class="card">
-        <div class="card-title">⚙️ ${t('commission_general')}</div>
-        <div class="card-sub">${t('commission_general_hint')}</div>
-        <div class="stats-tags" style="margin-bottom:10px">
-          ${statTag(t('commission_general_amount'), n2(getGeneralCommission()) + ' DA', 'accent', true)}
-          ${statTag(t('subscription_monthly_price_short'), n2(m) + ' DA', 'accent', true)}
-          ${statTag(t('subscription_yearly_price_short'), n2(y) + ' DA', 'accent', true)}
-          ${statTag(t('subscription_discount'), d + ' %', 'warn', true)}
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
+          <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent-primary),#ec4899);display:grid;place-items:center;color:#fff;font-size:26px;flex-shrink:0;box-shadow:0 8px 20px rgba(139,92,246,.35)">⚙️</div>
+          <div style="min-width:0">
+            <div class="card-title" style="font-size:17px;margin-bottom:3px">${t('commission_general')}</div>
+            <div class="card-sub" style="margin-bottom:0">${t('commission_general_hint')}</div>
+          </div>
         </div>
-        <button class="pill-btn primary" onclick="openCommissionRateModal()">💰 ${t('commission_general')}</button>
+        <button class="pill-btn primary" onclick="openCommissionRateModal()">✏️ Modifier</button>
       </div>
-      <div class="card">
-        <div class="card-title">💾 ${t('json_backup')}</div>
-        <div class="card-sub">${t('json_backup_sub')}</div>
-        <div class="letter-amount" style="font-style:normal;margin-top:8px">
-          💡 ${t('backup_section_hint')}
+      <div class="grid grid-4" style="margin-top:16px">
+        <div class="stat money">
+          <div class="stat-ico">💰</div>
+          <div><div class="stat-val">${n2(getGeneralCommission())}<span style="font-size:12px;font-weight:500;margin-left:3px;opacity:.8">DA</span></div>
+          <div class="stat-lbl">${t('commission_general_amount')}</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico">📅</div>
+          <div><div class="stat-val">${n2(m)}<span style="font-size:12px;font-weight:500;margin-left:3px;opacity:.8">DA</span></div>
+          <div class="stat-lbl">${t('subscription_monthly_price_short')}</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico">📅</div>
+          <div><div class="stat-val">${n2(y)}<span style="font-size:12px;font-weight:500;margin-left:3px;opacity:.8">DA</span></div>
+          <div class="stat-lbl">${t('subscription_yearly_price_short')}</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">🎁</div>
+          <div><div class="stat-val">${d}<span style="font-size:12px;font-weight:500;margin-left:3px;opacity:.8">%</span></div>
+          <div class="stat-lbl">${t('subscription_discount')}</div></div>
         </div>
       </div>
     </div>
-    <div class="grid grid-2" style="margin-top:14px">
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0;box-shadow:0 8px 20px rgba(99,102,241,.3)">💾</div>
+        <div style="min-width:0;flex:1">
+          <div class="card-title" style="font-size:17px;margin-bottom:3px">Sauvegardes indépendantes</div>
+          <div class="card-sub" style="margin-bottom:0">${t('backup_section_hint')}</div>
+        </div>
+      </div>
+      <div class="letter-amount" style="font-style:normal;margin-top:12px">
+        💡 Chaque partie peut être exportée ou importée indépendamment via les 4 cartes ci-dessous.
+      </div>
+    </div>
+    <div class="grid grid-2">
       <div class="card">
         <div class="card-title" style="font-size:14px">🗺️ ${t('backup_wc')} <span class="tag accent">${counts.wc}</span></div>
         <div class="card-sub">${t('backup_wc_hint')}</div>
@@ -12345,6 +12580,9 @@ Object.assign(window, {
   addSpecialtyAdmin, deleteSpecialty, doDeleteSpecialty,
   addWilayaAdmin, deleteWilaya, doDeleteWilaya,
   addCommuneAdmin, deleteCommune, doDeleteCommune,
+  renderMedicationsManager, openMedicationForm, saveMedicationForm,
+  confirmDeleteMedication, doDeleteMedication,
+  renderSearchStatsSection, logSearch, getSearchLogs,
   onHomeSearchInput, onBookSearchInput, refreshBookDoctorList,
   openPrintRDVModal, refreshPrintRDVTable, printRDVTable,
   onAdminDoctorsSearch,
@@ -12379,7 +12617,6 @@ Object.assign(window, {
   hashPassword, verifyPassword,
   subscribeRealtime,
   getOldAppointments, openCleaningModal, askCleanOldAppointments, doCleanOldAppointments,
-  /* 📁 DOSSIER MÉDICAL */
   mfOpenDossier, mfOpenDossierFromAppt, mfSwitchTab,
   mfOpenEditInfo, mfSaveInfo, mfAddAlias, mfRemoveAlias,
   mfOpenAllergyForm, mfSaveAllergy,
@@ -12401,4 +12638,4 @@ Object.assign(window, {
 });
 </script>
 </body>
-</html>
+  </html>
