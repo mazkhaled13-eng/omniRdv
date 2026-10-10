@@ -1266,6 +1266,234 @@ body.dark .allergy-alert .txt{color:#fca5a5}
   .vital-table th,.vital-table td{padding:5px 5px}
   .med-row{padding:9px 10px}
 }
+
+/* ============================================================
+   📊 NOUVEAU — EN-TÊTE DE PAGE STATISTIQUES (carte réorganisée)
+   Utilisé côté Médecin ET côté Admin (changement #3)
+   ============================================================ */
+.stats-page-header{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  margin-bottom:14px;
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.stats-page-header .sph-cover{
+  background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);
+  padding:18px 22px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+}
+.stats-page-header .sph-cover::before{
+  content:'';
+  position:absolute;
+  top:-50px;right:-50px;
+  width:180px;height:180px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.2) 0%,rgba(255,255,255,0) 70%);
+}
+.stats-page-header .sph-cover-inner{
+  position:relative;z-index:1;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:14px;flex-wrap:wrap;
+}
+.stats-page-header .sph-title{
+  font-size:19px;font-weight:800;letter-spacing:-.4px;
+  margin-bottom:4px;
+  font-family:'Playfair Display',Georgia,serif;
+  line-height:1.15;
+  text-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+.stats-page-header .sph-sub{
+  font-size:12px;opacity:.94;font-weight:500;
+  font-family:'Inter','Segoe UI',sans-serif;
+}
+.stats-page-header .sph-sub strong{
+  font-family:var(--font-numbers);
+  font-weight:700;
+  background:rgba(255,255,255,.22);
+  padding:2px 9px;border-radius:9999px;
+  margin-left:3px;
+  border:1px solid rgba(255,255,255,.28);
+}
+.stats-page-header .sph-print{
+  background:rgba(255,255,255,.2);
+  border:1.5px solid rgba(255,255,255,.4);
+  color:#fff;
+  padding:8px 14px;
+  border-radius:var(--radius-pill);
+  font-family:inherit;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+  transition:var(--transition);
+  display:inline-flex;align-items:center;gap:6px;
+  flex-shrink:0;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.stats-page-header .sph-print:hover{
+  background:rgba(255,255,255,.32);
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(0,0,0,.15);
+}
+.stats-page-header .sph-grid{
+  padding:14px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:9px;
+}
+.stats-page-header .sph-kpi{
+  background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);
+  border-radius:12px;
+  padding:11px 13px 12px;
+  position:relative;
+  overflow:hidden;
+  transition:var(--transition);
+}
+.stats-page-header .sph-kpi:hover{
+  transform:translateY(-1px);
+  box-shadow:var(--shadow-sm);
+}
+.stats-page-header .sph-kpi::after{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#8b5cf6,#ec4899);
+}
+.stats-page-header .sph-kpi.success::after{background:linear-gradient(90deg,#059669,#10b981)}
+.stats-page-header .sph-kpi.money::after{background:linear-gradient(90deg,#059669,#34d399)}
+.stats-page-header .sph-kpi.warn::after{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.stats-page-header .sph-kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.stats-page-header .sph-kpi.rating::after{background:linear-gradient(90deg,#f59e0b,#ec4899)}
+.stats-page-header .sph-kpi .sph-lbl{
+  font-size:9.5px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--text-muted);
+  font-weight:700;
+  margin-bottom:5px;
+  display:flex;align-items:center;gap:4px;
+  line-height:1.2;
+}
+.stats-page-header .sph-kpi .sph-val{
+  font-family:var(--font-numbers);
+  font-weight:700;
+  font-size:21px;
+  color:var(--accent-primary);
+  letter-spacing:-.5px;
+  line-height:1.05;
+}
+.stats-page-header .sph-kpi.success .sph-val{color:#059669}
+body.dark .stats-page-header .sph-kpi.success .sph-val{color:#6ee7b7}
+.stats-page-header .sph-kpi.money .sph-val{color:#059669}
+body.dark .stats-page-header .sph-kpi.money .sph-val{color:#6ee7b7}
+.stats-page-header .sph-kpi.warn .sph-val{color:#d97706}
+body.dark .stats-page-header .sph-kpi.warn .sph-val{color:#fbbf24}
+.stats-page-header .sph-kpi.info .sph-val{color:#2563eb}
+body.dark .stats-page-header .sph-kpi.info .sph-val{color:#60a5fa}
+.stats-page-header .sph-kpi.rating .sph-val{color:#d97706}
+body.dark .stats-page-header .sph-kpi.rating .sph-val{color:#fbbf24}
+.stats-page-header .sph-kpi .sph-unit{
+  font-size:11.5px;
+  font-weight:500;
+  opacity:.7;
+  margin-left:3px;
+}
+@media(max-width:640px){
+  .stats-page-header .sph-cover{padding:14px 16px}
+  .stats-page-header .sph-title{font-size:16px}
+  .stats-page-header .sph-sub{font-size:11px}
+  .stats-page-header .sph-print{padding:7px 12px;font-size:11px}
+  .stats-page-header .sph-grid{padding:11px;gap:8px}
+  .stats-page-header .sph-kpi{padding:9px 11px}
+  .stats-page-header .sph-kpi .sph-val{font-size:18px}
+}
+
+/* ============================================================
+   🔎 NOUVEAU — SECTION RECHERCHE (côté Médecin uniquement)
+   ============================================================ */
+.search-stats-section{
+  background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04));
+  border:1px solid rgba(139,92,246,.25);
+}
+.search-stats-section .srch-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:12px;
+}
+@media(max-width:640px){
+  .search-stats-section .srch-grid{grid-template-columns:1fr}
+}
+.search-stats-section .srch-card{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:14px;
+  padding:14px 16px;
+  position:relative;
+  overflow:hidden;
+  transition:var(--transition);
+  display:flex;align-items:center;gap:12px;
+}
+.search-stats-section .srch-card:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-sm);
+  border-color:var(--accent-primary);
+}
+.search-stats-section .srch-card::before{
+  content:'';
+  position:absolute;top:0;left:0;bottom:0;width:4px;
+  background:linear-gradient(180deg,#8b5cf6,#ec4899);
+}
+.search-stats-section .srch-card.today::before{background:linear-gradient(180deg,#059669,#10b981)}
+.search-stats-section .srch-card.year::before{background:linear-gradient(180deg,#ec4899,#f59e0b)}
+.search-stats-section .srch-ico{
+  width:46px;height:46px;border-radius:12px;
+  display:grid;place-items:center;font-size:22px;
+  background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(236,72,153,.1));
+  border:1px solid rgba(139,92,246,.25);
+  flex-shrink:0;
+}
+.search-stats-section .srch-card.today .srch-ico{
+  background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(5,150,105,.1));
+  border-color:rgba(16,185,129,.3);
+}
+.search-stats-section .srch-card.year .srch-ico{
+  background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(245,158,11,.1));
+  border-color:rgba(236,72,153,.3);
+}
+.search-stats-section .srch-body{flex:1;min-width:0}
+.search-stats-section .srch-lbl{
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  font-weight:800;
+  color:var(--text-muted);
+  margin-bottom:4px;
+}
+.search-stats-section .srch-val{
+  font-family:var(--font-numbers);
+  font-weight:800;
+  font-size:26px;
+  color:var(--accent-primary);
+  letter-spacing:-.6px;
+  line-height:1;
+}
+.search-stats-section .srch-card.today .srch-val{color:#059669}
+body.dark .search-stats-section .srch-card.today .srch-val{color:#6ee7b7}
+.search-stats-section .srch-card.year .srch-val{color:#ec4899}
+body.dark .search-stats-section .srch-card.year .srch-val{color:#f9a8d4}
+.search-stats-section .srch-sub{
+  font-size:11px;
+  color:var(--text-muted);
+  margin-top:3px;
+  font-weight:500;
+}
 </style>
 </head>
 <body>
@@ -1460,6 +1688,8 @@ const T = {
     stats_service_short:'prestation(s)',stats_revenue_short:'Recette',stats_share:'Part',stats_avg_per_day:'Moy. / jour ouvré',
     stats_period:'Période',stats_period_all:'Depuis le début',stats_period_month:'Ce mois',stats_period_year:'Cette année',
     stats_period_custom_month:'Mois spécifique',stats_period_custom_year:'Année spécifique',
+    search_stats_title:'Recherche',search_stats_sub:'Combien de fois votre profil a été consulté',
+    search_today:'Aujourd\'hui',search_this_month:'Ce mois',search_this_year:'Cette année',
     login:'Connexion',logout:'Déconnexion',welcome:'OmniMed',welcome_sub:'Plateforme Médicale',
     book_now:'Prendre un rendez-vous',find_doc:'Trouver un médecin et prenez rendez-vous gratuitement',my_rdv:'Mes rendez-vous',
     search_ph:'Rechercher un médecin, une spécialité…',all_spec:'Toutes les spécialités',all_wilaya:'Toutes les wilayas',
@@ -1929,6 +2159,8 @@ const T = {
     stats_service_short:'service(s)',stats_revenue_short:'Revenue',stats_share:'Share',stats_avg_per_day:'Avg / working day',
     stats_period:'Period',stats_period_all:'Since beginning',stats_period_month:'This month',stats_period_year:'This year',
     stats_period_custom_month:'Specific month',stats_period_custom_year:'Specific year',
+    search_stats_title:'Search',search_stats_sub:'How many times your profile was viewed',
+    search_today:'Today',search_this_month:'This month',search_this_year:'This year',
     login:'Login',logout:'Logout',welcome:'OmniMed',welcome_sub:'Medical Platform',
     book_now:'Book an appointment',find_doc:'Find a doctor and book an appointment for free',my_rdv:'My appointments',
     search_ph:'Search a doctor, a specialty…',all_spec:'All specialties',all_wilaya:'All wilayas',
@@ -2398,6 +2630,8 @@ const T = {
     stats_service_short:'خدمة',stats_revenue_short:'إيرادات',stats_share:'النسبة',stats_avg_per_day:'متوسط / يوم عمل',
     stats_period:'الفترة',stats_period_all:'منذ البداية',stats_period_month:'هذا الشهر',stats_period_year:'هذه السنة',
     stats_period_custom_month:'شهر محدد',stats_period_custom_year:'سنة محددة',
+    search_stats_title:'البحث',search_stats_sub:'كم مرة تم البحث عن ملفك',
+    search_today:'اليوم',search_this_month:'هذا الشهر',search_this_year:'هذه السنة',
     login:'دخول',logout:'خروج',welcome:'OmniMed',welcome_sub:'المنصة الطبية',
     book_now:'احجز موعدًا',find_doc:'ابحث عن طبيب واحجز موعدك مجانًا',my_rdv:'مواعيدي',
     search_ph:'ابحث عن طبيب أو تخصص…',all_spec:'جميع التخصصات',all_wilaya:'جميع الولايات',
@@ -2849,6 +3083,7 @@ const T = {
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
+
 /* ============================================================
    STORAGE — Supabase Storage
    ============================================================ */
@@ -4987,6 +5222,8 @@ function mfEmpty(icon, label){
 
 /* ============================================================
    🔎 RECHERCHES PATIENTS — LOGS (localStorage)
+   + NOUVEAU : type 'doctor_view' pour compter les consultations
+     de fiche médecin (utilisé par la section Recherche côté médecin)
    ============================================================ */
 const LS_SEARCH_LOGS = 'omnimed_search_logs';
 function getSearchLogs(){
@@ -5029,6 +5266,29 @@ function getFilteredSearchLogs(){
   }
   return logs;
 }
+
+/* ============================================================
+   🆕 COMPTEUR DE RECHERCHES PAR MÉDECIN
+   (utilisé dans viewDoctorStats — section "Recherche")
+   ============================================================ */
+function getDoctorSearchCounts(doctorId){
+  const logs = getSearchLogs();
+  const todayKey = localISO(new Date());
+  const monthKey = todayKey.slice(0, 7);
+  const yearKey = todayKey.slice(0, 4);
+  let today = 0, month = 0, year = 0;
+  const id = String(doctorId);
+  logs.forEach(l => {
+    if(l.type !== 'doctor_view') return;
+    if(String(l.value) !== id) return;
+    const d = String(l.date).slice(0,10);
+    if(d === todayKey) today++;
+    if(d.slice(0,7) === monthKey) month++;
+    if(d.slice(0,4) === yearKey) year++;
+  });
+  return {today, month, year};
+}
+
 /* ============================================================
    RENDER PRINCIPAL
    ============================================================ */
@@ -5304,7 +5564,6 @@ function loadPrefs(){
     if(typeof p.dark==='boolean') state.dark=p.dark;
   }catch(e){}
 }
-
 /* ============================================================
    VUES MÉDECIN
    ============================================================ */
@@ -5966,6 +6225,10 @@ async function createInternalAppt(){
   render();
   toast(t('internal_saved'),'success');
 }
+
+/* ============================================================
+   📊 VUE STATISTIQUES MÉDECIN — CARTE RÉORGANISÉE + SECTION RECHERCHE
+   ============================================================ */
 function viewDoctorStats(){
   const doc = state.doctor;
   const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
@@ -5975,23 +6238,74 @@ function viewDoctorStats(){
   const topPatientsRows = s.topPatients.slice(0,10);
   const rating = getDoctorRating(doc.id);
   const periodLabel = getStatsPeriodLabel();
+  const searchCounts = getDoctorSearchCounts(doc.id);
   return `
     ${renderStatsPeriodSelector()}
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div>
-          <div class="card-title" style="font-size:16px">📈 ${t('dstats')} — ${esc(doc.name)}</div>
-          <div class="card-sub" style="margin-bottom:0">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+    <div class="stats-page-header">
+      <div class="sph-cover">
+        <div class="sph-cover-inner">
+          <div>
+            <div class="sph-title">📈 ${t('dstats')} — ${esc(doc.name)}</div>
+            <div class="sph-sub">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+          </div>
+          <button class="sph-print" onclick="printDoctorStats()">🖨️ ${t('print_stats')}</button>
         </div>
-        <button class="pill-btn primary" onclick="printDoctorStats()">🖨️ ${t('print_stats')}</button>
       </div>
-      <div class="stats-tags">
-        ${statTag(t('stats_total_appts'), s.list.length, 'accent', true)}
-        ${statTag(t('stats_unique_patients'), s.uniquePatients, 'accent', true)}
-        ${statTag(t('stats_done_c'), doneCount, 'success', true)}
-        ${statTag(t('stats_total_services'), totalServices, 'accent', true)}
-        ${statTag(t('stats_avg_age'), (s.avgAge || '—') + ' ' + t('billing_years_old'), 'accent', true)}
-        ${statTag(t('average_rating'), rating.count > 0 ? ('⭐ ' + rating.avg + ' (' + rating.count + ')') : t('no_rating_yet'), rating.count > 0 ? 'rating' : 'muted', true)}
+      <div class="sph-grid">
+        <div class="sph-kpi">
+          <div class="sph-lbl">📅 ${t('stats_total_appts')}</div>
+          <div class="sph-val">${s.list.length}</div>
+        </div>
+        <div class="sph-kpi">
+          <div class="sph-lbl">👥 ${t('stats_unique_patients')}</div>
+          <div class="sph-val">${s.uniquePatients}</div>
+        </div>
+        <div class="sph-kpi success">
+          <div class="sph-lbl">✅ ${t('stats_done_c')}</div>
+          <div class="sph-val">${doneCount}</div>
+        </div>
+        <div class="sph-kpi info">
+          <div class="sph-lbl">💉 ${t('stats_total_services')}</div>
+          <div class="sph-val">${totalServices}</div>
+        </div>
+        <div class="sph-kpi warn">
+          <div class="sph-lbl">🎂 ${t('stats_avg_age')}</div>
+          <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
+        </div>
+        <div class="sph-kpi rating">
+          <div class="sph-lbl">⭐ ${t('average_rating')}</div>
+          <div class="sph-val">${rating.count > 0 ? rating.avg : '—'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card search-stats-section" style="margin-bottom:14px">
+      <div class="card-title" style="font-size:16px">🔎 ${t('search_stats_title')}</div>
+      <div class="card-sub">${t('search_stats_sub')}</div>
+      <div class="srch-grid">
+        <div class="srch-card today">
+          <div class="srch-ico">📅</div>
+          <div class="srch-body">
+            <div class="srch-lbl">${t('search_today')}</div>
+            <div class="srch-val">${searchCounts.today}</div>
+            <div class="srch-sub">${searchCounts.today === 1 ? 'vue aujourd\'hui' : 'vues aujourd\'hui'}</div>
+          </div>
+        </div>
+        <div class="srch-card">
+          <div class="srch-ico">🗓️</div>
+          <div class="srch-body">
+            <div class="srch-lbl">${t('search_this_month')}</div>
+            <div class="srch-val">${searchCounts.month}</div>
+            <div class="srch-sub">${searchCounts.month === 1 ? 'vue ce mois' : 'vues ce mois'}</div>
+          </div>
+        </div>
+        <div class="srch-card year">
+          <div class="srch-ico">📆</div>
+          <div class="srch-body">
+            <div class="srch-lbl">${t('search_this_year')}</div>
+            <div class="srch-val">${searchCounts.year}</div>
+            <div class="srch-sub">${searchCounts.year === 1 ? 'vue cette année' : 'vues cette année'}</div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="grid grid-2">
@@ -6774,6 +7088,10 @@ async function saveSessionPwd(){
 }
 function openDoctorProfile(id){
   const d = docById(id); if(!d) return;
+  /* 🆕 Tracking : enregistrer la consultation de fiche par le patient */
+  if(state.role === 'patient'){
+    logSearch('doctor_view', String(d.id), false);
+  }
   const todayWork = isWorkDay(d, todayISO());
   const days = (d.workDays||[]);
   const allSlots = generateSlots(d.workStart, d.workEnd, d.duration);
@@ -8496,6 +8814,7 @@ function mfPrintPrescription(id){
   </div>
 </body></html>`);
 }
+
 /* ============================================================
    VUES PATIENT
    ============================================================ */
@@ -9502,7 +9821,7 @@ function viewAdminDash(){
   `;
 }
 
-/* ===== NOUVELLE FONCTION — Statistiques des recherches ===== */
+/* ===== Statistiques des recherches (admin) ===== */
 function renderSearchStatsSection(){
   const logs = getFilteredSearchLogs();
   const periodLabel = getStatsPeriodLabel();
@@ -9562,6 +9881,9 @@ function renderSearchStatsSection(){
   `;
 }
 
+/* ============================================================
+   📊 VUE STATISTIQUES ADMIN — CARTE RÉORGANISÉE
+   ============================================================ */
 function viewAdminStats(){
   const appts = getStatsAppts();
   const s = computeCommonStats(appts);
@@ -9580,22 +9902,49 @@ function viewAdminStats(){
   const periodLabel = getStatsPeriodLabel();
   return `
     ${renderStatsPeriodSelector()}
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div>
-          <div class="card-title" style="font-size:16px">📈 ${t('astats')}</div>
-          <div class="card-sub" style="margin-bottom:0">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+    <div class="stats-page-header">
+      <div class="sph-cover">
+        <div class="sph-cover-inner">
+          <div>
+            <div class="sph-title">📈 ${t('astats')}</div>
+            <div class="sph-sub">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+          </div>
+          <button class="sph-print" onclick="printAdminStats()">🖨️ ${t('print_stats')}</button>
         </div>
-        <button class="pill-btn primary" onclick="printAdminStats()">🖨️ ${t('print_stats')}</button>
       </div>
-      <div class="stats-tags" style="margin-top:12px">
-        ${statTag(t('total_doctors'), DB.doctors.length, 'accent', true)}
-        ${statTag(t('stats_unique_patients'), s.uniquePatients, 'accent', true)}
-        ${statTag(t('stats_total_appts'), s.list.length, 'accent', true)}
-        ${statTag(t('stats_done_c'), billable, 'success', true)}
-        ${statTag(t('stats_total_services'), s.totalServiceBookings, 'accent', true)}
-        ${statTag(t('stats_avg_age'), (s.avgAge || '—') + ' ' + t('billing_years_old'), 'accent', true)}
-        ${statTag(t('stats_total_revenue'), fmtDA(totalRev), 'money', true)}
+      <div class="sph-grid">
+        <div class="sph-kpi">
+          <div class="sph-lbl">🧑‍⚕️ ${t('total_doctors')}</div>
+          <div class="sph-val">${DB.doctors.length}</div>
+        </div>
+        <div class="sph-kpi">
+          <div class="sph-lbl">👥 ${t('stats_unique_patients')}</div>
+          <div class="sph-val">${s.uniquePatients}</div>
+        </div>
+        <div class="sph-kpi">
+          <div class="sph-lbl">📅 ${t('stats_total_appts')}</div>
+          <div class="sph-val">${s.list.length}</div>
+        </div>
+        <div class="sph-kpi success">
+          <div class="sph-lbl">✅ ${t('stats_done_c')}</div>
+          <div class="sph-val">${billable}</div>
+        </div>
+        <div class="sph-kpi info">
+          <div class="sph-lbl">💉 ${t('stats_total_services')}</div>
+          <div class="sph-val">${s.totalServiceBookings}</div>
+        </div>
+        <div class="sph-kpi warn">
+          <div class="sph-lbl">🎂 ${t('stats_avg_age')}</div>
+          <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
+        </div>
+        <div class="sph-kpi money">
+          <div class="sph-lbl">💰 ${t('stats_total_revenue')}</div>
+          <div class="sph-val" style="font-size:17px">${fmtDA(totalRev)}</div>
+        </div>
+        <div class="sph-kpi">
+          <div class="sph-lbl">📊 ${t('stats_done_c')}</div>
+          <div class="sph-val">${billableList.length}</div>
+        </div>
       </div>
     </div>
     <div class="grid grid-2">
@@ -9614,6 +9963,11 @@ function viewAdminStats(){
     ${renderSearchStatsSection()}
   `;
 }
+
+/* ============================================================
+   🖨️ IMPRESSION STATISTIQUES ADMIN — SANS SIGNATURE
+   (Changement #2 : suppression de la signature médecin/manager)
+   ============================================================ */
 function printAdminStats(){
   const appts = getStatsAppts();
   const s = computeCommonStats(appts);
@@ -9745,10 +10099,7 @@ function printAdminStats(){
   .pct-bar{display:inline-block;width:78px;height:6px;background:#e5e7eb;border-radius:9999px;overflow:hidden;vertical-align:middle;margin-right:6px}
   .pct-fill{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#ec4899);border-radius:9999px;min-width:3px}
   .pct-val{font-family:'Rubik',sans-serif;font-weight:600;color:#7c3aed;font-size:10px;vertical-align:middle}
-  .footer{margin-top:32px;padding-top:14px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;font-size:9.5px;color:#6b7280}
-  .footer .sign-box{text-align:center;min-width:180px}
-  .footer .sign-lbl{font-size:10px;color:#7c3aed;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
-  .footer .sign-line{height:50px;border-bottom:1.5px solid #9ca3af}
+  .footer{margin-top:32px;padding-top:14px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;font-size:9.5px;color:#6b7280}
   .footer .stamp{display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;padding:6px 11px;border-radius:8px;font-family:'Rubik',sans-serif;font-size:9px;color:#4b5563;font-weight:600}
   .totals-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;background:linear-gradient(135deg,#f5f3ff 0%,#fdf2f8 100%);border:1px solid #e9d5ff;border-radius:14px;padding:14px 18px}
   .totals-strip .ts-item{text-align:center}
@@ -9864,11 +10215,15 @@ function printAdminStats(){
   </div>
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-    <div class="sign-box"><div class="sign-lbl">${t('manager_sign')}</div><div class="sign-line"></div></div>
   </div>
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
 }
+
+/* ============================================================
+   🖨️ IMPRESSION STATISTIQUES MÉDECIN
+   (Changement #1 : même thème que l'admin + #5 : signature conservée)
+   ============================================================ */
 function printDoctorStats(){
   const doc = state.doctor;
   const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
@@ -9927,6 +10282,8 @@ function printDoctorStats(){
   });
   const maxAge = Math.max(1, ...ageEntries.map(e=>e[1]));
   const maxStatus = Math.max(1, ...statusEntries.map(e=>e[1]));
+  const rating = getDoctorRating(doc.id);
+  const searchCounts = getDoctorSearchCounts(doc.id);
   printHTML(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>OmniMed — ${t('stats_print_title')}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -9959,12 +10316,14 @@ function printDoctorStats(){
   .kpi.money::after{background:linear-gradient(90deg,#059669,#10b981)}
   .kpi.warn::after{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
   .kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+  .kpi.rating::after{background:linear-gradient(90deg,#f59e0b,#ec4899)}
   .kpi .k-ico{font-size:20px;margin-bottom:6px}
   .kpi .k-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700;margin-bottom:5px}
   .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px}
   .kpi.success .k-val,.kpi.money .k-val{color:#059669}
   .kpi.warn .k-val{color:#d97706}
   .kpi.info .k-val{color:#2563eb}
+  .kpi.rating .k-val{color:#d97706}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
   .block{margin-bottom:18px}
   .block-title{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#4b5563;margin-bottom:10px}
@@ -9990,7 +10349,7 @@ function printDoctorStats(){
   .pct-bar{display:inline-block;width:78px;height:6px;background:#e5e7eb;border-radius:9999px;overflow:hidden;vertical-align:middle;margin-right:6px}
   .pct-fill{display:block;height:100%;background:linear-gradient(90deg,#8b5cf6,#ec4899);border-radius:9999px;min-width:3px}
   .pct-val{font-family:'Rubik',sans-serif;font-weight:600;color:#7c3aed;font-size:10px;vertical-align:middle}
-  .footer{margin-top:32px;padding-top:14px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;font-size:9.5px;color:#6b7280}
+  .footer{margin-top:32px;padding-top:14px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;font-size:9.5px;color:#6b7280}
   .footer .sign-box{text-align:center;min-width:180px}
   .footer .sign-lbl{font-size:10px;color:#7c3aed;font-weight:700;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
   .footer .sign-line{height:50px;border-bottom:1.5px solid #9ca3af}
@@ -10038,6 +10397,12 @@ function printDoctorStats(){
     <div class="kpi warn"><div class="k-ico">⏳</div><div class="k-lbl">${t('pending_c')}</div><div class="k-val">${s.statusCounts.pending}</div></div>
     <div class="kpi success"><div class="k-ico">✓</div><div class="k-lbl">${t('confirmed_c')}</div><div class="k-val">${s.statusCounts.confirmed}</div></div>
     <div class="kpi money"><div class="k-ico">💰</div><div class="k-lbl">${t('stats_total_revenue')}</div><div class="k-val">${fmtDA(totalRev)}</div></div>
+  </div>
+  <div class="section-head"><span class="ico-badge plain">🔎</span> ${t('search_stats_title')} <span class="count">${searchCounts.year} ${t('search_this_year').toLowerCase()}</span></div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi info"><div class="k-ico">📅</div><div class="k-lbl">${t('search_today')}</div><div class="k-val">${searchCounts.today}</div></div>
+    <div class="kpi warn"><div class="k-ico">🗓️</div><div class="k-lbl">${t('search_this_month')}</div><div class="k-val">${searchCounts.month}</div></div>
+    <div class="kpi rating"><div class="k-ico">📆</div><div class="k-lbl">${t('search_this_year')}</div><div class="k-val">${searchCounts.year}</div></div>
   </div>
   <div class="section-head"><span class="ico-badge plain">👥</span> Patients & Statuts</div>
   <div class="grid-2">
@@ -10099,7 +10464,7 @@ function printDoctorStats(){
   toast(t('print_stats') + ' ✓','success');
 }
 
-/* ===== ADMIN LISTES (avec nouvel onglet Médicaments) ===== */
+/* ===== ADMIN LISTES (avec onglet Médicaments) ===== */
 function viewAdminListes(){
   const tab = state.listTab || 'specialties';
   const medsCount = (DB.medications||[]).length;
@@ -10196,7 +10561,6 @@ function renderCommunesManager(){
     </div>
   `;
 }
-/* ===== NOUVEAU — Gestion des médicaments (dans Listes admin) ===== */
 function renderMedicationsManager(){
   const all = DB.medications || [];
   const q = (state.medSearch || '').trim().toLowerCase();
@@ -12209,8 +12573,7 @@ function onBillingDoctorInput(v){
 }
 
 /* ============================================================
-   ✅ VIEW ADMIN SETTINGS — Reorganisé
-   (suppression carte JSON vide + commissions reorganisées)
+   ✅ VIEW ADMIN SETTINGS
    ============================================================ */
 function viewAdminSettings(){
   const m = getSubscriptionMonthlyPrice();
@@ -12582,7 +12945,7 @@ Object.assign(window, {
   addCommuneAdmin, deleteCommune, doDeleteCommune,
   renderMedicationsManager, openMedicationForm, saveMedicationForm,
   confirmDeleteMedication, doDeleteMedication,
-  renderSearchStatsSection, logSearch, getSearchLogs,
+  renderSearchStatsSection, logSearch, getSearchLogs, getDoctorSearchCounts,
   onHomeSearchInput, onBookSearchInput, refreshBookDoctorList,
   openPrintRDVModal, refreshPrintRDVTable, printRDVTable,
   onAdminDoctorsSearch,
