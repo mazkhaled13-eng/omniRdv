@@ -86,14 +86,15 @@ body[dir="rtl"]{direction:rtl}
 .app-nav.stack{flex-direction:column-reverse;align-items:stretch;gap:8px}
 .app-nav.stack .nav-items{width:100%;justify-content:flex-start}
 .app-nav.stack .nav-controls{justify-content:flex-end}
-.nav-items{display:flex;gap:3px;flex-wrap:nowrap;flex:1;min-width:0;overflow-x:auto}
-.nav-items::-webkit-scrollbar{height:0}
-.nav-item{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;
-  border-radius:var(--radius-md);cursor:pointer;color:var(--text-main);
-  font-weight:500;font-size:12.5px;transition:var(--transition);
-  border:1px solid transparent;background:transparent;font-family:inherit;white-space:nowrap}
-.nav-item:hover{background:var(--glass-bg-3);border-color:var(--glass-border)}
-.nav-item.active{background:var(--accent-light);color:var(--accent-primary);font-weight:600;border-color:var(--accent-light)}
+/* ✅ MODIFICATION : nav-items enroule sur plusieurs lignes, plus de scroll horizontal */
+.nav-items{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:0;padding:2px 0;row-gap:5px}
+.nav-item{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
+  border-radius:var(--radius-pill);cursor:pointer;color:var(--text-muted);
+  font-weight:600;font-size:12.5px;transition:var(--transition);
+  border:1px solid var(--glass-border);background:var(--glass-bg-3);font-family:inherit;white-space:nowrap}
+.nav-item:hover{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-primary);transform:translateY(-1px)}
+.nav-item.active{background:linear-gradient(135deg,var(--accent-primary),#ec4899);color:#fff;font-weight:600;border-color:transparent;box-shadow:0 4px 12px rgba(139,92,246,.32)}
+.nav-item.active .ico{filter:brightness(1.15)}
 .nav-item .ico{font-size:14px}
 .nav-item .badge{margin-left:5px;background:var(--danger);color:#fff;font-size:10px;
   padding:1px 6px;border-radius:var(--radius-pill);font-weight:700}
@@ -991,10 +992,11 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
     padding: 7px 10px;
     gap: 6px;
   }
+  /* ✅ MODIFICATION : plus de scroll horizontal, enroule sur plusieurs lignes */
   .nav-items{
     flex: 1 1 100%;
     order: 1;
-    overflow-x: auto;
+    overflow-x: visible;
     padding-bottom: 2px;
   }
   .nav-controls{
@@ -1209,8 +1211,8 @@ html,body{
 /* ============================================================
    📁 DOSSIER MÉDICAL
    ============================================================ */
-.tabs{display:flex;gap:4px;border-bottom:2px solid var(--glass-border);margin-bottom:14px;overflow-x:auto;padding-bottom:0}
-.tabs::-webkit-scrollbar{height:0}
+/* ✅ MODIFICATION : tabs enroulent sur plusieurs lignes, plus de scroll horizontal */
+.tabs{display:flex;gap:4px;row-gap:2px;flex-wrap:wrap;border-bottom:2px solid var(--glass-border);margin-bottom:14px;padding-bottom:0}
 .tab{padding:9px 14px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text-muted);border:none;background:transparent;font-family:inherit;white-space:nowrap;border-bottom:3px solid transparent;transition:var(--transition);display:inline-flex;align-items:center;gap:5px}
 .tab.active{color:var(--accent-primary);border-bottom-color:var(--accent-primary)}
 .tab:hover{color:var(--accent-primary)}
@@ -1898,7 +1900,19 @@ const T = {
     open_from_appt:'Ouvrir dossier médical',
     merge_explained:'Combine deux dossiers du même patient (numéros différents).',
     section_saved:'Enregistré', confirm_delete_item:'Supprimer cet élément ?',
-    no_data_yet:'Aucune donnée'
+    no_data_yet:'Aucune donnée',
+    /* 💾 SAUVEGARDES INDÉPENDANTES */
+    backup_wc:'Wilayas & Communes',
+    backup_wc_hint:'Sauvegarde / restauration des wilayas et communes',
+    backup_meds:'Médicaments',
+    backup_meds_hint:'Sauvegarde / restauration de la bibliothèque de médicaments (autocomplétion dans les ordonnances)',
+    backup_specs:'Spécialités',
+    backup_specs_hint:'Sauvegarde / restauration des spécialités médicales',
+    backup_rest:'Reste de l\'application',
+    backup_rest_hint:'Sauvegarde / restauration de toutes les autres données (médecins, RDV, messages, dossiers médicaux, paramètres…)',
+    backup_export:'Exporter',
+    backup_import:'Importer',
+    backup_section_hint:'Chaque partie peut être exportée ou importée indépendamment.'
   },
   en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
@@ -2356,7 +2370,18 @@ const T = {
     open_from_appt:'Open medical file',
     merge_explained:'Combines two files of the same patient (different numbers).',
     section_saved:'Saved', confirm_delete_item:'Delete this item?',
-    no_data_yet:'No data yet'
+    no_data_yet:'No data yet',
+    backup_wc:'Wilayas & Communes',
+    backup_wc_hint:'Backup / restore wilayas and communes',
+    backup_meds:'Medications',
+    backup_meds_hint:'Backup / restore medications library (autocomplete in prescriptions)',
+    backup_specs:'Specialties',
+    backup_specs_hint:'Backup / restore medical specialties',
+    backup_rest:'Rest of the application',
+    backup_rest_hint:'Backup / restore all other data (doctors, appointments, messages, medical files, settings…)',
+    backup_export:'Export',
+    backup_import:'Import',
+    backup_section_hint:'Each part can be exported or imported independently.'
   },
   ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
@@ -2814,7 +2839,18 @@ const T = {
     open_from_appt:'فتح الملف الطبي',
     merge_explained:'يدمج ملفين لنفس المريض (أرقام مختلفة).',
     section_saved:'تم الحفظ', confirm_delete_item:'حذف هذا العنصر؟',
-    no_data_yet:'لا بيانات'
+    no_data_yet:'لا بيانات',
+    backup_wc:'الولايات والبلديات',
+    backup_wc_hint:'نسخ / استعادة الولايات والبلديات',
+    backup_meds:'الأدوية',
+    backup_meds_hint:'نسخ / استعادة مكتبة الأدوية (الإكمال التلقائي في الوصفات)',
+    backup_specs:'التخصصات',
+    backup_specs_hint:'نسخ / استعادة التخصصات الطبية',
+    backup_rest:'باقي التطبيق',
+    backup_rest_hint:'نسخ / استعادة جميع البيانات الأخرى (الأطباء، المواعيد، الرسائل، الملفات الطبية، الإعدادات…)',
+    backup_export:'تصدير',
+    backup_import:'استيراد',
+    backup_section_hint:'يمكن تصدير أو استيراد كل جزء بشكل مستقل.'
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
@@ -2888,7 +2924,8 @@ const state = {
   dossierPrint: {
     from: '', to: '',
     sections: { summary: true, allergies: true, antecedents: true, consultations: true, vitals: true, prescriptions: true, labtests: true }
-  }
+  },
+  _importPending: null
 };
 const SPECIALTY_AVATARS = {
   'Généraliste':'🩺','Cardiologie':'🫀','Dermatologie':'🧴','Pédiatrie':'🧸','Dentaire':'🦷',
@@ -3034,7 +3071,8 @@ function seedData(){
     services: [],
     notifications: [],
     messages:[],
-    medicalFiles:[]
+    medicalFiles:[],
+    medications:[]
   };
 }
 
@@ -3096,6 +3134,7 @@ async function loadDB(){
         subYearly: s.sub_yearly ?? SUB_YEARLY_DEFAULT,
         subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT
       },
+      medications: Array.isArray(s.medications) ? s.medications : [],
       doctors: (docRes.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
         id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
@@ -3167,6 +3206,7 @@ async function loadDB(){
     if(!DB.messages) DB.messages = [];
     if(!DB.notifications) DB.notifications = [];
     if(!DB.medicalFiles) DB.medicalFiles = [];
+    if(!DB.medications) DB.medications = [];
   }catch(e){
     console.error('LoadDB error:', e);
     DB = seedData();
@@ -3200,6 +3240,7 @@ async function pushToSupabase(){
       sub_discount: DB.settings.subDiscount,
       admin_username: DB.admin.username,
       admin_password: DB.admin.password,
+      medications: DB.medications || [],
       updated_at: new Date().toISOString()
     });
 
@@ -3356,7 +3397,8 @@ function snapshotDB(){
     communes:       JSON.stringify(DB.communes),
     invoiceRegistry:    JSON.stringify(DB.invoiceRegistry),
     subInvoiceRegistry: JSON.stringify(DB.subInvoiceRegistry),
-    medicalFiles:       JSON.stringify(DB.medicalFiles)
+    medicalFiles:       JSON.stringify(DB.medicalFiles),
+    medications:        JSON.stringify(DB.medications || [])
   };
 }
 function relevantKeysForCurrentView(){
@@ -3367,11 +3409,11 @@ function relevantKeysForCurrentView(){
   if(isDoc){
     if(v === 'ddash' || v === 'dappts' || v === 'dinternal'
        || v === 'dstats' || v === 'drecette')
-      return ['appointments','services','notifications','settings'];
-    if(v === 'dprof')    return ['doctors','settings'];
-    if(v === 'ddossier' || v === 'dossier') return ['medicalFiles','doctors','appointments'];
+      return ['appointments','services','notifications','settings','medications'];
+    if(v === 'dprof')    return ['doctors','settings','medications'];
+    if(v === 'ddossier' || v === 'dossier') return ['medicalFiles','doctors','appointments','settings','medications'];
     if(v === 'dmessages')return ['messages','doctors'];
-    return ['appointments','doctors','services','notifications','settings'];
+    return ['appointments','doctors','services','notifications','settings','medications'];
   }
   if(v === 'home' || v === 'book')
     return ['doctors','specialties','wilayas','communes','appointments','services'];
@@ -7385,7 +7427,6 @@ function mfAddAlias(){
     d.phoneAliases.push(v);
   }
   closeModal();
-  openModal('✏️ ' + t('dossier_info'), '', $('#modal-root').innerHTML, '', false);
   mfOpenEditInfo();
 }
 function mfRemoveAlias(i){
@@ -7659,7 +7700,8 @@ function mfDoDelete(collection, id){
   render();
   toast(t('item_deleted'),'success');
 }
-/* Prescriptions */
+
+/* Prescriptions — Formulaires + autocomplétion médicaments */
 function mfOpenPrescriptionForm(id){
   const d = mfData(); if(!d) return;
   const isEdit = !!id;
@@ -7699,7 +7741,15 @@ function mfRenderMeds(){
         <button type="button" class="mini-btn out-red" onclick="mfRemoveMedRow(${i})">✕</button>
       </div>
       <div class="field-row">
-        <div class="field" style="margin-bottom:6px"><label>${t('prescription_med')} *</label><input class="input" value="${esc(m.name||'')}" oninput="window._mfMeds[${i}].name=this.value"></div>
+        <div class="field" style="margin-bottom:6px"><label>${t('prescription_med')} *</label>
+          <div class="doc-search-wrap">
+            <input class="input" id="mfMedName_${i}" value="${esc(m.name||'')}" autocomplete="off"
+              oninput="window._mfMeds[${i}].name=this.value;mfShowMedSuggest(${i}, this.value)"
+              onfocus="mfShowMedSuggest(${i}, this.value)"
+              onblur="setTimeout(()=>mfHideMedSuggest(${i}),220)">
+            <div class="doc-search-suggest" id="mfMedSuggest_${i}"></div>
+          </div>
+        </div>
         <div class="field" style="margin-bottom:6px"><label>${t('prescription_form')}</label>
           <select class="select" onchange="window._mfMeds[${i}].form=this.value">
             ${['cp','gel','sirop','inj','creme','suppo','collyre','pommade','autre'].map(k=>`<option value="${k}" ${m.form===k?'selected':''}>${mfFormLabel(k)}</option>`).join('')}
@@ -7711,11 +7761,55 @@ function mfRenderMeds(){
         <div class="field" style="margin-bottom:6px"><label>${t('prescription_freq')}</label><input class="input" value="${esc(m.freq||'')}" placeholder="Ex : 3×/jour" oninput="window._mfMeds[${i}].freq=this.value"></div>
       </div>
       <div class="field-row">
-        <div class="field" style="margin-bottom:6px"><label>${t('prescription_duration')}</label><input class="input" value="${esc(m.duration||'')}" placeholder="Ex : 7 jours" oninput="window._mfMeds[${i}].duration=this.value"></div>
+        <div class="field" style="margin-bottom:0"><label>${t('prescription_duration')}</label><input class="input" value="${esc(m.duration||'')}" placeholder="Ex : 7 jours" oninput="window._mfMeds[${i}].duration=this.value"></div>
         <div class="field" style="margin-bottom:0"><label>${t('prescription_instructions')}</label><input class="input" value="${esc(m.instructions||'')}" placeholder="Ex : pendant les repas" oninput="window._mfMeds[${i}].instructions=this.value"></div>
       </div>
     </div>
   `).join('');
+}
+function mfShowMedSuggest(i, q){
+  const box = document.getElementById('mfMedSuggest_'+i);
+  if(!box) return;
+  const meds = DB.medications || [];
+  if(!meds.length){ box.innerHTML = ''; return; }
+  const query = (q||'').trim().toLowerCase();
+  let filtered;
+  if(!query){
+    filtered = meds.slice(0, 15);
+  } else {
+    filtered = meds.filter(m => {
+      const n = typeof m === 'string' ? m : (m.name || '');
+      return n.toLowerCase().includes(query);
+    }).slice(0, 10);
+  }
+  if(!filtered.length){ box.innerHTML = ''; return; }
+  box.innerHTML = filtered.map(m => {
+    const name = typeof m === 'string' ? m : (m.name || '');
+    const form = typeof m === 'string' ? '' : (m.form || '');
+    const dosage = typeof m === 'string' ? '' : (m.dosage || '');
+    const sub = [form ? mfFormLabel(form) : '', dosage].filter(Boolean).join(' · ');
+    return `<button type="button" class="doc-search-suggest-item"
+      onmousedown="event.preventDefault()"
+      onclick="mfPickMed(${i}, '${jsStr(name)}', '${jsStr(form)}', '${jsStr(dosage)}')">
+      <span class="sug-avatar">💊</span>
+      <span class="sug-info">
+        <span class="sug-name">${esc(name)}</span>
+        ${sub ? `<span class="sug-spec">${esc(sub)}</span>` : ''}
+      </span>
+    </button>`;
+  }).join('');
+}
+function mfHideMedSuggest(i){
+  const box = document.getElementById('mfMedSuggest_'+i);
+  if(box) box.innerHTML = '';
+}
+function mfPickMed(i, name, form, dosage){
+  if(!window._mfMeds || !window._mfMeds[i]) return;
+  window._mfMeds[i].name = name;
+  if(form) window._mfMeds[i].form = form;
+  if(dosage) window._mfMeds[i].dosage = dosage;
+  mfHideMedSuggest(i);
+  mfRenderMeds();
 }
 function mfAddMedRow(){
   if(!window._mfMeds) window._mfMeds = [];
@@ -7798,6 +7892,7 @@ function mfUnarchivePrescription(id){
   render();
   toast(t('unarchive_done'),'success');
 }
+
 /* Documents */
 function mfOnAddDocument(input){
   const file = input.files && input.files[0];
@@ -11904,12 +11999,25 @@ function onBillingDoctorInput(v){
   if(!doc) doc = DB.doctors.find(d => String(d.name).toLowerCase().includes(v.toLowerCase()));
   if(doc){ state.billing.doctorId = doc.id; render(); }
 }
+
+/* ============================================================
+   ✅ VIEW ADMIN SETTINGS — 4 SAUVEGARDES INDÉPENDANTES
+   ============================================================ */
 function viewAdminSettings(){
-  const lastSize = state.lastExportSize ? (state.lastExportSize/1024).toFixed(1) + ' KB' : '—';
   const m = getSubscriptionMonthlyPrice();
   const y = getSubscriptionYearlyPrice();
   const d = getSubscriptionDiscount();
   const oldAppts = getOldAppointments();
+  const counts = {
+    wc: (DB.wilayas||[]).length,
+    meds: (DB.medications||[]).length,
+    specs: (DB.specialties||[]).length
+  };
+  const restCounts = {
+    doctors: DB.doctors.length,
+    appts: DB.appointments.length,
+    msgs: DB.messages.length
+  };
   return `
     <div class="grid grid-2">
       <div class="card">
@@ -11926,17 +12034,59 @@ function viewAdminSettings(){
       <div class="card">
         <div class="card-title">💾 ${t('json_backup')}</div>
         <div class="card-sub">${t('json_backup_sub')}</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="pill-btn primary" onclick="exportFullJSON()">${t('json_export')}</button>
-          <label class="pill-btn" style="cursor:pointer;justify-content:center">
-            ${t('json_import')}
-            <input type="file" accept=".json,application/json" style="display:none" onchange="importFullJSON(this)">
+        <div class="letter-amount" style="font-style:normal;margin-top:8px">
+          💡 ${t('backup_section_hint')}
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-2" style="margin-top:14px">
+      <div class="card">
+        <div class="card-title" style="font-size:14px">🗺️ ${t('backup_wc')} <span class="tag accent">${counts.wc}</span></div>
+        <div class="card-sub">${t('backup_wc_hint')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="pill-btn primary" onclick="exportSection('wc')">📤 ${t('backup_export')}</button>
+          <label class="pill-btn" style="cursor:pointer">
+            📥 ${t('backup_import')}
+            <input type="file" accept=".json,application/json" style="display:none" onchange="importSection(this,'wc')">
           </label>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px">💡 ${t('json_export_hint')}</div>
-          <div style="font-size:11px;color:var(--text-muted)">💡 ${t('json_import_hint')}</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;padding:6px 10px;background:var(--glass-bg-3);border-radius:6px">
-            <strong>${t('json_last_size')} :</strong> ${lastSize}
-          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:14px">💊 ${t('backup_meds')} <span class="tag accent">${counts.meds}</span></div>
+        <div class="card-sub">${t('backup_meds_hint')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="pill-btn primary" onclick="exportSection('meds')">📤 ${t('backup_export')}</button>
+          <label class="pill-btn" style="cursor:pointer">
+            📥 ${t('backup_import')}
+            <input type="file" accept=".json,application/json" style="display:none" onchange="importSection(this,'meds')">
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:14px">🩺 ${t('backup_specs')} <span class="tag accent">${counts.specs}</span></div>
+        <div class="card-sub">${t('backup_specs_hint')}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="pill-btn primary" onclick="exportSection('specs')">📤 ${t('backup_export')}</button>
+          <label class="pill-btn" style="cursor:pointer">
+            📥 ${t('backup_import')}
+            <input type="file" accept=".json,application/json" style="display:none" onchange="importSection(this,'specs')">
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:14px">📦 ${t('backup_rest')}</div>
+        <div class="card-sub">${t('backup_rest_hint')}</div>
+        <div class="stats-tags" style="margin:8px 0 12px">
+          ${statTag(t('total_doctors'), restCounts.doctors, 'accent')}
+          ${statTag(t('total_appts'), restCounts.appts, 'accent')}
+          ${statTag(t('amessages'), restCounts.msgs, 'accent')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="pill-btn primary" onclick="exportSection('rest')">📤 ${t('backup_export')}</button>
+          <label class="pill-btn" style="cursor:pointer">
+            📥 ${t('backup_import')}
+            <input type="file" accept=".json,application/json" style="display:none" onchange="importSection(this,'rest')">
+          </label>
         </div>
       </div>
     </div>
@@ -11953,45 +12103,89 @@ function viewAdminSettings(){
     </div>
   `;
 }
-function exportFullJSON(){
-  try{
-    const payload = {
-      app:'OmniMed',
+function exportSection(type){
+  const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  let payload, filename;
+  if(type === 'wc'){
+    payload = { app:'OmniMed', type:'wilayas_communes', exportedAt: nowISO(), wilayas: DB.wilayas, communes: DB.communes };
+    filename = `omnimed_wilayas_communes_${ts}.json`;
+  } else if(type === 'meds'){
+    payload = { app:'OmniMed', type:'medications', exportedAt: nowISO(), medications: DB.medications || [] };
+    filename = `omnimed_medications_${ts}.json`;
+  } else if(type === 'specs'){
+    payload = { app:'OmniMed', type:'specialties', exportedAt: nowISO(), specialties: DB.specialties };
+    filename = `omnimed_specialties_${ts}.json`;
+  } else if(type === 'rest'){
+    payload = { app:'OmniMed', type:'rest', exportedAt: nowISO(), data: {
       schemaVersion: 3,
-      exportedAt: new Date().toISOString(),
-      data: DB
-    };
+      admin: DB.admin,
+      settings: {
+        commission: DB.settings.commission,
+        subMonthly: DB.settings.subMonthly,
+        subYearly: DB.settings.subYearly,
+        subDiscount: DB.settings.subDiscount
+      },
+      doctors: DB.doctors,
+      appointments: DB.appointments,
+      services: DB.services,
+      notifications: DB.notifications,
+      messages: DB.messages,
+      medicalFiles: DB.medicalFiles,
+      invoiceRegistry: DB.invoiceRegistry,
+      subInvoiceRegistry: DB.subInvoiceRegistry
+    }};
+    filename = `omnimed_rest_${ts}.json`;
+  } else { return; }
+  try{
     const json = JSON.stringify(payload, null, 2);
-    state.lastExportSize = json.length;
     const blob = new Blob([json], {type:'application/json;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    a.download = `omnimed_backup_${ts}.json`;
-    a.click();
+    a.href = url; a.download = filename; a.click();
     setTimeout(()=>URL.revokeObjectURL(url), 1500);
-    render();
     toast(t('json_exported'), 'success');
   }catch(e){
     toast(t('json_import_error'),'error');
   }
 }
-function importFullJSON(input){
+function importSection(input, type){
   const file = input.files && input.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     try{
       const parsed = JSON.parse(e.target.result);
-      const data = parsed && parsed.data ? parsed.data : parsed;
-      if(!data || typeof data !== 'object'){ toast(t('json_import_error'),'error'); input.value=''; return; }
-      if(data.schemaVersion !== undefined && data.schemaVersion !== 1 && data.schemaVersion !== 2 && data.schemaVersion !== 3){
-        toast(t('json_invalid_version'),'error'); input.value=''; return;
+      let summary = '';
+      let valid = false;
+      if(type === 'wc'){
+        if(parsed.wilayas && parsed.communes){
+          summary = `${parsed.wilayas.length} wilayas · ${Object.keys(parsed.communes).length} wilayas avec communes`;
+          valid = true;
+        }
+      } else if(type === 'meds'){
+        if(Array.isArray(parsed.medications)){
+          summary = `${parsed.medications.length} médicament(s)`;
+          valid = true;
+        }
+      } else if(type === 'specs'){
+        if(Array.isArray(parsed.specialties)){
+          summary = `${parsed.specialties.length} spécialité(s)`;
+          valid = true;
+        }
+      } else if(type === 'rest'){
+        if(parsed.data){
+          summary = `${(parsed.data.doctors||[]).length} médecin(s) · ${(parsed.data.appointments||[]).length} RDV · ${(parsed.data.messages||[]).length} message(s)`;
+          valid = true;
+        }
       }
-      openModal(t('json_import'), t('json_import_confirm'), '',
+      if(!valid){ toast(t('json_import_error'),'error'); input.value = ''; return; }
+      state._importPending = { data: parsed, type: type };
+      openModal(t('json_import'), t('json_import_confirm'),
+        `<div class="letter-amount" style="font-style:normal">
+          <strong>${esc(summary)}</strong>
+        </div>`,
         `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
-         <button class="pill-btn danger" onclick="doImportJSON(${JSON.stringify(JSON.stringify(data)).replace(/"/g,'&quot;')})">📥 ${t('json_import')}</button>`);
+         <button class="pill-btn danger" onclick="doImportSection()">📥 ${t('json_import')}</button>`);
     }catch(err){
       toast(t('json_import_error'),'error');
     }
@@ -11999,39 +12193,58 @@ function importFullJSON(input){
   };
   reader.readAsText(file);
 }
-function doImportJSON(dataStr){
+function doImportSection(){
+  const pending = state._importPending;
+  if(!pending){ closeModal(); return; }
+  const { data: parsed, type } = pending;
   try{
-    const data = JSON.parse(dataStr);
-    DB = data;
-    if(!DB.settings) DB.settings = {commission: COMMISSION_GENERAL_DEFAULT, subMonthly: SUB_MONTHLY_DEFAULT, subYearly: SUB_YEARLY_DEFAULT, subDiscount: SUB_DISCOUNT_DEFAULT};
-    if(DB.settings.commission === undefined) DB.settings.commission = COMMISSION_GENERAL_DEFAULT;
-    if(DB.settings.subMonthly === undefined) DB.settings.subMonthly = SUB_MONTHLY_DEFAULT;
-    if(DB.settings.subYearly === undefined) DB.settings.subYearly = SUB_YEARLY_DEFAULT;
-    if(DB.settings.subDiscount === undefined) DB.settings.subDiscount = SUB_DISCOUNT_DEFAULT;
-    if(!DB.doctors) DB.doctors = [];
-    if(!DB.appointments) DB.appointments = [];
-    if(!DB.services) DB.services = [];
-    if(!DB.messages) DB.messages = [];
-    if(!DB.notifications) DB.notifications = [];
-    if(!DB.invoiceRegistry) DB.invoiceRegistry = {};
-    if(!DB.subInvoiceRegistry) DB.subInvoiceRegistry = {};
-    if(!DB.medicalFiles) DB.medicalFiles = [];
-    if(!DB.specialties || !DB.specialties.length) DB.specialties = [...DEFAULT_SPECIALTIES];
-    if(!DB.wilayas) DB.wilayas = [...WILAYAS];
-    if(!DB.communes) DB.communes = JSON.parse(JSON.stringify(COMMUNES));
-    if(!DB.admin) DB.admin = {username:'admin', password:DEFAULT_PWD};
-    DB.schemaVersion = 3;
+    if(type === 'wc'){
+      if(Array.isArray(parsed.wilayas)) DB.wilayas = [...parsed.wilayas];
+      if(parsed.communes && typeof parsed.communes === 'object'){
+        DB.communes = JSON.parse(JSON.stringify(parsed.communes));
+      }
+    } else if(type === 'meds'){
+      DB.medications = parsed.medications.map(m => {
+        if(typeof m === 'string') return { name: m, form: 'cp', dosage: '', notes: '' };
+        return {
+          name: String(m.name || '').trim(),
+          form: m.form || 'cp',
+          dosage: m.dosage || '',
+          notes: m.notes || ''
+        };
+      }).filter(m => m.name);
+    } else if(type === 'specs'){
+      DB.specialties = [...parsed.specialties];
+    } else if(type === 'rest'){
+      const d = parsed.data;
+      if(d.admin) DB.admin = d.admin;
+      if(d.settings){
+        DB.settings = DB.settings || {};
+        if(d.settings.commission !== undefined) DB.settings.commission = d.settings.commission;
+        if(d.settings.subMonthly !== undefined) DB.settings.subMonthly = d.settings.subMonthly;
+        if(d.settings.subYearly !== undefined) DB.settings.subYearly = d.settings.subYearly;
+        if(d.settings.subDiscount !== undefined) DB.settings.subDiscount = d.settings.subDiscount;
+      }
+      if(d.doctors) DB.doctors = d.doctors;
+      if(d.appointments) DB.appointments = d.appointments;
+      if(d.services) DB.services = d.services;
+      if(d.notifications) DB.notifications = d.notifications;
+      if(d.messages) DB.messages = d.messages;
+      if(d.medicalFiles) DB.medicalFiles = d.medicalFiles;
+      if(d.invoiceRegistry) DB.invoiceRegistry = d.invoiceRegistry;
+      if(d.subInvoiceRegistry) DB.subInvoiceRegistry = d.subInvoiceRegistry;
+    }
+    state._importPending = null;
     saveDB();
     closeModal();
-    state.doctor = null; state.admin = null; state.role = 'patient'; state.view = 'home';
-    state.dossier = {fileId:null, tab:'summary', search:'', showArchived:false, adminDoctorId:'all', archivedMeds:false};
-    hideSubscriptionExpiredModal();
     render();
     toast(t('json_imported'), 'success');
   }catch(e){
+    console.error(e);
     toast(t('json_import_error'),'error');
   }
 }
+
 function qrSVG(seed){
   try{
     if(typeof qrcode !== 'function') throw new Error('lib manquante');
@@ -12122,7 +12335,7 @@ Object.assign(window, {
   openServicesManager, openServiceForm, saveService, confirmDeleteService, deleteService,
   confirmApptWithNotify, doConfirmApptWithNotify, toggleBookingService,
   openDoctorForm, saveDoctor, confirmDeleteDoctor, deleteDoctor, toggleDoctorLock, toggleDoctorSession,
-  exportFullJSON, importFullJSON, doImportJSON,
+  exportSection, importSection, doImportSection,
   openCommissionRateModal, saveCommissionRate,
   openBillingModal, printBillingReport, onBillingDoctorInput, onBillingDoctorSelect, onQuickRevDoctorSelect,
   onBillingDoctorSearch, renderBillingSuggestions, pickBillingDoctor,
@@ -12177,6 +12390,7 @@ Object.assign(window, {
   mfOpenPrescriptionForm, mfSavePrescription, mfDuplicatePrescription,
   mfArchivePrescription, mfUnarchivePrescription,
   mfAddMedRow, mfRemoveMedRow,
+  mfShowMedSuggest, mfHideMedSuggest, mfPickMed,
   mfDeleteItem, mfDoDelete,
   mfOnAddDocument, mfPreviewDocument,
   mfArchiveConfirm, mfArchiveDo, mfUnarchive,
