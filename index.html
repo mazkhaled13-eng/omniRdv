@@ -1268,125 +1268,180 @@ body.dark .allergy-alert .txt{color:#fca5a5}
 }
 
 /* ============================================================
-   📊 NOUVEAU — EN-TÊTE DE PAGE STATISTIQUES (carte réorganisée)
-   Utilisé côté Médecin ET côté Admin (changement #3)
+   📊 CARTE STATISTIQUES PREMIUM — Thème OmniMed
+   Utilisée côté Médecin ET côté Admin
    ============================================================ */
 .stats-page-header{
+  position:relative;
   background:var(--glass-bg);
   border:1px solid var(--glass-border);
-  border-radius:var(--radius-lg);
+  border-radius:var(--radius-xl);
   overflow:hidden;
-  margin-bottom:14px;
-  box-shadow:var(--shadow-sm);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  margin-bottom:16px;
+  box-shadow:0 20px 45px rgba(139,92,246,.15), 0 8px 18px rgba(0,0,0,.05);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+.stats-page-header::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(139,92,246,.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(236,72,153,.07) 0%, transparent 45%);
+  pointer-events:none;
+  z-index:0;
 }
 .stats-page-header .sph-cover{
-  background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);
-  padding:18px 22px;
-  color:#fff;
   position:relative;
+  background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 40%,#a855f7 65%,#ec4899 100%);
+  padding:24px 28px;
+  color:#fff;
   overflow:hidden;
+  z-index:1;
 }
 .stats-page-header .sph-cover::before{
   content:'';
   position:absolute;
-  top:-50px;right:-50px;
+  top:-80px;right:-60px;
+  width:240px;height:240px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 70%);
+}
+.stats-page-header .sph-cover::after{
+  content:'';
+  position:absolute;
+  bottom:-60px;left:-40px;
   width:180px;height:180px;
   border-radius:50%;
-  background:radial-gradient(circle,rgba(255,255,255,.2) 0%,rgba(255,255,255,0) 70%);
+  background:radial-gradient(circle,rgba(255,255,255,.15) 0%,rgba(255,255,255,0) 70%);
 }
 .stats-page-header .sph-cover-inner{
-  position:relative;z-index:1;
-  display:flex;justify-content:space-between;align-items:flex-start;
-  gap:14px;flex-wrap:wrap;
+  position:relative;z-index:2;
+  display:flex;justify-content:space-between;align-items:center;
+  gap:16px;flex-wrap:wrap;
 }
 .stats-page-header .sph-title{
-  font-size:19px;font-weight:800;letter-spacing:-.4px;
-  margin-bottom:4px;
+  font-size:22px;font-weight:800;letter-spacing:-.5px;
+  margin-bottom:6px;
   font-family:'Playfair Display',Georgia,serif;
   line-height:1.15;
-  text-shadow:0 2px 8px rgba(0,0,0,.12);
+  text-shadow:0 3px 12px rgba(0,0,0,.18);
+  display:flex;align-items:center;gap:12px;
+}
+.stats-page-header .sph-title .sph-title-ico{
+  display:inline-grid;place-items:center;
+  width:40px;height:40px;border-radius:12px;
+  background:rgba(255,255,255,.22);
+  border:1.5px solid rgba(255,255,255,.35);
+  font-size:21px;flex-shrink:0;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  box-shadow:0 4px 12px rgba(0,0,0,.15);
 }
 .stats-page-header .sph-sub{
-  font-size:12px;opacity:.94;font-weight:500;
+  font-size:12.5px;opacity:.96;font-weight:500;
   font-family:'Inter','Segoe UI',sans-serif;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
 }
 .stats-page-header .sph-sub strong{
   font-family:var(--font-numbers);
   font-weight:700;
-  background:rgba(255,255,255,.22);
-  padding:2px 9px;border-radius:9999px;
-  margin-left:3px;
-  border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.24);
+  padding:3px 12px;border-radius:9999px;
+  border:1px solid rgba(255,255,255,.32);
+  letter-spacing:.2px;
 }
+.stats-page-header .sph-dot{opacity:.55}
 .stats-page-header .sph-print{
   background:rgba(255,255,255,.2);
   border:1.5px solid rgba(255,255,255,.4);
   color:#fff;
-  padding:8px 14px;
+  padding:9px 16px;
   border-radius:var(--radius-pill);
   font-family:inherit;
-  font-size:12px;
+  font-size:12.5px;
   font-weight:600;
   cursor:pointer;
   transition:var(--transition);
-  display:inline-flex;align-items:center;gap:6px;
+  display:inline-flex;align-items:center;gap:7px;
   flex-shrink:0;
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 12px rgba(0,0,0,.12);
 }
 .stats-page-header .sph-print:hover{
-  background:rgba(255,255,255,.32);
-  transform:translateY(-1px);
-  box-shadow:0 6px 16px rgba(0,0,0,.15);
+  background:rgba(255,255,255,.34);
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(0,0,0,.2);
 }
 .stats-page-header .sph-grid{
-  padding:14px;
+  position:relative;z-index:1;
+  padding:16px;
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
-  gap:9px;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:11px;
 }
 .stats-page-header .sph-kpi{
-  background:var(--glass-bg-3);
-  border:1px solid var(--glass-border);
-  border-radius:12px;
-  padding:11px 13px 12px;
   position:relative;
+  background:linear-gradient(155deg, rgba(255,255,255,.75), rgba(255,255,255,.35));
+  border:1px solid rgba(139,92,246,.18);
+  border-radius:16px;
+  padding:14px 15px 15px;
   overflow:hidden;
-  transition:var(--transition);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 3px 10px rgba(139,92,246,.08);
+}
+body.dark .stats-page-header .sph-kpi{
+  background:linear-gradient(155deg, rgba(139,92,246,.14), rgba(139,92,246,.05));
+  border-color:rgba(139,92,246,.28);
 }
 .stats-page-header .sph-kpi:hover{
-  transform:translateY(-1px);
-  box-shadow:var(--shadow-sm);
+  transform:translateY(-3px);
+  box-shadow:0 12px 26px rgba(139,92,246,.18);
+  border-color:rgba(139,92,246,.4);
 }
 .stats-page-header .sph-kpi::after{
   content:'';
-  position:absolute;top:0;left:0;right:0;height:3px;
+  position:absolute;top:0;left:0;right:0;height:3.5px;
   background:linear-gradient(90deg,#8b5cf6,#ec4899);
+  border-radius:3px 3px 0 0;
 }
-.stats-page-header .sph-kpi.success::after{background:linear-gradient(90deg,#059669,#10b981)}
+.stats-page-header .sph-kpi.success::after{background:linear-gradient(90deg,#059669,#34d399)}
 .stats-page-header .sph-kpi.money::after{background:linear-gradient(90deg,#059669,#34d399)}
 .stats-page-header .sph-kpi.warn::after{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
 .stats-page-header .sph-kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
 .stats-page-header .sph-kpi.rating::after{background:linear-gradient(90deg,#f59e0b,#ec4899)}
 .stats-page-header .sph-kpi .sph-lbl{
-  font-size:9.5px;
+  font-size:10px;
   text-transform:uppercase;
-  letter-spacing:.5px;
+  letter-spacing:.6px;
   color:var(--text-muted);
-  font-weight:700;
-  margin-bottom:5px;
-  display:flex;align-items:center;gap:4px;
+  font-weight:800;
+  margin-bottom:7px;
+  display:flex;align-items:center;gap:6px;
   line-height:1.2;
 }
+.stats-page-header .sph-kpi .sph-lbl .sph-lbl-ico{
+  font-size:14px;
+  display:inline-grid;place-items:center;
+  width:22px;height:22px;border-radius:7px;
+  background:rgba(139,92,246,.12);
+  flex-shrink:0;
+}
+.stats-page-header .sph-kpi.success .sph-lbl .sph-lbl-ico{background:rgba(16,185,129,.14)}
+.stats-page-header .sph-kpi.money .sph-lbl .sph-lbl-ico{background:rgba(16,185,129,.14)}
+.stats-page-header .sph-kpi.warn .sph-lbl .sph-lbl-ico{background:rgba(245,158,11,.16)}
+.stats-page-header .sph-kpi.info .sph-lbl .sph-lbl-ico{background:rgba(59,130,246,.14)}
+.stats-page-header .sph-kpi.rating .sph-lbl .sph-lbl-ico{background:rgba(245,158,11,.16)}
 .stats-page-header .sph-kpi .sph-val{
   font-family:var(--font-numbers);
   font-weight:700;
-  font-size:21px;
+  font-size:24px;
   color:var(--accent-primary);
-  letter-spacing:-.5px;
+  letter-spacing:-.6px;
   line-height:1.05;
+  display:flex;align-items:baseline;gap:4px;
 }
 .stats-page-header .sph-kpi.success .sph-val{color:#059669}
 body.dark .stats-page-header .sph-kpi.success .sph-val{color:#6ee7b7}
@@ -1399,19 +1454,22 @@ body.dark .stats-page-header .sph-kpi.info .sph-val{color:#60a5fa}
 .stats-page-header .sph-kpi.rating .sph-val{color:#d97706}
 body.dark .stats-page-header .sph-kpi.rating .sph-val{color:#fbbf24}
 .stats-page-header .sph-kpi .sph-unit{
-  font-size:11.5px;
+  font-size:12px;
   font-weight:500;
   opacity:.7;
-  margin-left:3px;
+  color:inherit;
 }
 @media(max-width:640px){
-  .stats-page-header .sph-cover{padding:14px 16px}
-  .stats-page-header .sph-title{font-size:16px}
-  .stats-page-header .sph-sub{font-size:11px}
+  .stats-page-header .sph-cover{padding:16px 18px}
+  .stats-page-header .sph-title{font-size:17px;gap:8px}
+  .stats-page-header .sph-title .sph-title-ico{width:32px;height:32px;font-size:16px;border-radius:10px}
+  .stats-page-header .sph-sub{font-size:11.5px}
   .stats-page-header .sph-print{padding:7px 12px;font-size:11px}
-  .stats-page-header .sph-grid{padding:11px;gap:8px}
-  .stats-page-header .sph-kpi{padding:9px 11px}
-  .stats-page-header .sph-kpi .sph-val{font-size:18px}
+  .stats-page-header .sph-grid{padding:12px;gap:9px}
+  .stats-page-header .sph-kpi{padding:11px 12px;border-radius:13px}
+  .stats-page-header .sph-kpi .sph-val{font-size:19px}
+  .stats-page-header .sph-kpi .sph-lbl{font-size:9px}
+  .stats-page-header .sph-kpi .sph-lbl .sph-lbl-ico{width:19px;height:19px;font-size:12px;border-radius:6px}
 }
 
 /* ============================================================
@@ -3364,6 +3422,7 @@ async function loadDB(){
         subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT
       },
       medications: Array.isArray(s.medications) ? s.medications : [],
+      searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
       doctors: (docRes.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
         id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
@@ -3470,6 +3529,7 @@ async function pushToSupabase(){
       admin_username: DB.admin.username,
       admin_password: DB.admin.password,
       medications: DB.medications || [],
+      search_logs: DB.searchLogs || [],
       updated_at: new Date().toISOString()
     });
 
@@ -5227,10 +5287,18 @@ function mfEmpty(icon, label){
    ============================================================ */
 const LS_SEARCH_LOGS = 'omnimed_search_logs';
 function getSearchLogs(){
-  try { return JSON.parse(localStorage.getItem(LS_SEARCH_LOGS) || '[]'); } catch(e){ return []; }
+  if(!DB.searchLogs){
+    /* Migration unique : récupère les anciens logs localStorage */
+    try {
+      const local = JSON.parse(localStorage.getItem(LS_SEARCH_LOGS) || '[]');
+      DB.searchLogs = Array.isArray(local) ? local : [];
+    } catch(e){ DB.searchLogs = []; }
+  }
+  return DB.searchLogs;
 }
 function saveSearchLogs(logs){
-  try { localStorage.setItem(LS_SEARCH_LOGS, JSON.stringify(logs)); } catch(e){}
+  DB.searchLogs = Array.isArray(logs) ? logs : [];
+  saveDB();
 }
 let _searchLogTimers = {};
 function logSearch(type, value, debounce){
@@ -6245,35 +6313,44 @@ function viewDoctorStats(){
       <div class="sph-cover">
         <div class="sph-cover-inner">
           <div>
-            <div class="sph-title">📈 ${t('dstats')} — ${esc(doc.name)}</div>
-            <div class="sph-sub">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+            <div class="sph-title">
+              <span class="sph-title-ico">📈</span>
+              <span>${t('dstats')}</span>
+            </div>
+            <div class="sph-sub">
+              <span>🧑‍⚕️ ${esc(doc.name)}</span>
+              <span class="sph-dot">·</span>
+              <span>🎯 ${t('stats_overview')}</span>
+              <span class="sph-dot">·</span>
+              <strong>${esc(periodLabel)}</strong>
+            </div>
           </div>
           <button class="sph-print" onclick="printDoctorStats()">🖨️ ${t('print_stats')}</button>
         </div>
       </div>
       <div class="sph-grid">
-        <div class="sph-kpi">
-          <div class="sph-lbl">📅 ${t('stats_total_appts')}</div>
+        <div class="sph-kpi info">
+          <div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div>
           <div class="sph-val">${s.list.length}</div>
         </div>
         <div class="sph-kpi">
-          <div class="sph-lbl">👥 ${t('stats_unique_patients')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div>
           <div class="sph-val">${s.uniquePatients}</div>
         </div>
         <div class="sph-kpi success">
-          <div class="sph-lbl">✅ ${t('stats_done_c')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div>
           <div class="sph-val">${doneCount}</div>
         </div>
         <div class="sph-kpi info">
-          <div class="sph-lbl">💉 ${t('stats_total_services')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div>
           <div class="sph-val">${totalServices}</div>
         </div>
         <div class="sph-kpi warn">
-          <div class="sph-lbl">🎂 ${t('stats_avg_age')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div>
           <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
         </div>
         <div class="sph-kpi rating">
-          <div class="sph-lbl">⭐ ${t('average_rating')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">⭐</span> ${t('average_rating')}</div>
           <div class="sph-val">${rating.count > 0 ? rating.avg : '—'}</div>
         </div>
       </div>
@@ -9906,43 +9983,52 @@ function viewAdminStats(){
       <div class="sph-cover">
         <div class="sph-cover-inner">
           <div>
-            <div class="sph-title">📈 ${t('astats')}</div>
-            <div class="sph-sub">${t('stats_overview')} · <strong>${esc(periodLabel)}</strong></div>
+            <div class="sph-title">
+              <span class="sph-title-ico">📈</span>
+              <span>${t('astats')}</span>
+            </div>
+            <div class="sph-sub">
+              <span>🏥 ${t('stats_overview')}</span>
+              <span class="sph-dot">·</span>
+              <strong>${esc(periodLabel)}</strong>
+              <span class="sph-dot">·</span>
+              <span>${s.list.length} RDV</span>
+            </div>
           </div>
           <button class="sph-print" onclick="printAdminStats()">🖨️ ${t('print_stats')}</button>
         </div>
       </div>
       <div class="sph-grid">
-        <div class="sph-kpi">
-          <div class="sph-lbl">🧑‍⚕️ ${t('total_doctors')}</div>
+        <div class="sph-kpi info">
+          <div class="sph-lbl"><span class="sph-lbl-ico">🧑‍⚕️</span> ${t('total_doctors')}</div>
           <div class="sph-val">${DB.doctors.length}</div>
         </div>
         <div class="sph-kpi">
-          <div class="sph-lbl">👥 ${t('stats_unique_patients')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div>
           <div class="sph-val">${s.uniquePatients}</div>
         </div>
-        <div class="sph-kpi">
-          <div class="sph-lbl">📅 ${t('stats_total_appts')}</div>
+        <div class="sph-kpi info">
+          <div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div>
           <div class="sph-val">${s.list.length}</div>
         </div>
         <div class="sph-kpi success">
-          <div class="sph-lbl">✅ ${t('stats_done_c')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div>
           <div class="sph-val">${billable}</div>
         </div>
         <div class="sph-kpi info">
-          <div class="sph-lbl">💉 ${t('stats_total_services')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div>
           <div class="sph-val">${s.totalServiceBookings}</div>
         </div>
         <div class="sph-kpi warn">
-          <div class="sph-lbl">🎂 ${t('stats_avg_age')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div>
           <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
         </div>
         <div class="sph-kpi money">
-          <div class="sph-lbl">💰 ${t('stats_total_revenue')}</div>
-          <div class="sph-val" style="font-size:17px">${fmtDA(totalRev)}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">💰</span> ${t('stats_total_revenue')}</div>
+          <div class="sph-val" style="font-size:19px">${fmtDA(totalRev)}</div>
         </div>
         <div class="sph-kpi">
-          <div class="sph-lbl">📊 ${t('stats_done_c')}</div>
+          <div class="sph-lbl"><span class="sph-lbl-ico">📊</span> ${t('stats_done_c')}</div>
           <div class="sph-val">${billableList.length}</div>
         </div>
       </div>
@@ -10222,7 +10308,7 @@ function printAdminStats(){
 
 /* ============================================================
    🖨️ IMPRESSION STATISTIQUES MÉDECIN
-   (Changement #1 : même thème que l'admin + #5 : signature conservée)
+   Thème identique à l'admin + signature conservée
    ============================================================ */
 function printDoctorStats(){
   const doc = state.doctor;
@@ -10282,7 +10368,6 @@ function printDoctorStats(){
   });
   const maxAge = Math.max(1, ...ageEntries.map(e=>e[1]));
   const maxStatus = Math.max(1, ...statusEntries.map(e=>e[1]));
-  const rating = getDoctorRating(doc.id);
   const searchCounts = getDoctorSearchCounts(doc.id);
   printHTML(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>OmniMed — ${t('stats_print_title')}</title>
@@ -10290,18 +10375,20 @@ function printDoctorStats(){
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
-  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:6px}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:26px 28px;border-radius:20px;margin-bottom:22px;overflow:hidden}
+  html,body{width:100%}
+  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid;box-shadow:0 12px 32px rgba(99,102,241,.28)}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
-  .logo-box{display:flex;gap:16px;align-items:center}
-  .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
+  .cover .logo-box{display:flex;gap:16px;align-items:center}
+  .cover .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
   .cover h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin-bottom:4px;font-family:'Playfair Display',Georgia,serif;line-height:1.05}
   .cover .sub{font-size:12.5px;opacity:.94;font-weight:500}
   .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9}
-  .date-box{background:rgba(255,255,255,.18);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;border:1px solid rgba(255,255,255,.25);min-width:170px}
-  .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:9px}
-  .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize}
+  .cover .date-box{background:rgba(255,255,255,.18);backdrop-filter:blur(8px);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;flex-shrink:0;border:1px solid rgba(255,255,255,.25);min-width:170px}
+  .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:9px}
+  .cover .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize;line-height:1.25}
+  .cover .date-box .time{opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif}
   .cover-bottom{position:relative;z-index:1;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22);display:flex;gap:22px;flex-wrap:wrap;font-size:11px}
   .cover-bottom .cb-item{display:flex;align-items:center;gap:8px;opacity:.95}
   .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px}
@@ -10319,7 +10406,7 @@ function printDoctorStats(){
   .kpi.rating::after{background:linear-gradient(90deg,#f59e0b,#ec4899)}
   .kpi .k-ico{font-size:20px;margin-bottom:6px}
   .kpi .k-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700;margin-bottom:5px}
-  .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px}
+  .kpi .k-val{font-family:'Rubik',sans-serif;font-weight:700;font-size:20px;color:#4c1d95;letter-spacing:-.5px;line-height:1.1}
   .kpi.success .k-val,.kpi.money .k-val{color:#059669}
   .kpi.warn .k-val{color:#d97706}
   .kpi.info .k-val{color:#2563eb}
@@ -10375,7 +10462,7 @@ function printDoctorStats(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif">${now}</div>
+        <div class="time">${now}</div>
       </div>
     </div>
     <div class="cover-bottom">
@@ -10385,6 +10472,7 @@ function printDoctorStats(){
       <div class="cb-item">📊 Volume : <strong>${s.list.length} RDV</strong></div>
     </div>
   </div>
+
   <div class="section-head"><span class="ico-badge">📊</span> Vue d'ensemble <span class="count">${s.list.length} RDV</span></div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-ico">👥</div><div class="k-lbl">${t('stats_unique_patients')}</div><div class="k-val">${s.uniquePatients}</div></div>
@@ -10398,12 +10486,14 @@ function printDoctorStats(){
     <div class="kpi success"><div class="k-ico">✓</div><div class="k-lbl">${t('confirmed_c')}</div><div class="k-val">${s.statusCounts.confirmed}</div></div>
     <div class="kpi money"><div class="k-ico">💰</div><div class="k-lbl">${t('stats_total_revenue')}</div><div class="k-val">${fmtDA(totalRev)}</div></div>
   </div>
+
   <div class="section-head"><span class="ico-badge plain">🔎</span> ${t('search_stats_title')} <span class="count">${searchCounts.year} ${t('search_this_year').toLowerCase()}</span></div>
   <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="kpi info"><div class="k-ico">📅</div><div class="k-lbl">${t('search_today')}</div><div class="k-val">${searchCounts.today}</div></div>
     <div class="kpi warn"><div class="k-ico">🗓️</div><div class="k-lbl">${t('search_this_month')}</div><div class="k-val">${searchCounts.month}</div></div>
     <div class="kpi rating"><div class="k-ico">📆</div><div class="k-lbl">${t('search_this_year')}</div><div class="k-val">${searchCounts.year}</div></div>
   </div>
+
   <div class="section-head"><span class="ico-badge plain">👥</span> Patients & Statuts</div>
   <div class="grid-2">
     <div class="block">
@@ -10433,16 +10523,20 @@ function printDoctorStats(){
       </div>
     </div>
   </div>
+
   ${s.topServices.length ? `
   <div class="section-head"><span class="ico-badge plain">💉</span> ${t('stats_top_services')} <span class="count">${s.topServices.length}</span></div>
   <div class="block"><div class="chart">${barChart(s.topServices, 'linear-gradient(90deg,#10b981,#34d399)')}</div></div>` : ''}
+
   <div class="section-head"><span class="ico-badge plain">⏱️</span> Distribution temporelle</div>
   <div class="grid-2">
     <div class="block"><div class="block-title">📆 ${t('stats_by_weekday')}</div><div class="chart">${barChart(weekdayEntries, 'linear-gradient(90deg,#8b5cf6,#a78bfa)')}</div></div>
     <div class="block"><div class="block-title">⏰ ${t('stats_by_hour')}</div><div class="chart">${barChart(hourEntries, 'linear-gradient(90deg,#f59e0b,#fbbf24)')}</div></div>
   </div>
+
   <div class="section-head"><span class="ico-badge plain">📈</span> ${t('stats_monthly')}</div>
   <div class="block"><div class="chart">${barChart(monthlyEntries, 'linear-gradient(90deg,#8b5cf6,#ec4899)')}</div></div>
+
   <div class="section-head"><span class="ico-badge plain">🏆</span> Top patients</div>
   <div class="block">
     <table class="rank-tbl">
@@ -10450,12 +10544,14 @@ function printDoctorStats(){
       <tbody>${tableRows(s.topPatients.map(p=>[p.name, p.n]))}</tbody>
     </table>
   </div>
+
   <div class="totals-strip">
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_appts')}</div><div class="ts-val">${s.list.length}</div></div>
     <div class="ts-item"><div class="ts-lbl">${t('stats_unique_patients')}</div><div class="ts-val">${s.uniquePatients}</div></div>
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_services')}</div><div class="ts-val">${s.totalServiceBookings}</div></div>
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_revenue')}</div><div class="ts-val money">${fmtDA(totalRev)}</div></div>
   </div>
+
   <div class="footer">
     <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
     <div class="sign-box"><div class="sign-lbl">${t('manager_sign')}</div><div class="sign-line"></div></div>
