@@ -3863,6 +3863,7 @@ function seedData(){
 }
 
 let DB;
+let _remoteLoadOK = false;   // true = chargement distant OK → push autorisé
 let _syncTimer = null;
 let _isApplyingRemote = false;
 
@@ -3891,10 +3892,17 @@ function savePendingDeletes(){
 
 /* ---------- LOAD depuis Supabase ---------- */
 async function loadDB(){
-  try{
-    const [setRes, docRes, apptRes, servRes, notifRes, msgRes,
-           specRes, wilRes, comRes, invRes, subInvRes, medRes,
-           clinicRes, csRes, cpRes, dclRes, cirRes] = await Promise.all([
+  /* 1) Backup local immédiat (fallback garanti) */
+  let localBackup = null;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw) localBackup = JSON.parse(raw);
+  } catch(e){}
+
+  /* 2) Charger Supabase via allSettled : aucune exception globale */
+  let remoteOK = false;
+  try {
+    const results = await Promise.allSettled([
       sb.from('settings').select('*').eq('id',1).maybeSingle(),
       sb.from('doctors').select('*').order('name'),
       sb.from('appointments').select('*').order('created_at',{ascending:false}),
@@ -3914,15 +3922,66 @@ async function loadDB(){
       sb.from('clinic_invoice_registry').select('*')
     ]);
 
-    const s = setRes.data || {};
+    const unwrapOne = (r) => {
+      if(!r || r.status !== 'fulfilled') return { data: null, error: (r && r.reason) || new Error('rejected') };
+      if(r.value && r.value.error) return { data: null, error: r.value.error };
+      return { data: r.value.data || null, error: null };
+    };
+    const unwrapArr = (r) => {
+      if(!r || r.status !== 'fulfilled') return { data: [], error: (r && r.reason) || new Error('rejected') };
+      if(r.value && r.value.error) return { data: [], error: r.value.error };
+      return { data: r.value.data || [], error: null };
+    };
+
+    const setR    = unwrapOne(results[0]);
+    const docR    = unwrapArr(results[1]);
+    const apptR   = unwrapArr(results[2]);
+    const servR   = unwrapArr(results[3]);
+    const notifR  = unwrapArr(results[4]);
+    const msgR    = unwrapArr(results[5]);
+    const specR   = unwrapArr(results[6]);
+    const wilR    = unwrapArr(results[7]);
+    const comR    = unwrapArr(results[8]);
+    const invR    = unwrapArr(results[9]);
+    const subInvR = unwrapArr(results[10]);
+    const medR    = unwrapArr(results[11]);
+    const clinicR = unwrapArr(results[12]);
+    const csR     = unwrapArr(results[13]);
+    const cpR     = unwrapArr(results[14]);
+    const dclR    = unwrapArr(results[15]);
+    const cirR    = unwrapArr(results[16]);
+
+    /* --- Tables CRITIQUES (doctors + appointments) --- */
+    const criticalError = docR.error || apptR.error;
+    if(criticalError){
+      console.error('❌ Tables critiques indisponibles :', criticalError.message || criticalError);
+      if(localBackup && (localBackup.doctors?.length || localBackup.appointments?.length)){
+        console.warn('⚠️ Restauration depuis backup local.');
+        DB = localBackup;
+        _remoteLoadOK = false;
+        return;
+      }
+      console.warn('⚠️ Aucun backup local — DB vide en mémoire (PAS de push).');
+      DB = seedData();
+      _remoteLoadOK = false;
+      return;
+    }
+
+    /* --- Nouvelles tables clinique optionnelles (ne bloquent pas) --- */
+    const clinicFailed = clinicR.error || csR.error || cpR.error || dclR.error;
+    if(clinicFailed){
+      console.warn('⚠️ Tables clinique indisponibles — SQL Supabase non exécuté ?', clinicFailed.message || clinicFailed);
+    }
+
+    const s = setR.data || {};
     DB = {
       schemaVersion: 3,
       invoiceCounter: {year: new Date().getFullYear(), count: 0},
-      invoiceRegistry: Object.fromEntries((invRes.data||[]).map(r=>[r.key, r.num])),
-      subInvoiceRegistry: Object.fromEntries((subInvRes.data||[]).map(r=>[r.key, r.num])),
-      clinicInvoiceRegistry: Object.fromEntries((cirRes.data||[]).map(r=>[r.key, r.num])),
-      specialties: (specRes.data||[]).map(r=>r.name),
-      wilayas: (wilRes.data||[]).map(r=>r.name),
+      invoiceRegistry: Object.fromEntries((invR.data||[]).map(r=>[r.key, r.num])),
+      subInvoiceRegistry: Object.fromEntries((subInvR.data||[]).map(r=>[r.key, r.num])),
+      clinicInvoiceRegistry: Object.fromEntries((cirR.data||[]).map(r=>[r.key, r.num])),
+      specialties: (specR.data||[]).map(r=>r.name),
+      wilayas: (wilR.data||[]).map(r=>r.name),
       communes: {},
       admin: { username: s.admin_username || 'admin', password: s.admin_password || DEFAULT_PWD },
       settings: {
@@ -3934,7 +3993,7 @@ async function loadDB(){
       medications: Array.isArray(s.medications) ? s.medications : [],
       searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
 
-      doctors: (docRes.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
+      doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
         id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
         email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
@@ -3949,7 +4008,7 @@ async function loadDB(){
         createdAt: d.created_at
       })),
 
-      clinics: (clinicRes.data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
+      clinics: (clinicR.data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
         id: c.id, name: c.name, avatar: c.avatar||'🏥', description: c.description||'',
         wilaya: c.wilaya||'', commune: c.commune||'', address: c.address||'',
         phone: c.phone||'', email: c.email||'',
@@ -3964,24 +4023,24 @@ async function loadDB(){
         createdAt: c.created_at
       })),
 
-      clinicServices: (csRes.data||[]).filter(cs=>!_pendingDeletes.clinicServices.includes(String(cs.id))).map(cs=>({
+      clinicServices: (csR.data||[]).filter(cs=>!_pendingDeletes.clinicServices.includes(String(cs.id))).map(cs=>({
         id: cs.id, clinicId: cs.clinic_id, name: cs.name, icon: cs.icon||'🩺', description: cs.description||''
       })),
 
-      clinicPrestations: (cpRes.data||[]).filter(cp=>!_pendingDeletes.clinicPrestations.includes(String(cp.id))).map(cp=>({
+      clinicPrestations: (cpR.data||[]).filter(cp=>!_pendingDeletes.clinicPrestations.includes(String(cp.id))).map(cp=>({
         id: cp.id, clinicId: cp.clinic_id, serviceId: cp.service_id,
         name: cp.name, price: Number(cp.price)||0,
         duration: cp.duration||30, description: cp.description||'',
         requiresDoctor: !!cp.requires_doctor
       })),
 
-      doctorClinicLinks: (dclRes.data||[]).filter(l=>!_pendingDeletes.doctorClinicLinks.includes(String(l.id))).map(l=>({
+      doctorClinicLinks: (dclR.data||[]).filter(l=>!_pendingDeletes.doctorClinicLinks.includes(String(l.id))).map(l=>({
         id: l.id, doctorId: l.doctor_id, clinicId: l.clinic_id,
         serviceId: l.service_id, feeOverride: l.fee_override!=null?Number(l.fee_override):null,
         status: l.status||'pending', invitedAt: l.invited_at, joinedAt: l.joined_at
       })),
 
-      appointments: (apptRes.data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
+      appointments: (apptR.data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
         id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
         patientAge:a.patient_age, patientPhone:a.patient_phone,
         patientEmail:a.patient_email||'', patientWilaya:a.patient_wilaya||'',
@@ -3996,17 +4055,17 @@ async function loadDB(){
         createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
       })),
 
-      services: (servRes.data||[]).filter(s=>!_pendingDeletes.services.includes(String(s.id))).map(s=>({
+      services: (servR.data||[]).filter(s=>!_pendingDeletes.services.includes(String(s.id))).map(s=>({
         id:s.id, doctorId:s.doctor_id, name:s.name,
         price:Number(s.price)||0, description:s.description||''
       })),
 
-      notifications: (notifRes.data||[]).map(n=>({
+      notifications: (notifR.data||[]).map(n=>({
         id:n.id, role:n.role, title:n.title, message:n.message,
         toDoctorId:n.to_doctor_id, apptId:n.appt_id, date:n.date, read:n.read
       })),
 
-      messages: (msgRes.data||[]).filter(m=>!_pendingDeletes.messages.includes(String(m.id))).map(m=>({
+      messages: (msgR.data||[]).filter(m=>!_pendingDeletes.messages.includes(String(m.id))).map(m=>({
         id:m.id,
         from:{key:m.from_key,role:m.from_role,id:m.from_id,name:m.from_name,avatar:m.from_avatar},
         to:{key:m.to_key,role:m.to_role,id:m.to_id,name:m.to_name,avatar:m.to_avatar},
@@ -4014,12 +4073,13 @@ async function loadDB(){
         files:m.files||[], date:m.date, read:m.read, deletedBy:m.deleted_by||[]
       })),
 
-      medicalFiles: (medRes.data||[]).filter(m=>!_pendingDeletes.medicalFiles.includes(String(m.id))).map(m=>({
+      medicalFiles: (medR.data||[]).filter(m=>!_pendingDeletes.medicalFiles.includes(String(m.id))).map(m=>({
         id:m.id, doctorId:m.doctor_id, patientPhone:m.patient_phone,
         data: m.data || {}
       }))
     };
-    (comRes.data||[]).forEach(r=>{
+
+    (comR.data||[]).forEach(r=>{
       if(!DB.communes[r.wilaya]) DB.communes[r.wilaya]=[];
       DB.communes[r.wilaya].push(r.name);
     });
@@ -4051,9 +4111,24 @@ async function loadDB(){
     if(!DB.medicalFiles) DB.medicalFiles = [];
     if(!DB.medications) DB.medications = [];
     if(!DB.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = {};
+
+    remoteOK = true;
+
   }catch(e){
-    console.error('LoadDB error:', e);
-    DB = seedData();
+    console.error('❌ LoadDB exception :', e);
+  }
+
+  /* 3) Si Supabase a échoué → restaurer backup local (ne JAMAIS écraser) */
+  if(!remoteOK){
+    if(localBackup && (localBackup.doctors?.length || localBackup.appointments?.length || localBackup.clinics?.length)){
+      console.warn('⚠️ Supabase indisponible → restauration backup local.');
+      DB = localBackup;
+    } else if(!DB){
+      DB = seedData();
+    }
+    _remoteLoadOK = false;
+  } else {
+    _remoteLoadOK = true;
   }
 }
 
@@ -4061,6 +4136,15 @@ async function loadDB(){
 function saveDB(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
   if(_isApplyingRemote) return;
+
+  /* ⚠️ BLOCAGE : on n'envoie JAMAIS vers Supabase si le chargement initial a échoué.
+     Cela empêche d'écraser les données distantes avec un état vide/local. */
+  if(!_remoteLoadOK){
+    console.warn('🔒 Push bloqué — chargement distant non validé. Données locales préservées.');
+    markSyncBadge(false);
+    return;
+  }
+
   if(_syncTimer) clearTimeout(_syncTimer);
   _syncTimer = setTimeout(async () => {
     _syncTimer = null;
@@ -4372,6 +4456,9 @@ function subscribeRealtime(){
       try{
         const before = snapshotDB();
         await loadDB();
+
+        /* ⚠️ Si Supabase a échoué, on n'applique AUCUN changement */
+        if(!_remoteLoadOK) return;
 
         if(state.doctor){
           const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
