@@ -156,7 +156,7 @@ body[dir="rtl"] .nav-item .badge{margin-left:0;margin-right:5px}
   color:var(--text-main);font-family:inherit;font-size:14px;
   transition:var(--transition);outline:none;-webkit-appearance:none;appearance:none}
 .input:hover,.select:hover,.textarea:hover{border-color:var(--input-border-hover)}
-.select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+.select{background-image:url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='#8b5cf6' d='M6 9L1 4h10z'/></svg>");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
 body[dir="rtl"] .select{background-position:left 12px center;padding-right:14px;padding-left:34px}
 .input:focus,.select:focus,.textarea:focus{border-color:var(--accent-primary);
@@ -267,6 +267,9 @@ body.dark .tag.money{background:rgba(16,185,129,.2);color:#6ee7b7}
 .tag.clinic{background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1));
   color:#be185d;border:1px solid rgba(236,72,153,.35)}
 body.dark .tag.clinic{color:#f9a8d4}
+.tag.emergency{background:linear-gradient(135deg,rgba(239,68,68,.18),rgba(245,158,11,.12));
+  color:#b91c1c;border:1px solid rgba(239,68,68,.45);font-weight:800}
+body.dark .tag.emergency{color:#fca5a5;background:rgba(239,68,68,.22)}
 .stats-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .tag.stat-tag{padding:7px 14px;font-size:12px;font-weight:600;gap:8px;line-height:1}
 .tag.stat-tag .st-lbl{font-weight:500;opacity:.9;font-size:11.5px}
@@ -1699,7 +1702,7 @@ body.dark .prestation-item .pi-price{color:#6ee7b7}
 }
 
 /* ============================================================
-   🔒 PRESTATIONS VERROUILLÉES — NOUVEAU
+   🔒 PRESTATIONS VERROUILLÉES
    ============================================================ */
 .prestation-item.locked{
   opacity:.65;
@@ -1747,7 +1750,7 @@ body.dark .prestation-lock-chip{
 }
 
 /* ============================================================
-   🩺 SERVICE CLINIQUE CLIQUABLE (patient) + PLANNING AUTO — NOUVEAU
+   🩺 SERVICE CLINIQUE CLIQUABLE (patient) + PLANNING AUTO
    ============================================================ */
 .clinic-service-row-clickable{
   cursor:pointer;
@@ -1824,7 +1827,7 @@ body[dir="rtl"] .clinic-service-row-clickable:hover{transform:translateX(-3px)}
 body[dir="rtl"] .clinic-booking-modal-doc:hover{transform:translateX(-3px)}
 
 /* ============================================================
-   🆕 RECENT GRID — 2 colonnes (médecins + cliniques) — NOUVEAU
+   🆕 RECENT GRID — 2 colonnes (médecins + cliniques)
    ============================================================ */
 .recent-dual-grid{
   display:grid;
@@ -1847,6 +1850,312 @@ body[dir="rtl"] .clinic-booking-modal-doc:hover{transform:translateX(-3px)}
   transform:translateY(-1px);
   box-shadow:var(--shadow);
 }
+
+/* ============================================================
+   🏠 NOUVEL ACCUEIL PATIENT — 3 boutons principaux
+   ============================================================ */
+.home-hero{
+  background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#ec4899 100%);
+  border-radius:var(--radius-xl);
+  padding:26px 22px;
+  color:#fff;
+  margin-bottom:16px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 14px 34px rgba(139,92,246,.22);
+}
+.home-hero::before{
+  content:'';
+  position:absolute;top:-80px;right:-60px;
+  width:240px;height:240px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 70%);
+  pointer-events:none;
+}
+.home-hero .hh-greeting{
+  font-size:13.5px;font-weight:600;letter-spacing:.3px;
+  opacity:.95;position:relative;z-index:1;margin-bottom:4px;
+}
+.home-hero .hh-title{
+  font-family:'Playfair Display',Georgia,serif;
+  font-size:21px;font-weight:800;letter-spacing:-.4px;
+  position:relative;z-index:1;line-height:1.25;
+  text-shadow:0 3px 12px rgba(0,0,0,.15);
+  margin-bottom:18px;
+}
+.home-action-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  position:relative;z-index:1;
+}
+.home-action-btn{
+  border:none;border-radius:18px;
+  padding:20px 14px;
+  font-family:inherit;font-size:14.5px;font-weight:700;
+  cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.15);
+  letter-spacing:-.2px;position:relative;overflow:hidden;
+}
+.home-action-btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.1),transparent);
+  pointer-events:none;
+}
+.home-action-btn:hover{
+  transform:translateY(-3px) scale(1.02);
+  box-shadow:0 14px 30px rgba(0,0,0,.25);
+}
+.home-action-btn:active{transform:translateY(-1px) scale(1)}
+.home-action-btn .ha-ico{
+  font-size:36px;line-height:1;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.15));
+}
+.home-action-btn .ha-label{font-size:15px;line-height:1.1}
+.home-action-btn .ha-sub{
+  font-size:10.5px;font-weight:500;opacity:.9;margin-top:2px;
+  line-height:1.2;
+}
+.home-action-btn.primary{
+  background:linear-gradient(135deg,#8b5cf6,#a855f7);
+}
+.home-action-btn.emergency{
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  animation:emergencyPulse 2.4s ease-in-out infinite;
+}
+@keyframes emergencyPulse{
+  0%,100%{box-shadow:0 8px 22px rgba(239,68,68,.35)}
+  50%{box-shadow:0 8px 28px rgba(239,68,68,.65),0 0 0 6px rgba(239,68,68,.1)}
+}
+.home-action-btn.my-rdv{
+  grid-column:1/-1;
+  background:linear-gradient(135deg,#10b981,#059669);
+  padding:15px;
+  flex-direction:row;justify-content:center;gap:10px;
+}
+.home-action-btn.my-rdv .ha-ico{font-size:22px}
+.home-action-btn.my-rdv .ha-sub{margin-top:0}
+@media(max-width:520px){
+  .home-hero{padding:20px 14px}
+  .home-hero .hh-title{font-size:18px;margin-bottom:14px}
+  .home-action-btn{padding:16px 10px;border-radius:16px}
+  .home-action-btn .ha-ico{font-size:32px}
+  .home-action-btn .ha-label{font-size:13px}
+  .home-action-btn .ha-sub{font-size:9.5px}
+  .home-action-btn.my-rdv{padding:13px}
+}
+
+/* Barre de recherche simplifiée */
+.home-search-simplified{
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius-lg);
+  padding:14px;
+  margin-bottom:14px;
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:blur(12px);
+}
+.home-search-simplified .hss-title{
+  font-size:11.5px;font-weight:700;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.home-search-simplified .hss-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+}
+@media(max-width:520px){
+  .home-search-simplified .hss-row{grid-template-columns:1fr}
+}
+
+/* ============================================================
+   🚨 CARTE URGENCE (patient dans Mes RDV)
+   ============================================================ */
+.emergency-patient-card{
+  background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(245,158,11,.04));
+  border:2px solid rgba(239,68,68,.35);
+  border-left:5px solid var(--danger);
+  border-radius:var(--radius-md);
+  padding:12px 14px;
+  margin-bottom:10px;
+  transition:var(--transition);
+}
+.emergency-patient-card.accepted{
+  background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.04));
+  border-color:rgba(16,185,129,.4);
+  border-left-color:var(--success);
+}
+.emergency-patient-card.declined{
+  background:linear-gradient(135deg,rgba(107,114,128,.08),rgba(107,114,128,.04));
+  border-color:rgba(107,114,128,.3);
+  border-left-color:#6b7280;
+}
+.emergency-patient-card.cancelled{
+  opacity:.65;
+  background:linear-gradient(135deg,rgba(107,114,128,.06),rgba(107,114,128,.03));
+  border-color:rgba(107,114,128,.25);
+  border-left-color:#9ca3af;
+}
+.emergency-patient-card .epc-head{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:10px;flex-wrap:wrap;margin-bottom:8px;
+}
+.emergency-patient-card .epc-title{
+  font-weight:800;font-size:14px;color:#b91c1c;
+  display:flex;align-items:center;gap:6px;line-height:1.3;
+}
+.emergency-patient-card.accepted .epc-title{color:#059669}
+.emergency-patient-card.declined .epc-title{color:#4b5563}
+.emergency-patient-card.cancelled .epc-title{color:#6b7280}
+.emergency-patient-card .epc-meta{
+  font-size:11.5px;color:var(--text-muted);line-height:1.7;
+}
+.emergency-patient-card .epc-meta strong{color:var(--text-main)}
+.emergency-patient-card .epc-actions{
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;
+  padding-top:8px;border-top:1px dashed var(--glass-border);margin-top:8px;
+}
+.emergency-badge-type{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:9999px;
+  background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(245,158,11,.1));
+  border:1px solid rgba(239,68,68,.35);
+  font-size:11px;font-weight:700;color:#b91c1c;
+}
+body.dark .emergency-badge-type{color:#fca5a5;background:rgba(239,68,68,.22);border-color:rgba(239,68,68,.5)}
+
+/* ============================================================
+   🚨 GRANDE POPUP URGENCE (clinique)
+   ============================================================ */
+#emergencyAlertRoot{
+  position:fixed;inset:0;z-index:400;display:none;
+}
+#emergencyAlertRoot.open{display:block}
+.emergency-alert-back{
+  position:fixed;inset:0;
+  background:linear-gradient(135deg,rgba(127,29,29,.85),rgba(15,23,42,.92));
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:grid;place-items:center;padding:16px;
+  animation:emergencyFlash .6s ease;
+  overflow-y:auto;
+}
+@keyframes emergencyFlash{
+  0%{background:rgba(239,68,68,.5)}
+  50%{background:linear-gradient(135deg,rgba(127,29,29,.92),rgba(15,23,42,.95))}
+  100%{background:linear-gradient(135deg,rgba(127,29,29,.85),rgba(15,23,42,.92))}
+}
+.emergency-alert-modal{
+  background:#fff;color:#1f2937;
+  border:4px solid #ef4444;border-radius:24px;
+  padding:26px 28px;width:100%;max-width:640px;
+  box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 0 8px rgba(239,68,68,.2);
+  animation:emergencyPop .4s cubic-bezier(.34,1.56,.64,1);
+  max-height:96vh;overflow-y:auto;margin:auto;
+}
+@keyframes emergencyPop{
+  from{opacity:0;transform:scale(.85) translateY(20px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+.emergency-alert-modal .eam-header{
+  display:flex;align-items:center;gap:14px;margin-bottom:18px;
+  padding-bottom:14px;border-bottom:2px solid #fee2e2;
+}
+.emergency-alert-modal .eam-ico{
+  width:58px;height:58px;border-radius:16px;
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  display:grid;place-items:center;font-size:30px;flex-shrink:0;
+  animation:emergencyIconPulse 1.2s ease-in-out infinite;
+}
+@keyframes emergencyIconPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(239,68,68,.5)}
+  50%{transform:scale(1.06);box-shadow:0 0 0 12px rgba(239,68,68,0)}
+}
+.emergency-alert-modal .eam-title-block{flex:1;min-width:0}
+.emergency-alert-modal .eam-title{
+  font-size:19px;font-weight:800;color:#b91c1c;
+  letter-spacing:-.4px;margin-bottom:3px;
+}
+.emergency-alert-modal .eam-sub{
+  font-size:12px;color:#6b7280;font-weight:600;
+}
+.emergency-alert-modal .eam-info-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;
+}
+@media(max-width:520px){
+  .emergency-alert-modal .eam-info-grid{grid-template-columns:1fr}
+  .emergency-alert-modal{padding:20px 18px;border-radius:18px}
+  .emergency-alert-modal .eam-title{font-size:16px}
+}
+.emergency-alert-modal .eam-info-item{
+  background:#f9fafb;border:1px solid #e5e7eb;
+  border-radius:12px;padding:10px 12px;
+  min-width:0;
+}
+.emergency-alert-modal .eam-info-item.full{grid-column:1/-1}
+.emergency-alert-modal .eam-info-lbl{
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;
+  font-weight:800;color:#6b7280;margin-bottom:3px;
+  display:flex;align-items:center;gap:4px;
+}
+.emergency-alert-modal .eam-info-val{
+  font-size:14px;font-weight:700;color:#1f2937;
+  word-break:break-word;line-height:1.35;
+}
+.emergency-alert-modal .eam-info-val.big{font-size:16px;color:#b91c1c}
+.emergency-alert-modal .eam-desc{
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+  border:1px solid #fcd34d;border-radius:12px;
+  padding:12px 14px;margin-bottom:16px;
+  font-size:13px;line-height:1.6;color:#78350f;
+}
+.emergency-alert-modal .eam-desc-lbl{
+  font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:5px;color:#92400e;
+}
+.emergency-alert-modal .eam-actions{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+}
+@media(max-width:520px){
+  .emergency-alert-modal .eam-actions{grid-template-columns:1fr}
+}
+.emergency-alert-modal .eam-btn{
+  padding:14px 18px;border:none;border-radius:14px;
+  font-family:inherit;font-size:14.5px;font-weight:800;
+  cursor:pointer;transition:all .2s;letter-spacing:.2px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.emergency-alert-modal .eam-btn.accept{
+  background:linear-gradient(135deg,#10b981,#059669);
+  color:#fff;box-shadow:0 8px 20px rgba(16,185,129,.35);
+}
+.emergency-alert-modal .eam-btn.accept:hover{
+  transform:translateY(-2px);box-shadow:0 12px 26px rgba(16,185,129,.5);
+}
+.emergency-alert-modal .eam-btn.decline{
+  background:linear-gradient(135deg,#6b7280,#4b5563);
+  color:#fff;box-shadow:0 8px 20px rgba(107,114,128,.3);
+}
+.emergency-alert-modal .eam-btn.decline:hover{
+  transform:translateY(-2px);box-shadow:0 12px 26px rgba(107,114,128,.45);
+}
+.emergency-alert-modal .eam-footer{
+  margin-top:14px;padding-top:12px;border-top:1px dashed #e5e7eb;
+  text-align:center;font-size:11.5px;color:#6b7280;font-style:italic;
+}
+
+/* Compteur urgence dans la nav clinique */
+.emergency-counter{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:20px;height:20px;border-radius:9999px;
+  background:#ef4444;color:#fff;font-size:11px;font-weight:800;
+  padding:0 6px;margin-left:5px;
+  animation:emergencyCountPulse 1.4s ease-in-out infinite;
+}
+@keyframes emergencyCountPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.15)}
+}
+
+/* Search results masking : déjà géré par le conditional rendering */
 </style>
 </head>
 <body>
@@ -1854,12 +2163,13 @@ body[dir="rtl"] .clinic-booking-modal-doc:hover{transform:translateX(-3px)}
 <div id="toasts"></div>
 <div id="modal-root"></div>
 <div id="subModalRoot"></div>
+<div id="emergencyAlertRoot"></div>
 <script>
 /* ============================================================
    SUPABASE — CONFIG
    ============================================================ */
 const SUPABASE_URL = 'https://cbvzfkntznlrffyacmil.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNidnpma250em5scmZmeWFjbWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTExNzQsImV4cCI6MjEwNzAyNzE3NH0.slHetHt0OhRAWJHZU4I6Mm-X1W4jc-03kVliEWhHkAM';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNidnpma250em5scmZmeWFjbWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTE5NzQsImV4cCI6MjEwNzAyNzk3NH0.slHetHt0OhRAWJHZU4I6Mm-X1W4jc-03kVliEWhHkAM';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   realtime: {
     params: {
@@ -1984,6 +2294,31 @@ const DAY_NAMES_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const DAY_NAMES_LONG  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
+/* 🚨 URGENCE — Types proposés (type NON obligatoire) */
+const EMERGENCY_TYPES = [
+  { key:'surgical',   label_fr:'Chirurgicale',   label_en:'Surgical',     label_ar:'جراحية',       icon:'🔪' },
+  { key:'cardiac',    label_fr:'Cardiaque',      label_en:'Cardiac',      label_ar:'قلبية',        icon:'🫀' },
+  { key:'neuro',      label_fr:'Neurologique',   label_en:'Neurological', label_ar:'عصبية',        icon:'🧠' },
+  { key:'trauma',     label_fr:'Traumatologique',label_en:'Trauma',       label_ar:'رضحية',        icon:'🦴' },
+  { key:'obstetric',  label_fr:'Obstétrique',    label_en:'Obstetric',    label_ar:'توليدية',      icon:'🤰' },
+  { key:'respiratory',label_fr:'Respiratoire',   label_en:'Respiratory',  label_ar:'تنفسية',       icon:'🫁' },
+  { key:'intoxication',label_fr:'Intoxication',  label_en:'Intoxication', label_ar:'تسمم',         icon:'☠️' },
+  { key:'burn',       label_fr:'Brûlure',        label_en:'Burn',         label_ar:'حرق',          icon:'🔥' },
+  { key:'other',      label_fr:'Autre',          label_en:'Other',        label_ar:'أخرى',         icon:'🩺' }
+];
+function emergencyTypeLabel(key, lang){
+  if(!key) return '';
+  const t = EMERGENCY_TYPES.find(x => x.key === key);
+  if(!t) return key;
+  const l = lang || state.lang || 'fr';
+  return t['label_' + l] || t.label_fr || key;
+}
+function emergencyTypeIcon(key){
+  if(!key) return '🚨';
+  const t = EMERGENCY_TYPES.find(x => x.key === key);
+  return t ? t.icon : '🚨';
+}
+
 function numberToFrenchWords(n){
   n = Math.floor(Math.abs(n));
   if(n === 0) return 'zéro';
@@ -1991,7 +2326,7 @@ function numberToFrenchWords(n){
   const tens = ['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
   function under100(x){
     if(x < 20) return units[x];
-    const t = Math.floor(x/10), u = x%10;
+    const t = Math.floor(x/10), u = x;
     if(t === 7 || t === 9){
       const base = t === 7 ? 'soixante' : 'quatre-vingt';
       const sub = units[10+u];
@@ -2004,7 +2339,7 @@ function numberToFrenchWords(n){
     return tens[t] + '-' + units[u];
   }
   function under1000(x){
-    const c = Math.floor(x/100), r = x%100;
+    const c = Math.floor(x/100), r = x0;
     let out = '';
     if(c > 0){
       out += (c === 1 ? 'cent' : units[c] + ' cent');
@@ -2015,7 +2350,7 @@ function numberToFrenchWords(n){
     return out;
   }
   function under1M(x){
-    const m = Math.floor(x/1000), r = x%1000;
+    const m = Math.floor(x/1000), r = x00;
     let out = '';
     if(m > 0){
       out += (m === 1 ? 'mille' : under1000(m) + ' mille');
@@ -2026,7 +2361,7 @@ function numberToFrenchWords(n){
   }
   if(n < 1000) return under1000(n);
   if(n < 1000000) return under1M(n);
-  const mi = Math.floor(n/1000000), r = n%1000000;
+  const mi = Math.floor(n/1000000), r = n00000;
   let out = (mi === 1 ? 'un million' : under1M(mi) + ' millions');
   if(r > 0) out += ' ' + under1M(r);
   return out;
@@ -2624,7 +2959,6 @@ const T = {
     confirm_decline_invite:'Refuser cette invitation ?',
     clinic_account_login:'Connexion Espace Clinique',
     clinic_account_login_sub:'Entrez l\'email de la clinique et le mot de passe',
-    /* --- Nouveaux --- */
     clinic_service_open_modal:'Ouvrir la réservation',
     clinic_service_choose_doctor:'Choisir un médecin',
     clinic_service_choose_doctor_hint:'Sélectionnez un médecin disponible ou laissez l\'application choisir automatiquement',
@@ -2659,7 +2993,57 @@ const T = {
     doctor_added_to_clinic:'Médecin ajouté à la clinique',
     step_auto_plan_hint:'Le système a sélectionné automatiquement un médecin disponible',
     selected_auto_doctor:'Médecin sélectionné automatiquement',
-    select_doctor_first:'Sélectionnez un médecin'
+    select_doctor_first:'Sélectionnez un médecin',
+    /* === NOUVEAU ACCUEIL === */
+    home_greeting:'Bonjour 👋',
+    home_help:'Comment pouvons-nous vous aider ?',
+    home_book_rdv:'Prendre RDV',
+    home_book_rdv_sub:'Choisir un médecin ou une clinique',
+    home_emergency:'URGENCE',
+    home_emergency_sub:'Prise en charge immédiate',
+    home_my_rdv:'Mes rendez-vous',
+    home_my_rdv_sub:'Consulter mes RDV & urgences',
+    home_search_title:'Rechercher un professionnel',
+    /* === URGENCE === */
+    emergency_title:'Déclarer une urgence',
+    emergency_sub:'Remplissez le formulaire, les cliniques avec un service d\'urgence seront notifiées',
+    emergency_name:'Nom',
+    emergency_firstname:'Prénom',
+    emergency_phone:'Téléphone',
+    emergency_wilaya:'Wilaya',
+    emergency_type:'Type d\'urgence',
+    emergency_type_ph:'Sélectionner (facultatif)',
+    emergency_desc:'Description (facultatif)',
+    emergency_desc_ph:'Décrivez brièvement la situation…',
+    emergency_submit:'🚨 Envoyer l\'urgence',
+    emergency_sent:'Urgence transmise',
+    emergency_sent_to_n:'Urgence transmise à {n} clinique(s) — en attente de validation',
+    emergency_no_clinic:'Aucune clinique d\'urgence disponible dans votre wilaya. Contactez le 14 (SAMU), 15 (Pompiers) ou 16 (Police).',
+    emergency_required:'Nom, prénom, téléphone et wilaya obligatoires',
+    emergency_status_pending:'⏳ En attente',
+    emergency_status_accepted:'✅ Acceptée',
+    emergency_status_declined:'❌ Refusée',
+    emergency_status_cancelled:'🚫 Annulée',
+    emergency_cancel:'Annuler l\'urgence',
+    emergency_cancel_confirm:'Annuler cette urgence ? Les cliniques seront notifiées.',
+    emergency_cancelled:'Urgence annulée',
+    emergency_accepted_by:'Prise en charge par',
+    emergency_declined_by:'Refusée par',
+    emergency_new_alert:'🚨 NOUVELLE URGENCE',
+    emergency_patient_info:'Informations du patient',
+    emergency_type_label:'Type',
+    emergency_received_at:'Reçue à',
+    emergency_accept:'✅ ACCEPTER',
+    emergency_decline:'❌ REFUSER',
+    emergency_decline_reason:'Motif du refus (facultatif)',
+    emergency_decline_confirm:'Refuser cette urgence ?',
+    emergency_accepted:'Urgence acceptée',
+    emergency_declined:'Urgence refusée',
+    emergency_from:'Urgence de',
+    emergency_no_type:'Type non précisé',
+    emergency_taken_elsewhere:'Pris en charge par une autre clinique',
+    emergency_already_handled:'Cette urgence a déjà été traitée',
+    emergency_view_full:'Voir détails complets'
   },
   en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',nav_clinic:'Clinic Area',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
@@ -3233,7 +3617,57 @@ const T = {
     doctor_added_to_clinic:'Doctor added to clinic',
     step_auto_plan_hint:'The system automatically selected an available doctor',
     selected_auto_doctor:'Automatically selected doctor',
-    select_doctor_first:'Select a doctor'
+    select_doctor_first:'Select a doctor',
+    /* === NEW HOME === */
+    home_greeting:'Hello 👋',
+    home_help:'How can we help you?',
+    home_book_rdv:'Book appointment',
+    home_book_rdv_sub:'Choose a doctor or a clinic',
+    home_emergency:'EMERGENCY',
+    home_emergency_sub:'Immediate care',
+    home_my_rdv:'My appointments',
+    home_my_rdv_sub:'View my appointments & emergencies',
+    home_search_title:'Search a professional',
+    /* === EMERGENCY === */
+    emergency_title:'Declare an emergency',
+    emergency_sub:'Fill the form, clinics with an emergency service will be notified',
+    emergency_name:'Last name',
+    emergency_firstname:'First name',
+    emergency_phone:'Phone',
+    emergency_wilaya:'Wilaya',
+    emergency_type:'Emergency type',
+    emergency_type_ph:'Select (optional)',
+    emergency_desc:'Description (optional)',
+    emergency_desc_ph:'Briefly describe the situation…',
+    emergency_submit:'🚨 Send emergency',
+    emergency_sent:'Emergency sent',
+    emergency_sent_to_n:'Emergency sent to {n} clinic(s) — awaiting validation',
+    emergency_no_clinic:'No emergency clinic available in your wilaya. Contact 14 (SAMU), 15 (Fire) or 16 (Police).',
+    emergency_required:'Name, first name, phone and wilaya required',
+    emergency_status_pending:'⏳ Pending',
+    emergency_status_accepted:'✅ Accepted',
+    emergency_status_declined:'❌ Declined',
+    emergency_status_cancelled:'🚫 Cancelled',
+    emergency_cancel:'Cancel emergency',
+    emergency_cancel_confirm:'Cancel this emergency? Clinics will be notified.',
+    emergency_cancelled:'Emergency cancelled',
+    emergency_accepted_by:'Taken care of by',
+    emergency_declined_by:'Declined by',
+    emergency_new_alert:'🚨 NEW EMERGENCY',
+    emergency_patient_info:'Patient information',
+    emergency_type_label:'Type',
+    emergency_received_at:'Received at',
+    emergency_accept:'✅ ACCEPT',
+    emergency_decline:'❌ DECLINE',
+    emergency_decline_reason:'Decline reason (optional)',
+    emergency_decline_confirm:'Decline this emergency?',
+    emergency_accepted:'Emergency accepted',
+    emergency_declined:'Emergency declined',
+    emergency_from:'Emergency from',
+    emergency_no_type:'Type not specified',
+    emergency_taken_elsewhere:'Taken by another clinic',
+    emergency_already_handled:'This emergency has already been handled',
+    emergency_view_full:'View full details'
   },
   ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',nav_clinic:'فضاء العيادة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
@@ -3807,11 +4241,60 @@ const T = {
     doctor_added_to_clinic:'تمت إضافة الطبيب للعيادة',
     step_auto_plan_hint:'اختار النظام تلقائيًا طبيبًا متاحًا',
     selected_auto_doctor:'طبيب مختار تلقائيًا',
-    select_doctor_first:'اختر طبيبًا'
+    select_doctor_first:'اختر طبيبًا',
+    /* === NEW HOME === */
+    home_greeting:'مرحبًا 👋',
+    home_help:'كيف يمكننا مساعدتك؟',
+    home_book_rdv:'حجز موعد',
+    home_book_rdv_sub:'اختر طبيبًا أو عيادة',
+    home_emergency:'حالة طارئة',
+    home_emergency_sub:'رعاية فورية',
+    home_my_rdv:'مواعيدي',
+    home_my_rdv_sub:'عرض مواعيدي والحالات الطارئة',
+    home_search_title:'البحث عن مختص',
+    /* === EMERGENCY === */
+    emergency_title:'الإعلان عن حالة طارئة',
+    emergency_sub:'املأ النموذج، سيتم إشعار العيادات التي بها خدمة الطوارئ',
+    emergency_name:'اللقب',
+    emergency_firstname:'الاسم',
+    emergency_phone:'الهاتف',
+    emergency_wilaya:'الولاية',
+    emergency_type:'نوع الطارئ',
+    emergency_type_ph:'اختر (اختياري)',
+    emergency_desc:'الوصف (اختياري)',
+    emergency_desc_ph:'صف الحالة بإيجاز…',
+    emergency_submit:'🚨 إرسال الحالة الطارئة',
+    emergency_sent:'تم إرسال الحالة',
+    emergency_sent_to_n:'تم إرسال الحالة إلى {n} عيادة — في انتظار التأكيد',
+    emergency_no_clinic:'لا توجد عيادة طوارئ في ولايتك. اتصل بـ 14 (الإسعاف) أو 15 (الحماية المدنية) أو 16 (الشرطة).',
+    emergency_required:'اللقب، الاسم، الهاتف والولاية إلزامية',
+    emergency_status_pending:'⏳ في الانتظار',
+    emergency_status_accepted:'✅ مقبولة',
+    emergency_status_declined:'❌ مرفوضة',
+    emergency_status_cancelled:'🚫 ملغاة',
+    emergency_cancel:'إلغاء الحالة',
+    emergency_cancel_confirm:'إلغاء هذه الحالة؟ سيتم إشعار العيادات.',
+    emergency_cancelled:'تم إلغاء الحالة',
+    emergency_accepted_by:'تم التكفل من قبل',
+    emergency_declined_by:'مرفوضة من قبل',
+    emergency_new_alert:'🚨 حالة طارئة جديدة',
+    emergency_patient_info:'معلومات المريض',
+    emergency_type_label:'النوع',
+    emergency_received_at:'تم الاستلام في',
+    emergency_accept:'✅ قبول',
+    emergency_decline:'❌ رفض',
+    emergency_decline_reason:'سبب الرفض (اختياري)',
+    emergency_decline_confirm:'رفض هذه الحالة؟',
+    emergency_accepted:'تم قبول الحالة',
+    emergency_declined:'تم رفض الحالة',
+    emergency_from:'حالة طارئة من',
+    emergency_no_type:'النوع غير محدد',
+    emergency_taken_elsewhere:'تم التكفل بها من عيادة أخرى',
+    emergency_already_handled:'تمت معالجة هذه الحالة بالفعل',
+    emergency_view_full:'عرض التفاصيل الكاملة'
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
-
 /* ============================================================
    STORAGE — Supabase Storage
    ============================================================ */
@@ -3891,6 +4374,13 @@ const state = {
   /* nouveaux */
   serviceModal:{serviceId:null, doctorId:null, mode:null},
   prestationLockTick: 0,
+
+  /* 🚨 URGENCES */
+  emergencies: [],
+  emergencyForm: {name:'', firstname:'', phone:'', wilaya:'', type:'', description:''},
+  emergencyAlertQueue: [],
+  emergencyAlertOpen: false,
+  emergencyMyPhone: localStorage.getItem('omnimed_emergency_phone') || '',
 
   dossier: {
     fileId: null,
@@ -4104,24 +4594,21 @@ function isPrestationLocked(p){
   return !!p.locked;
 }
 function prestationHasAvailableDoctor(p){
-  /* Vérifie si au moins un médecin rattaché au service est disponible prochainement */
   if(!p || !p.requiresDoctor) return true;
   const clinic = clinicById(p.clinicId);
   if(!clinic) return false;
   const svDoctors = clinicLinkedDoctors(clinic.id).filter(d => getDoctorServiceInClinic(d.id, clinic.id) === p.serviceId);
   if(!svDoctors.length) return false;
-  /* Vérifier si au moins un médecin a un créneau disponible dans les 60 jours */
   return svDoctors.some(d => {
     const days = availableDaysFor(d, 3);
     return days.length > 0;
   });
 }
 function autoLockPrestations(){
-  /* Verrouille auto les prestations qui nécessitent un médecin mais aucun n'est disponible */
   let changed = false;
   DB.clinicPrestations.forEach(p => {
     if(!p.requiresDoctor) return;
-    if(p.lockedByClinic) return; /* Ne pas écraser un verrouillage manuel */
+    if(p.lockedByClinic) return;
     const available = prestationHasAvailableDoctor(p);
     const shouldBeLocked = !available;
     if(!!p.autoLocked !== shouldBeLocked){
@@ -4151,6 +4638,53 @@ function validationBlockedMsg(a){
     .replace('{time}', a.time);
 }
 
+/* ============================================================
+   🚨 URGENCE — Helpers
+   ============================================================ */
+function emergencyClinicsForWilaya(wilaya){
+  /* Renvoie les cliniques ayant un service "Urgences" dans la wilaya */
+  if(!wilaya) return [];
+  return DB.clinics.filter(c => {
+    if(isClinicHiddenFromPatients(c)) return false;
+    if(c.sessionClosed) return false;
+    if(c.wilaya !== wilaya) return false;
+    const svcs = clinicServicesFor(c.id);
+    return svcs.some(s => s.name && s.name.toLowerCase().includes('urgence'));
+  });
+}
+function emergenciesForPatientPhone(phone){
+  const n = normPhone(phone);
+  if(!n) return [];
+  return (DB.emergencies || []).filter(e => normPhone(e.patientPhone) === n);
+}
+function emergenciesForClinic(clinicId){
+  return (DB.emergencies || []).filter(e => String(e.clinicId) === String(clinicId));
+}
+function pendingEmergenciesForClinic(clinicId){
+  return emergenciesForClinic(clinicId).filter(e => e.status === 'pending');
+}
+function emergencyStatusInfo(status){
+  const map = {
+    pending: { cls:'warn',    label: t('emergency_status_pending'),    ico:'⏳' },
+    accepted:{ cls:'success', label: t('emergency_status_accepted'),   ico:'✅' },
+    declined:{ cls:'muted',   label: t('emergency_status_declined'),   ico:'❌' },
+    cancelled:{ cls:'muted',  label: t('emergency_status_cancelled'),  ico:'🚫' }
+  };
+  return map[status] || map.pending;
+}
+function emergencyGroupStatus(groupId){
+  /* Renvoie le statut global d'un groupe d'urgences */
+  const list = (DB.emergencies||[]).filter(e => e.groupId === groupId);
+  if(!list.length) return null;
+  if(list.some(e => e.status === 'accepted')) return { status:'accepted', acceptedBy: list.find(e=>e.status==='accepted') };
+  if(list.every(e => e.status === 'cancelled')) return { status:'cancelled' };
+  if(list.every(e => e.status === 'declined')) return { status:'declined' };
+  return { status:'pending' };
+}
+
+/* ============================================================
+   SEED / LOAD / SAVE
+   ============================================================ */
 function seedData(){
   return {
     schemaVersion: 3,
@@ -4178,7 +4712,8 @@ function seedData(){
     notifications: [],
     messages: [],
     medicalFiles: [],
-    medications:[]
+    medications:[],
+    emergencies: []
   };
 }
 
@@ -4200,10 +4735,11 @@ const _pendingDeletes = (() => {
       clinics:      Array.isArray(raw.clinics)      ? raw.clinics      : [],
       clinicServices:    Array.isArray(raw.clinicServices)    ? raw.clinicServices    : [],
       clinicPrestations: Array.isArray(raw.clinicPrestations) ? raw.clinicPrestations : [],
-      doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : []
+      doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : [],
+      emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : []
     };
   } catch(e){
-    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [] };
+    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [] };
   }
 })();
 function savePendingDeletes(){
@@ -4237,7 +4773,8 @@ async function loadDB(){
       sb.from('clinic_services').select('*'),
       sb.from('clinic_prestations').select('*'),
       sb.from('doctor_clinic_links').select('*'),
-      sb.from('clinic_invoice_registry').select('*')
+      sb.from('clinic_invoice_registry').select('*'),
+      sb.from('emergencies').select('*').order('created_at',{ascending:false}).limit(500)
     ]);
 
     const unwrapOne = (r) => {
@@ -4268,17 +4805,17 @@ async function loadDB(){
     const cpR     = unwrapArr(results[14]);
     const dclR    = unwrapArr(results[15]);
     const cirR    = unwrapArr(results[16]);
+    const emgR    = unwrapArr(results[17]);
 
     const criticalError = docR.error || apptR.error;
     if(criticalError){
       console.error('❌ Tables critiques indisponibles :', criticalError.message || criticalError);
       if(localBackup && (localBackup.doctors?.length || localBackup.appointments?.length)){
-        console.warn('⚠️ Restauration depuis backup local.');
         DB = localBackup;
+        if(!DB.emergencies) DB.emergencies = [];
         _remoteLoadOK = false;
         return;
       }
-      console.warn('⚠️ Aucun backup local — DB vide en mémoire (PAS de push).');
       DB = seedData();
       _remoteLoadOK = false;
       return;
@@ -4287,6 +4824,9 @@ async function loadDB(){
     const clinicFailed = clinicR.error || csR.error || cpR.error || dclR.error;
     if(clinicFailed){
       console.warn('⚠️ Tables clinique indisponibles — SQL Supabase non exécuté ?', clinicFailed.message || clinicFailed);
+    }
+    if(emgR.error){
+      console.warn('⚠️ Table emergencies indisponible — SQL non exécuté ?', emgR.error.message || emgR.error);
     }
 
     const s = setR.data || {};
@@ -4398,6 +4938,24 @@ async function loadDB(){
       medicalFiles: (medR.data||[]).filter(m=>!_pendingDeletes.medicalFiles.includes(String(m.id))).map(m=>({
         id:m.id, doctorId:m.doctor_id, patientPhone:m.patient_phone,
         data: m.data || {}
+      })),
+
+      /* 🚨 URGENCES */
+      emergencies: (emgR.data||[]).filter(e=>!_pendingDeletes.emergencies.includes(String(e.id))).map(e=>({
+        id: e.id,
+        groupId: e.group_id,
+        patientName: e.patient_name,
+        patientFirstname: e.patient_firstname,
+        patientPhone: e.patient_phone,
+        patientWilaya: e.patient_wilaya,
+        emergencyType: e.emergency_type || '',
+        description: e.description || '',
+        status: e.status || 'pending',
+        clinicId: e.clinic_id,
+        clinicResponse: e.clinic_response || '',
+        declinedReason: e.declined_reason || '',
+        createdAt: e.created_at,
+        respondedAt: e.responded_at
       }))
     };
 
@@ -4433,6 +4991,10 @@ async function loadDB(){
     if(!DB.medicalFiles) DB.medicalFiles = [];
     if(!DB.medications) DB.medications = [];
     if(!DB.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = {};
+    if(!DB.emergencies) DB.emergencies = [];
+
+    /* Synchroniser state.emergencies avec DB.emergencies */
+    state.emergencies = DB.emergencies.slice();
 
     remoteOK = true;
 
@@ -4444,6 +5006,8 @@ async function loadDB(){
     if(localBackup && (localBackup.doctors?.length || localBackup.appointments?.length || localBackup.clinics?.length)){
       console.warn('⚠️ Supabase indisponible → restauration backup local.');
       DB = localBackup;
+      if(!DB.emergencies) DB.emergencies = [];
+      state.emergencies = DB.emergencies.slice();
     } else if(!DB){
       DB = seedData();
     }
@@ -4528,6 +5092,10 @@ async function pushToSupabase(){
       await sb.from('doctor_clinic_links').delete().in('id', _pendingDeletes.doctorClinicLinks);
       _pendingDeletes.doctorClinicLinks = []; savePendingDeletes();
     }
+    if(_pendingDeletes.emergencies.length){
+      await sb.from('emergencies').delete().in('id', _pendingDeletes.emergencies);
+      _pendingDeletes.emergencies = []; savePendingDeletes();
+    }
 
     if(DB.doctors.length){
       await sb.from('doctors').upsert(DB.doctors.map(d=>({
@@ -4605,7 +5173,7 @@ async function pushToSupabase(){
 
     if(DB.appointments.length){
       const rows = DB.appointments.map(a=>({
-        id:a.id, doctor_id:String(a.doctorId), patient_name:a.patientName,
+        id:a.id, doctor_id:a.doctorId?String(a.doctorId):null, patient_name:a.patientName,
         patient_age:a.patientAge, patient_phone:a.patientPhone,
         patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
         patient_password:a.patientPassword||'', date:a.date, time:a.time,
@@ -4656,6 +5224,29 @@ async function pushToSupabase(){
       }));
       for(let i=0;i<rows.length;i+=50){
         await sb.from('medical_files').upsert(rows.slice(i,i+50));
+      }
+    }
+
+    /* 🚨 URGENCES */
+    if(DB.emergencies && DB.emergencies.length){
+      const rows = DB.emergencies.map(e => ({
+        id: e.id,
+        group_id: e.groupId,
+        patient_name: e.patientName,
+        patient_firstname: e.patientFirstname,
+        patient_phone: e.patientPhone,
+        patient_wilaya: e.patientWilaya,
+        emergency_type: e.emergencyType || '',
+        description: e.description || '',
+        status: e.status || 'pending',
+        clinic_id: e.clinicId ? String(e.clinicId) : null,
+        clinic_response: e.clinicResponse || '',
+        declined_reason: e.declinedReason || '',
+        created_at: e.createdAt,
+        responded_at: e.respondedAt || null
+      }));
+      for(let i=0;i<rows.length;i+=100){
+        await sb.from('emergencies').upsert(rows.slice(i,i+100));
       }
     }
 
@@ -4719,7 +5310,8 @@ function snapshotDB(){
     subInvoiceRegistry: JSON.stringify(DB.subInvoiceRegistry),
     clinicInvoiceRegistry: JSON.stringify(DB.clinicInvoiceRegistry),
     medicalFiles:       JSON.stringify(DB.medicalFiles),
-    medications:        JSON.stringify(DB.medications || [])
+    medications:        JSON.stringify(DB.medications || []),
+    emergencies:        JSON.stringify(DB.emergencies || [])
   };
 }
 function relevantKeysForCurrentView(){
@@ -4729,12 +5321,12 @@ function relevantKeysForCurrentView(){
   const isClinic = state.role === 'clinic';
   if(isAdmin) return null;
   if(isClinic){
-    if(v === 'cdash' || v === 'cappts' || v === 'cdoctors' || v === 'cservices' || v === 'cprestations' || v === 'cstats')
-      return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings'];
+    if(v === 'cdash' || v === 'cappts' || v === 'cdoctors' || v === 'cservices' || v === 'cprestations' || v === 'cstats' || v === 'cemergency')
+      return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies'];
     if(v === 'crecette') return ['appointments','clinics','doctors','services','settings'];
     if(v === 'cprof')    return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','settings'];
     if(v === 'cmessages')return ['messages','clinics','doctors'];
-    return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings'];
+    return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies'];
   }
   if(isDoc){
     if(v === 'ddash' || v === 'dappts' || v === 'dinternal' || v === 'dstats' || v === 'drecette')
@@ -4747,9 +5339,9 @@ function relevantKeysForCurrentView(){
   }
   if(v === 'home' || v === 'book')
     return ['doctors','specialties','wilayas','communes','appointments','services','clinics','clinicServices','clinicPrestations','doctorClinicLinks'];
-  if(v === 'my')     return ['appointments','doctors','notifications','clinics','clinicServices','clinicPrestations'];
+  if(v === 'my')     return ['appointments','doctors','notifications','clinics','clinicServices','clinicPrestations','emergencies'];
   if(v === 'login')  return null;
-  return ['doctors','appointments','services','settings','clinics','clinicServices','clinicPrestations'];
+  return ['doctors','appointments','services','settings','clinics','clinicServices','clinicPrestations','emergencies'];
 }
 
 let _realtimeChannel = null;
@@ -4759,7 +5351,7 @@ let _realtimeStatusStableTimer = null;
 function subscribeRealtime(){
   if(_realtimeChannel) return;
 
-  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry'];
+  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies'];
   let chan = sb.channel('omnimed-changes');
   const handler = () => {
     if(_isApplyingRemote) return;
@@ -4798,7 +5390,13 @@ function subscribeRealtime(){
         if(changedKeys.length === 0) return;
 
         const relevant = relevantKeysForCurrentView();
-        if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
+        if(relevant && !changedKeys.some(k => relevant.includes(k))) {
+          /* Vérifier les nouvelles urgences pour la clinique */
+          if(state.role === 'clinic' && state.clinic && changedKeys.includes('emergencies')){
+            checkNewEmergenciesForClinic();
+          }
+          return;
+        }
 
         const activeEl  = document.activeElement;
         const activeId  = activeEl?.id;
@@ -4851,6 +5449,11 @@ function subscribeRealtime(){
             }
           }
         }, 20);
+
+        /* Vérifier les nouvelles urgences pour la clinique */
+        if(state.role === 'clinic' && state.clinic && changedKeys.includes('emergencies')){
+          checkNewEmergenciesForClinic();
+        }
 
       } finally {
         _isApplyingRemote = false;
@@ -4911,8 +5514,16 @@ function setupVisibilityResync(){
         const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
         if(changedKeys.length === 0) return;
         const relevant = relevantKeysForCurrentView();
-        if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
+        if(relevant && !changedKeys.some(k => relevant.includes(k))){
+          if(state.role === 'clinic' && state.clinic && changedKeys.includes('emergencies')){
+            checkNewEmergenciesForClinic();
+          }
+          return;
+        }
         render();
+        if(state.role === 'clinic' && state.clinic && changedKeys.includes('emergencies')){
+          checkNewEmergenciesForClinic();
+        }
       } finally {
         _isApplyingRemote = false;
       }
@@ -4980,7 +5591,7 @@ const toMin = hhmm => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; 
 const toHHMM = min => String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0');
 const currentMonth = () => new Date().getMonth()+1;
 const currentYear  = () => new Date().getFullYear();
-const fmtDateFR = iso => { const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
+const fmtDateFR = iso => { if(!iso) return '—'; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
 const normPhone = p => String(p||'').replace(/[\s\-\.\(\)]/g,'');
 
 function getUserKey(role, id){
@@ -4999,6 +5610,25 @@ function genApptId(){
   if(DB.appointments.some(a => a.id === id)){
     id = 'RDV-' + Date.now().toString().slice(-6);
   }
+  return id;
+}
+
+function genEmergencyId(){
+  let id;
+  let tries = 0;
+  do {
+    id = 'EMG-' + Math.floor(10000 + Math.random()*90000);
+    tries++;
+  } while((DB.emergencies||[]).some(e => e.id === id) && tries < 50);
+  return id;
+}
+function genEmergencyGroupId(){
+  let id;
+  let tries = 0;
+  do {
+    id = 'GRP-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    tries++;
+  } while((DB.emergencies||[]).some(e => e.groupId === id) && tries < 50);
   return id;
 }
 
@@ -5082,9 +5712,7 @@ function showDoctorLockedModal(){
             <span class="ct-phone-inline">07 70 87 54 52</span>
           </div>
         </div>
-        <button class="pill-btn danger sub-logout" onclick="hideSubscriptionExpiredModal()">
-          ✕ Fermer
-        </button>
+        <button class="pill-btn danger sub-logout" onclick="hideSubscriptionExpiredModal()">✕ Fermer</button>
         <div class="sub-brand">OmniMed · ${esc(t('brand_sub'))}</div>
       </div>
     </div>`;
@@ -5107,9 +5735,7 @@ function showClinicLockedModal(){
             <span class="ct-phone-inline">07 70 87 54 52</span>
           </div>
         </div>
-        <button class="pill-btn danger sub-logout" onclick="hideSubscriptionExpiredModal()">
-          ✕ Fermer
-        </button>
+        <button class="pill-btn danger sub-logout" onclick="hideSubscriptionExpiredModal()">✕ Fermer</button>
         <div class="sub-brand">OmniMed · ${esc(t('brand_sub'))}</div>
       </div>
     </div>`;
@@ -5123,8 +5749,10 @@ function hideSubscriptionExpiredModal(){
 document.addEventListener('keydown', function(e){
   const modalOpen = document.querySelector('.modal-back');
   const subOpen = document.getElementById('subModalRoot')?.classList.contains('open');
+  const emgOpen = document.getElementById('emergencyAlertRoot')?.classList.contains('open');
   if(e.key === 'Escape'){
     if(subOpen){ e.preventDefault(); return; }
+    if(emgOpen){ e.preventDefault(); return; }
     if(modalOpen){ closeModal(); e.preventDefault(); }
     return;
   }
@@ -5226,12 +5854,7 @@ function dateHasAvail(doctorId, dateISO, period){
   return slots.some(s=>{ const h=parseInt(s.time.split(':')[0],10); return period==='morning'?h<12:h>=12; });
 }
 
-/* ---- CLINIQUE : créneaux clinique ----
-   ⚠️ MODIFICATION #5 : La clinique est ouverte 24h/24, 7j/7 par défaut.
-   Les créneaux disponibles dépendent uniquement du planning de chaque médecin. */
 function slotsForClinic(clinicId, dateISO, durationOverride){
-  /* Cette fonction n'est plus utilisée pour la génération de créneaux.
-     Les créneaux sont générés à partir du planning du médecin. */
   const c = clinicById(clinicId); if(!c) return [];
   const dur = durationOverride || 30;
   const all = generateSlots(c.workStart||'00:00', c.workEnd||'23:59', dur);
@@ -5246,7 +5869,6 @@ function slotsForClinic(clinicId, dateISO, durationOverride){
   });
 }
 function isClinicWorkDay(c, dateISO){
-  /* ⚠️ MODIFICATION #5 : La clinique est ouverte 24/7 par défaut */
   if(c && c.open24_7 !== false) return true;
   const dow = new Date(dateISO+'T00:00:00').getDay();
   return (c.workDays||[]).includes(dow);
@@ -5260,8 +5882,6 @@ function availableDaysForClinic(c, count, durationOverride){
   }
   return out;
 }
-
-/* ---- NOUVEAU : créneaux basés sur le médecin (utilisés dans la clinique) ---- */
 function slotsForDoctorInClinic(doctorId, dateISO){
   return slotsFor(doctorId, dateISO);
 }
@@ -5270,7 +5890,6 @@ function availableDaysForDoctorInClinic(doctorId, count){
   if(!doc) return [];
   return availableDaysFor(doc, count);
 }
-/* Renvoie le premier créneau libre pour un médecin */
 function firstAvailableSlotForDoctor(doctorId, maxDays){
   maxDays = maxDays || 60;
   const doc = docById(doctorId);
@@ -5284,11 +5903,9 @@ function firstAvailableSlotForDoctor(doctorId, maxDays){
   }
   return null;
 }
-/* Sélectionne automatiquement un médecin disponible pour un service de clinique */
 function findAutoDoctorForService(clinicId, serviceId){
   const doctors = clinicLinkedDoctors(clinicId).filter(d => getDoctorServiceInClinic(d.id, clinicId) === serviceId);
   if(!doctors.length) return null;
-  /* Pour chaque médecin, trouver son premier créneau libre */
   let best = null;
   for(const d of doctors){
     const slot = firstAvailableSlotForDoctor(d.id, 60);
@@ -5356,15 +5973,13 @@ function openCleaningModal(){
     </div>
     <div class="tbl-wrap" style="margin-bottom:0">
       <table class="tbl">
-        <thead>
-          <tr>
-            <th style="width:32px">#</th>
-            <th>${t('billing_date')}</th>
-            <th>${t('billing_patient')}</th>
-            <th>${t('billing_doctor_col')}</th>
-            <th>${t('billing_status')}</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th style="width:32px">#</th>
+          <th>${t('billing_date')}</th>
+          <th>${t('billing_patient')}</th>
+          <th>${t('billing_doctor_col')}</th>
+          <th>${t('billing_status')}</th>
+        </tr></thead>
         <tbody>
           ${oldAppts.slice(0, 200).map((a, i) => {
             const doc = docById(a.doctorId);
@@ -5441,6 +6056,9 @@ function getRecipients(){
     DB.clinics.forEach(c=>{
       list.push({key:`clinic_${c.id}`, role:'clinic', id:c.id, name:c.name, avatar:c.avatar||'🏥', specialty:c.wilaya||''});
     });
+    DB.doctors.forEach(d=>{
+      list.push({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty), specialty:d.specialty});
+    });
   }
   if(me.role === 'clinic'){
     list.push({key:'admin', role:'admin', id:'admin', name:t('msg_admin'), avatar:'🔐', specialty:''});
@@ -5449,11 +6067,6 @@ function getRecipients(){
       list.push({key:`all_clinic_doctors_${me.id}`, role:'all_clinic_doctors', id:me.id, name:t('msg_all_clinic_doctors'), avatar:'👥', specialty:t('msg_all_clinic_doctors_desc'), isGroup:true});
     }
     docs.forEach(d=>{
-      list.push({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty), specialty:d.specialty});
-    });
-  }
-  if(me.role === 'admin'){
-    DB.doctors.forEach(d=>{
       list.push({key:`doctor_${d.id}`, role:'doctor', id:d.id, name:d.name, avatar:specialtyAvatar(d.specialty), specialty:d.specialty});
     });
   }
@@ -6565,7 +7178,7 @@ function getDoctorSearchCounts(doctorId){
 }
 
 /* ============================================================
-   QR
+   QR (gardé pour factures mais plus utilisé dans RDV confirmé)
    ============================================================ */
 function qrSVG(seed){
   try{
@@ -6777,6 +7390,8 @@ async function doAccountLogin(){
     hideSubscriptionExpiredModal();
     render();
     toast(t('account_clinic_welcome') + ' ✓','success');
+    /* Vérifier les nouvelles urgences à la connexion */
+    setTimeout(() => checkNewEmergenciesForClinic(), 600);
     return;
   }
 
@@ -6829,6 +7444,9 @@ function logoutAccount(){
   state.view = 'home';
   state.recetteUnlocked = false;
   state.clinicRecetteUnlocked = false;
+  state.emergencyAlertQueue = [];
+  state.emergencyAlertOpen = false;
+  closeEmergencyAlert();
   state.booking = {doctorId:null,date:null,time:null,step:1,patientAge:'',editingId:null,services:[],documents:[],
     patientName:'',patientPhone:'',patientEmail:'',patientWilaya:'',patientPassword:'',motif:''};
   state.clinicBooking = {clinicId:null, serviceId:null, doctorId:null, prestationId:null, mode:'doctor',
@@ -6882,8 +7500,11 @@ function docNav(){
 function clinicNav(){
   const v = state.view;
   const unread = getUnreadMsgCount();
+  const pendingEmg = state.clinic ? pendingEmergenciesForClinic(state.clinic.id).length : 0;
+  const emgBadge = pendingEmg ? `<span class="emergency-counter">${pendingEmg}</span>` : '';
   const items = [
     ['cdash','📊',t('clinic_dashboard')],
+    ['cemergency','🚨',`Urgences${emgBadge}`],
     ['cdoctors','🧑‍⚕️',t('clinic_doctors')],
     ['cservices','🏗️',t('clinic_services')],
     ['cprestations','💉',t('clinic_prestations')],
@@ -6924,7 +7545,7 @@ function go(view){
   }
   const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','dprof','dmessages','ddossier',
     'adash','adoctors','aclinics','astats','arevenue','aappts','alistes','asettings','amessages','adossiers',
-    'cdash','cdoctors','cservices','cprestations','cappts','cstats','crecette','cmessages','cprof',
+    'cdash','cemergency','cdoctors','cservices','cprestations','cappts','cstats','crecette','cmessages','cprof',
     'clinicView','clinicBook','clinicProfile'];
   if(accountViews.includes(view) && !state.doctor && !state.admin && !state.clinic){
     openAccountLogin(); return;
@@ -6941,7 +7562,8 @@ function go(view){
     state.filter.date = todayISO();
   }
   if(view === 'cappts' && !state.clinicData.clinicApptFilter.date){
-    state.clinicData.clinicApptFilter.date = todayISO();
+    /* Correction : ne plus filtrer par défaut sur aujourd'hui — laisser vide pour voir tous */
+    state.clinicData.clinicApptFilter.date = '';
   }
   if(view === 'dinternal' && state.doctor && !state.internalForm.date){
     if(isWorkDay(state.doctor, todayISO())) state.internalForm.date = todayISO();
@@ -6980,6 +7602,455 @@ function loadPrefs(){
 }
 
 /* ============================================================
+   🚨 URGENCE — PATIENT
+   ============================================================ */
+function openEmergencyModal(){
+  const f = state.emergencyForm;
+  /* Pré-remplir avec le numéro mémorisé */
+  if(!f.phone && state.emergencyMyPhone) f.phone = state.emergencyMyPhone;
+  const typesHTML = EMERGENCY_TYPES.map(tp => `
+    <button type="button" class="chip ${f.type===tp.key?'active':''}" onclick="pickEmergencyType('${tp.key}')">
+      ${tp.icon} ${esc(emergencyTypeLabel(tp.key))}
+    </button>
+  `).join('');
+  const body = `
+    <div class="field-row">
+      <div class="field">
+        <label>${t('emergency_name')} *</label>
+        <input class="input" id="emgName" value="${esc(f.name)}" oninput="state.emergencyForm.name=this.value" autocomplete="family-name">
+      </div>
+      <div class="field">
+        <label>${t('emergency_firstname')} *</label>
+        <input class="input" id="emgFirstname" value="${esc(f.firstname)}" oninput="state.emergencyForm.firstname=this.value" autocomplete="given-name">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>${t('emergency_phone')} *</label>
+        <input class="input" id="emgPhone" type="tel" value="${esc(f.phone)}" oninput="state.emergencyForm.phone=this.value" placeholder="+213 6…" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label>${t('emergency_wilaya')} *</label>
+        <select class="select" id="emgWilaya" onchange="state.emergencyForm.wilaya=this.value">
+          <option value="">${t('patient_wilaya_ph')}</option>
+          ${DB.wilayas.map(w=>`<option ${f.wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>${t('emergency_type')} <span style="font-weight:400;color:var(--text-muted);font-size:11px">(${t('emergency_type_ph').toLowerCase()})</span></label>
+      <div class="chips" style="margin:0">${typesHTML}</div>
+    </div>
+    <div class="field">
+      <label>${t('emergency_desc')}</label>
+      <textarea class="textarea" id="emgDesc" style="min-height:70px" oninput="state.emergencyForm.description=this.value" placeholder="${t('emergency_desc_ph')}">${esc(f.description)}</textarea>
+    </div>
+    <div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)">
+      🚨 <strong>Important :</strong> Cette déclaration est transmise aux cliniques disposant d'un service d'urgence dans votre wilaya. Pour une urgence vitale, appelez également le <strong>14 (SAMU)</strong> ou le <strong>15 (Pompiers)</strong>.
+    </div>
+  `;
+  const actions = `
+    <button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+    <button class="pill-btn danger" style="padding:12px 24px;font-size:14px;font-weight:700" onclick="submitEmergency()">${t('emergency_submit')}</button>
+  `;
+  openModal('🚨 ' + t('emergency_title'), t('emergency_sub'), body, actions, true);
+  setTimeout(()=>{ const el=document.getElementById('emgName'); if(el) el.focus(); }, 50);
+}
+function pickEmergencyType(key){
+  state.emergencyForm.type = state.emergencyForm.type === key ? '' : key;
+  /* Re-render juste les chips sans fermer la modale */
+  const btn = document.querySelector(`.chips .chip[onclick*="${key}"]`);
+  document.querySelectorAll('.chips .chip').forEach(c => c.classList.remove('active'));
+  if(state.emergencyForm.type){
+    const active = Array.from(document.querySelectorAll('.chips .chip')).find(c => c.getAttribute('onclick').includes(`'${key}'`));
+    if(active) active.classList.add('active');
+  }
+}
+async function submitEmergency(){
+  const f = state.emergencyForm;
+  const name = ($('#emgName')?.value||f.name||'').trim();
+  const firstname = ($('#emgFirstname')?.value||f.firstname||'').trim();
+  const phone = ($('#emgPhone')?.value||f.phone||'').trim();
+  const wilaya = ($('#emgWilaya')?.value||f.wilaya||'').trim();
+  const description = ($('#emgDesc')?.value||f.description||'').trim();
+
+  f.name = name; f.firstname = firstname; f.phone = phone; f.wilaya = wilaya; f.description = description;
+
+  if(!name || !firstname || !phone || !wilaya){
+    toast(t('emergency_required'),'error');
+    return;
+  }
+
+  /* Chercher les cliniques avec service Urgences dans la wilaya */
+  const clinics = emergencyClinicsForWilaya(wilaya);
+  if(!clinics.length){
+    openModal('🚨 ' + t('emergency_title'), '', `
+      <div class="empty" style="padding:24px">
+        <div class="empty-ico">🚨</div>
+        <div style="font-size:13px;line-height:1.7;color:var(--danger);font-weight:600">
+          ${esc(t('emergency_no_clinic'))}
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+          <a href="tel:14" class="pill-btn danger" style="text-decoration:none">📞 14 — SAMU</a>
+          <a href="tel:15" class="pill-btn danger" style="text-decoration:none">📞 15 — Pompiers</a>
+          <a href="tel:16" class="pill-btn danger" style="text-decoration:none">📞 16 — Police</a>
+        </div>
+      </div>
+    `,
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`);
+    return;
+  }
+
+  /* Créer les urgences (une par clinique) avec un même groupId */
+  const groupId = genEmergencyGroupId();
+  const createdAt = nowISO();
+  const created = [];
+  clinics.forEach(c => {
+    const emg = {
+      id: genEmergencyId(),
+      groupId,
+      patientName: name,
+      patientFirstname: firstname,
+      patientPhone: phone,
+      patientWilaya: wilaya,
+      emergencyType: f.type || '',
+      description,
+      status: 'pending',
+      clinicId: String(c.id),
+      clinicResponse: '',
+      declinedReason: '',
+      createdAt,
+      respondedAt: null
+    };
+    DB.emergencies.unshift(emg);
+    created.push(emg);
+  });
+  if(!DB.emergencies) DB.emergencies = [];
+  state.emergencies = DB.emergencies.slice();
+  state.emergencyMyPhone = phone;
+  localStorage.setItem('omnimed_emergency_phone', phone);
+
+  /* Notifier chaque clinique */
+  clinics.forEach(c => {
+    pushClinicNotif('🚨 URGENCE', `${firstname} ${name} — ${wilaya}`, c.id, null);
+  });
+
+  saveDB();
+  state.emergencyForm = {name:'', firstname:'', phone:'', wilaya:'', type:'', description:''};
+  closeModal();
+  render();
+  toast(t('emergency_sent_to_n').replace('{n}', clinics.length), 'success');
+}
+function emergencyCardHTML(groupId){
+  const list = (DB.emergencies||[]).filter(e => e.groupId === groupId);
+  if(!list.length) return '';
+  const first = list[0];
+  const groupStatus = emergencyGroupStatus(groupId);
+  if(!groupStatus) return '';
+  const status = groupStatus.status;
+  let cls = 'pending';
+  if(status === 'accepted') cls = 'accepted';
+  else if(status === 'declined') cls = 'declined';
+  else if(status === 'cancelled') cls = 'cancelled';
+  const statusInfo = {
+    pending: { ico:'⏳', label: t('emergency_status_pending') },
+    accepted: { ico:'✅', label: t('emergency_status_accepted') },
+    declined: { ico:'❌', label: t('emergency_status_declined') },
+    cancelled: { ico:'🚫', label: t('emergency_status_cancelled') }
+  }[status] || { ico:'⏳', label:'—' };
+
+  const acceptedBy = groupStatus.acceptedBy ? clinicById(groupStatus.acceptedBy.clinicId) : null;
+
+  /* Annulation possible tant que pending OU accepted */
+  const canCancel = (status === 'pending' || status === 'accepted');
+
+  return `
+    <div class="emergency-patient-card ${cls}">
+      <div class="epc-head">
+        <div>
+          <div class="epc-title">
+            🚨 ${t('emergency_title')}
+            ${first.emergencyType ? `<span class="emergency-badge-type">${emergencyTypeIcon(first.emergencyType)} ${esc(emergencyTypeLabel(first.emergencyType))}</span>` : ''}
+          </div>
+          <div class="epc-meta">
+            <div style="margin-top:4px">
+              <strong>${esc(first.patientFirstname)} ${esc(first.patientName)}</strong> · 📞 ${esc(first.patientPhone)} · 📍 ${esc(first.patientWilaya)}
+            </div>
+            <div style="margin-top:2px">
+              🕐 ${new Date(first.createdAt).toLocaleString('fr-FR')}
+            </div>
+            ${first.description ? `<div style="margin-top:4px;font-style:italic;color:var(--text-main)">${esc(first.description)}</div>` : ''}
+          </div>
+        </div>
+        <span class="tag ${status==='accepted'?'success':status==='declined'||status==='cancelled'?'muted':'warn'}" style="font-weight:800">${statusInfo.ico} ${esc(statusInfo.label)}</span>
+      </div>
+      ${acceptedBy ? `
+        <div style="margin-top:8px;padding:8px 12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:8px;font-size:12px;font-weight:600;color:#059669">
+          ✅ ${t('emergency_accepted_by')} <strong>${esc(acceptedBy.name)}</strong> · 📞 ${esc(acceptedBy.phone||'—')}
+        </div>
+      ` : ''}
+      ${status === 'pending' ? `
+        <div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,.08);border:1px dashed rgba(245,158,11,.4);border-radius:8px;font-size:11.5px;color:#92400e">
+          ⏳ En attente de validation par ${list.length} clinique(s)...
+        </div>
+      ` : ''}
+      ${canCancel ? `
+        <div class="epc-actions">
+          <button class="mini-btn out-red" onclick="askCancelEmergency('${groupId}')">✕ ${t('emergency_cancel')}</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+function askCancelEmergency(groupId){
+  openModal('✕ ' + t('emergency_cancel'), t('emergency_cancel_confirm'), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="cancelEmergency('${groupId}')">✕ ${t('emergency_cancel')}</button>`);
+}
+function cancelEmergency(groupId){
+  const list = (DB.emergencies||[]).filter(e => e.groupId === groupId);
+  list.forEach(e => {
+    if(e.status === 'pending' || e.status === 'accepted'){
+      e.status = 'cancelled';
+      e.respondedAt = nowISO();
+      /* Notifier la clinique si c'était accepté */
+      if(e.clinicId){
+        pushClinicNotif('🚨 Urgence annulée', `${e.patientFirstname} ${e.patientName} a annulé son urgence`, e.clinicId, null);
+      }
+    }
+  });
+  saveDB();
+  state.emergencies = DB.emergencies.slice();
+  closeModal();
+  render();
+  toast(t('emergency_cancelled'), 'info');
+}
+
+/* ============================================================
+   🚨 URGENCE — CLINIQUE (popup grande)
+   ============================================================ */
+function checkNewEmergenciesForClinic(){
+  if(state.role !== 'clinic' || !state.clinic) return;
+  const pending = pendingEmergenciesForClinic(state.clinic.id);
+  if(!pending.length) return;
+  /* Ajouter à la file si pas déjà dedans */
+  const knownIds = new Set(state.emergencyAlertQueue.map(e => e.id));
+  pending.forEach(e => {
+    if(!knownIds.has(e.id)) state.emergencyAlertQueue.push(e);
+  });
+  /* Ouvrir la popup si pas déjà ouverte */
+  if(state.emergencyAlertQueue.length && !state.emergencyAlertOpen){
+    showNextEmergencyAlert();
+  }
+}
+function showNextEmergencyAlert(){
+  const root = document.getElementById('emergencyAlertRoot');
+  if(!root) return;
+  if(!state.emergencyAlertQueue.length){
+    root.innerHTML = '';
+    root.classList.remove('open');
+    state.emergencyAlertOpen = false;
+    return;
+  }
+  const e = state.emergencyAlertQueue[0];
+  /* Vérifier que cette urgence est toujours pending */
+  const live = (DB.emergencies||[]).find(x => x.id === e.id);
+  if(!live || live.status !== 'pending'){
+    state.emergencyAlertQueue.shift();
+    showNextEmergencyAlert();
+    return;
+  }
+  state.emergencyAlertOpen = true;
+  const typeLbl = e.emergencyType ? emergencyTypeLabel(e.emergencyType) : t('emergency_no_type');
+  const typeIco = emergencyTypeIcon(e.emergencyType);
+  const created = new Date(e.createdAt);
+  const now = new Date();
+  const diffMin = Math.round((now - created)/60000);
+  const ago = diffMin < 1 ? 'à l\'instant' : (diffMin + ' min');
+  root.innerHTML = `
+    <div class="emergency-alert-back">
+      <div class="emergency-alert-modal">
+        <div class="eam-header">
+          <div class="eam-ico">🚨</div>
+          <div class="eam-title-block">
+            <div class="eam-title">${esc(t('emergency_new_alert'))}</div>
+            <div class="eam-sub">${esc(t('emergency_received_at'))} ${esc(ago)} · 🆔 ${esc(e.id)}</div>
+          </div>
+        </div>
+        <div class="eam-info-grid">
+          <div class="eam-info-item">
+            <div class="eam-info-lbl">👤 ${esc(t('emergency_name'))}</div>
+            <div class="eam-info-val">${esc(e.patientName)}</div>
+          </div>
+          <div class="eam-info-item">
+            <div class="eam-info-lbl">👤 ${esc(t('emergency_firstname'))}</div>
+            <div class="eam-info-val">${esc(e.patientFirstname)}</div>
+          </div>
+          <div class="eam-info-item">
+            <div class="eam-info-lbl">📞 ${esc(t('emergency_phone'))}</div>
+            <div class="eam-info-val big"><a href="tel:${esc(e.patientPhone)}" style="color:#b91c1c;text-decoration:none">${esc(e.patientPhone)}</a></div>
+          </div>
+          <div class="eam-info-item">
+            <div class="eam-info-lbl">📍 ${esc(t('emergency_wilaya'))}</div>
+            <div class="eam-info-val">${esc(e.patientWilaya)}</div>
+          </div>
+          <div class="eam-info-item full">
+            <div class="eam-info-lbl">🚨 ${esc(t('emergency_type_label'))}</div>
+            <div class="eam-info-val">${typeIco} ${esc(typeLbl)}</div>
+          </div>
+        </div>
+        ${e.description ? `
+          <div class="eam-desc">
+            <div class="eam-desc-lbl">📝 ${esc(t('emergency_desc'))}</div>
+            ${esc(e.description)}
+          </div>
+        ` : ''}
+        <div class="eam-actions">
+          <button class="eam-btn accept" onclick="acceptEmergency('${e.id}')">${esc(t('emergency_accept'))}</button>
+          <button class="eam-btn decline" onclick="askDeclineEmergency('${e.id}')">${esc(t('emergency_decline'))}</button>
+        </div>
+        <div class="eam-footer">⏱️ Cette urgence disparaîtra si vous acceptez/refusez</div>
+      </div>
+    </div>
+  `;
+  root.classList.add('open');
+}
+function closeEmergencyAlert(){
+  const root = document.getElementById('emergencyAlertRoot');
+  if(root){ root.innerHTML = ''; root.classList.remove('open'); }
+  state.emergencyAlertOpen = false;
+}
+function acceptEmergency(id){
+  const e = (DB.emergencies||[]).find(x => x.id === id);
+  if(!e) return;
+  if(e.status !== 'pending'){
+    toast(t('emergency_already_handled'), 'info');
+    closeEmergencyAlert();
+    state.emergencyAlertQueue = state.emergencyAlertQueue.filter(x => x.id !== id);
+    showNextEmergencyAlert();
+    return;
+  }
+  /* Accepter celle-ci, refuser les autres du même groupe */
+  e.status = 'accepted';
+  e.clinicResponse = 'accepted';
+  e.respondedAt = nowISO();
+  const sameGroup = (DB.emergencies||[]).filter(x => x.groupId === e.groupId && x.id !== e.id);
+  sameGroup.forEach(o => {
+    if(o.status === 'pending'){
+      o.status = 'declined';
+      o.clinicResponse = 'other_clinic_took';
+      o.declinedReason = t('emergency_taken_elsewhere');
+      o.respondedAt = nowISO();
+      /* Retirer de la queue des autres cliniques */
+      state.emergencyAlertQueue = state.emergencyAlertQueue.filter(x => x.id !== o.id);
+    }
+  });
+  const myClinic = clinicById(e.clinicId);
+  saveDB();
+  state.emergencies = DB.emergencies.slice();
+  toast('✅ ' + t('emergency_accepted'), 'success');
+  /* Retirer de la queue */
+  state.emergencyAlertQueue = state.emergencyAlertQueue.filter(x => x.id !== id);
+  closeEmergencyAlert();
+  setTimeout(() => showNextEmergencyAlert(), 400);
+  render();
+}
+function askDeclineEmergency(id){
+  const e = (DB.emergencies||[]).find(x => x.id === id);
+  if(!e) return;
+  /* Afficher une mini-modale par-dessus la grande — on utilise #modal-root */
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-back" style="z-index:500" onclick="if(event.target===this){document.getElementById('modal-root').innerHTML=''}">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-title">❌ ${esc(t('emergency_decline'))}</div>
+        <div class="modal-sub">${esc(t('emergency_decline_confirm'))}</div>
+        <div class="field">
+          <label>${esc(t('emergency_decline_reason'))}</label>
+          <textarea class="textarea" id="emgDeclineReason" style="min-height:60px" placeholder="${esc(t('reason_ph'))}"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="pill-btn" onclick="document.getElementById('modal-root').innerHTML=''">${t('cancel')}</button>
+          <button class="pill-btn danger" onclick="declineEmergency('${id}')">❌ ${t('emergency_decline')}</button>
+        </div>
+      </div>
+    </div>`;
+}
+function declineEmergency(id){
+  const e = (DB.emergencies||[]).find(x => x.id === id);
+  if(!e) return;
+  const reason = (document.getElementById('emgDeclineReason')?.value||'').trim();
+  e.status = 'declined';
+  e.clinicResponse = 'declined';
+  e.declinedReason = reason || '(refusée)';
+  e.respondedAt = nowISO();
+  saveDB();
+  state.emergencies = DB.emergencies.slice();
+  document.getElementById('modal-root').innerHTML = '';
+  toast('❌ ' + t('emergency_declined'), 'info');
+  state.emergencyAlertQueue = state.emergencyAlertQueue.filter(x => x.id !== id);
+  closeEmergencyAlert();
+  setTimeout(() => showNextEmergencyAlert(), 400);
+  render();
+}
+function viewClinicEmergencies(){
+  const c = state.clinic;
+  const all = emergenciesForClinic(c.id).sort((a,b) => String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const pending = all.filter(e => e.status === 'pending');
+  const accepted = all.filter(e => e.status === 'accepted');
+  const declined = all.filter(e => e.status === 'declined');
+  const cancelled = all.filter(e => e.status === 'cancelled');
+  const today = all.filter(e => (e.createdAt||'').slice(0,10) === todayISO());
+  return `
+    <div class="grid grid-4" style="margin-bottom:14px">
+      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending.length}</div><div class="stat-lbl">${t('emergency_status_pending')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✅</div><div><div class="stat-val">${accepted.length}</div><div class="stat-lbl">${t('emergency_status_accepted')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--glass-bg-3);color:var(--text-muted)">❌</div><div><div class="stat-val">${declined.length}</div><div class="stat-lbl">${t('emergency_status_declined')}</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">📅</div><div><div class="stat-val">${today.length}</div><div class="stat-lbl">${t('today_appts')}</div></div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title" style="font-size:15px">🚨 Urgences reçues</div>
+      <div class="card-sub">Toutes les urgences qui vous ont été adressées (${all.length})</div>
+      ${all.length ? all.map(e => {
+        const info = emergencyStatusInfo(e.status);
+        const tipoIco = emergencyTypeIcon(e.emergencyType);
+        const typeLbl = e.emergencyType ? emergencyTypeLabel(e.emergencyType) : t('emergency_no_type');
+        const isPending = e.status === 'pending';
+        const style = e.status === 'accepted'
+          ? 'background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.04));border-color:rgba(16,185,129,.4);border-left-color:#10b981'
+          : e.status === 'pending'
+            ? 'background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(251,191,36,.04));border-color:rgba(245,158,11,.4);border-left-color:#f59e0b'
+            : 'background:rgba(107,114,128,.04);border-color:rgba(107,114,128,.25);border-left-color:#6b7280';
+        return `
+          <div class="emergency-patient-card" style="${style}">
+            <div class="epc-head">
+              <div>
+                <div class="epc-title" style="${e.status==='accepted'?'color:#059669':(e.status==='pending'?'color:#d97706':'color:#4b5563')}">
+                  ${tipoIco} ${esc(typeLbl)}
+                </div>
+                <div class="epc-meta">
+                  <div style="margin-top:4px"><strong>${esc(e.patientFirstname)} ${esc(e.patientName)}</strong> · 📞 <a href="tel:${esc(e.patientPhone)}" style="color:inherit">${esc(e.patientPhone)}</a></div>
+                  <div style="margin-top:2px">📍 ${esc(e.patientWilaya)} · 🕐 ${new Date(e.createdAt).toLocaleString('fr-FR')}</div>
+                  ${e.description ? `<div style="margin-top:4px;font-style:italic">${esc(e.description)}</div>` : ''}
+                  ${e.declinedReason && e.status==='declined' ? `<div style="margin-top:4px;color:var(--danger);font-size:11px"><strong>Motif :</strong> ${esc(e.declinedReason)}</div>` : ''}
+                </div>
+              </div>
+              <span class="tag ${e.status==='accepted'?'success':e.status==='pending'?'warn':'muted'}" style="font-weight:800">${info.ico} ${esc(info.label)}</span>
+            </div>
+            ${isPending ? `
+              <div class="epc-actions">
+                <button class="mini-btn green" onclick="acceptEmergency('${e.id}')">✅ ${t('emergency_accept')}</button>
+                <button class="mini-btn out-red" onclick="askDeclineEmergency('${e.id}')">❌ ${t('emergency_decline')}</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('') : `<div class="empty" style="padding:30px"><div class="empty-ico">🚨</div>Aucune urgence reçue</div>`}
+    </div>
+  `;
+}
+
+/* ============================================================
    VUES PATIENT
    ============================================================ */
 function renderPatientView(){
@@ -6996,20 +8067,18 @@ function renderPatientView(){
 }
 
 /* ------------------------------------------------------------
-   🏠 HOME — MODIFICATION #1 : Split récents médecins/cliniques
+   🏠 NOUVEL ACCUEIL PATIENT — 3 boutons
+   Recherche masque les sections récentes
    ------------------------------------------------------------ */
 function viewHome(){
   const q = state.search.q || '';
   const spec = state.search.specialty || '';
   const wilaya = state.search.wilaya || '';
   const commune = state.search.commune || '';
-  const mode = state.search.mode || 'all';
   const searching = q.trim().length > 0 || spec.length > 0 || wilaya.length > 0 || commune.length > 0;
   const doctorResults = searching ? filterDoctorsForSearch() : [];
   const clinicResults = searching ? filterClinicsForSearch() : [];
   const communesForWilaya = wilaya ? (DB.communes[wilaya]||[]) : [];
-  const showDoctors = (mode === 'all' || mode === 'doctors');
-  const showClinics = (mode === 'all' || mode === 'clinics');
   const allRecentDocs = DB.doctors.filter(d=>!isDoctorHiddenFromPatients(d)).sort((a,b)=>{
     const da = a.createdAt || ''; const db = b.createdAt || '';
     return String(db).localeCompare(String(da));
@@ -7022,84 +8091,97 @@ function viewHome(){
   const page = Math.min(state.recentPage || 1, totalPages);
   const recentDocs = allRecentDocs.slice((page-1)*RECENT_PER_PAGE, page*RECENT_PER_PAGE);
   const recentClinics = allRecentClinics.slice(0, RECENT_PER_PAGE);
-  const clinicsCount = DB.clinics.filter(c=>!isClinicHiddenFromPatients(c)).length;
+
   return `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">🔍 ${t('find_doc')}</div>
-      <div class="home-search">
-        <div class="home-buttons">
-          <button class="pill-btn primary home-btn-lg" onclick="go('book')">📅 ${t('book_now')}</button>
-          <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('my')">📋 ${t('my')}</button>
-        </div>
-        <div class="toggle-group" style="align-self:flex-start">
-          <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()">🔎 ${t('clinic_search_toggle_all')}</button>
-          <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()">🧑‍⚕️ ${t('clinic_search_toggle_doctors')}</button>
-          <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()">🏥 ${t('clinic_search_toggle_clinics')} <span class="tag accent" style="margin-left:4px;font-size:9px;padding:1px 6px">${clinicsCount}</span></button>
-        </div>
-        <div class="home-search-row">
-          <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
-          ${showDoctors ? `
-          <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()">
-            <option value="">${t('all_spec')}</option>
-            ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
-          </select>` : `<div></div>`}
-        </div>
-        <div class="home-search-row">
-          <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()">
-            <option value="">${t('all_wilaya')}</option>
-            ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
-          </select>
-          <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()" ${!wilaya?'disabled style="opacity:.5"':''}>
-            <option value="">${t('commune')} — ${t('filter_all')}</option>
-            ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
-          </select>
-        </div>
+    <div class="home-hero">
+      <div class="hh-greeting">${esc(t('home_greeting'))}</div>
+      <div class="hh-title">${esc(t('home_help'))}</div>
+      <div class="home-action-grid">
+        <button class="home-action-btn primary" onclick="go('book')">
+          <span class="ha-ico">📅</span>
+          <span class="ha-label">${esc(t('home_book_rdv'))}</span>
+          <span class="ha-sub">${esc(t('home_book_rdv_sub'))}</span>
+        </button>
+        <button class="home-action-btn emergency" onclick="openEmergencyModal()">
+          <span class="ha-ico">🚨</span>
+          <span class="ha-label">${esc(t('home_emergency'))}</span>
+          <span class="ha-sub">${esc(t('home_emergency_sub'))}</span>
+        </button>
+        <button class="home-action-btn my-rdv" onclick="go('my')">
+          <span class="ha-ico">📋</span>
+          <span class="ha-label">${esc(t('home_my_rdv'))}</span>
+          <span class="ha-sub">${esc(t('home_my_rdv_sub'))}</span>
+        </button>
       </div>
     </div>
+
+    <div class="home-search-simplified">
+      <div class="hss-title">🔍 ${esc(t('home_search_title'))}</div>
+      <div class="hss-row" style="grid-template-columns:1fr;margin-bottom:8px">
+        <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
+      </div>
+      <div class="hss-row">
+        <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()">
+          <option value="">${t('all_spec')}</option>
+          ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+        <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()">
+          <option value="">${t('all_wilaya')}</option>
+          ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+      ${wilaya ? `
+      <div class="hss-row" style="margin-top:8px">
+        <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()">
+          <option value="">${t('commune')} — ${t('filter_all')}</option>
+          ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
+        </select>
+        <div></div>
+      </div>` : ''}
+    </div>
+
     ${searching ? `
-      ${showClinics && clinicResults.length ? `
+      ${clinicResults.length ? `
       <div class="card" style="margin-bottom:14px">
         <div class="card-title">🏥 ${t('clinics')} <span class="tag accent">${clinicResults.length}</span></div>
         <div class="grid grid-2" style="margin-top:10px">
           ${clinicResults.map(c=>clinicCardHTML(c)).join('')}
         </div>
       </div>` : ''}
-      ${showDoctors && doctorResults.length ? `
+      ${doctorResults.length ? `
       <div class="card" style="margin-bottom:14px">
         <div class="card-title">🩺 ${t('doctors_found')} <span class="tag accent">${doctorResults.length}</span></div>
         <div class="search-results-grid" style="margin-top:10px">
           ${doctorResults.map(d=>searchResultLabelHTML(d)).join('')}
         </div>
       </div>` : ''}
-      ${(showDoctors && doctorResults.length===0 && showClinics && clinicResults.length===0) || 
-        (!showDoctors && clinicResults.length===0) || 
-        (!showClinics && doctorResults.length===0) ? `
+      ${(doctorResults.length===0 && clinicResults.length===0) ? `
       <div class="card" style="margin-bottom:14px">
         <div class="empty" style="padding:24px"><div class="empty-ico">🔍</div>${t('no_search_results')}</div>
       </div>` : ''}
-    ` : ''}
-    <!-- MODIFICATION #1 : Split en 2 sections -->
-    <div class="recent-dual-grid">
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:16px">🆕 ${t('recently_added')} <span class="tag accent">${allRecentDocs.length}</span></div>
-        <div class="card-sub">${t('recently_added_sub')}</div>
-        ${recentDocs.length ? `
-          <div class="doctor-list" style="margin-top:10px">
-            ${recentDocs.slice(0, 8).map(d=>recentDoctorRowHTML(d)).join('')}
-          </div>
-          ${allRecentDocs.length > 8 ? renderRecentPagination(page, Math.ceil(allRecentDocs.length/8), allRecentDocs.length) : ''}
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🩺</div>${t('no_doctors_yet')}</div>`}
+    ` : `
+      <div class="recent-dual-grid">
+        <div class="recent-section-card">
+          <div class="card-title" style="font-size:16px">🆕 ${t('recently_added')} <span class="tag accent">${allRecentDocs.length}</span></div>
+          <div class="card-sub">${t('recently_added_sub')}</div>
+          ${recentDocs.length ? `
+            <div class="doctor-list" style="margin-top:10px">
+              ${recentDocs.slice(0, 8).map(d=>recentDoctorRowHTML(d)).join('')}
+            </div>
+            ${allRecentDocs.length > 8 ? renderRecentPagination(page, Math.ceil(allRecentDocs.length/8), allRecentDocs.length) : ''}
+          ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🩺</div>${t('no_doctors_yet')}</div>`}
+        </div>
+        <div class="recent-section-card">
+          <div class="card-title" style="font-size:16px">🆕 ${t('recently_added_clinics')} <span class="tag accent">${allRecentClinics.length}</span></div>
+          <div class="card-sub">${t('recently_added_clinics_sub')}</div>
+          ${recentClinics.length ? `
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+              ${recentClinics.map(c=>recentClinicRowHTML(c)).join('')}
+            </div>
+          ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🏥</div>${t('no_clinics_yet')}</div>`}
+        </div>
       </div>
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:16px">🆕 ${t('recently_added_clinics')} <span class="tag accent">${allRecentClinics.length}</span></div>
-        <div class="card-sub">${t('recently_added_clinics_sub')}</div>
-        ${recentClinics.length ? `
-          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-            ${recentClinics.map(c=>recentClinicRowHTML(c)).join('')}
-          </div>
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🏥</div>${t('no_clinics_yet')}</div>`}
-      </div>
-    </div>
+    `}
   `;
 }
 function recentClinicRowHTML(c){
@@ -7254,10 +8336,6 @@ function viewClinicPublic(){
   return viewHome();
 }
 
-/* ------------------------------------------------------------
-   🏥 PROFIL CLINIQUE PUBLIC — MODIFICATION #2
-   Services cliquables ouvrant une popup avec choix de médecin / planning auto
-   ------------------------------------------------------------ */
 function viewClinicPublicProfile(){
   const c = clinicById(state.clinicBooking.clinicId);
   if(!c) return `<div class="empty" style="padding:40px">${t('clinic_not_found')}</div>`;
@@ -7266,7 +8344,6 @@ function viewClinicPublicProfile(){
   const services = clinicServicesFor(c.id);
   const doctors = clinicLinkedDoctors(c.id);
   const prestations = clinicPrestationsFor(c.id);
-  const todayWork = isClinicWorkDay(c, todayISO());
   return `
     <div class="clinic-hero">
       <div class="ch-avatar">${c.avatar||'🏥'}</div>
@@ -7291,7 +8368,6 @@ function viewClinicPublicProfile(){
         <button class="pill-btn" onclick="go('home')">← ${t('back')}</button>
       </div>
     </div>
-    <!-- MODIFICATION #2 : Services cliquables -->
     ${services.length ? `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">🏗️ ${t('clinic_services_available')}</div>
@@ -7356,9 +8432,6 @@ function viewClinicPublicProfile(){
   `;
 }
 
-/* ============================================================
-   MODIFICATION #2 : POPUP SERVICE avec choix médecin / planning auto
-   ============================================================ */
 function openClinicServiceModal(serviceId){
   const c = clinicById(state.clinicBooking.clinicId);
   if(!c) return;
@@ -7397,12 +8470,8 @@ function openClinicServiceModal(serviceId){
               <div style="flex:1;min-width:0">
                 <div style="font-weight:600;font-size:13.5px">${esc(d.name)}</div>
                 <div style="font-size:11.5px;color:var(--accent-primary);font-weight:500">${esc(d.specialty)}${r.count>0?' · ⭐ '+r.avg:''}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
-                  💰 ${n2(d.fee)} DA · ⏱️ ${d.duration} ${t('min')}
-                </div>
-                <div style="font-size:11px;color:${nextSlot?'var(--success)':'var(--danger)'};font-weight:600;margin-top:3px">
-                  📅 ${t('clinic_service_next_slot')} : ${nextLabel}
-                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px">💰 ${n2(d.fee)} DA · ⏱️ ${d.duration} ${t('min')}</div>
+                <div style="font-size:11px;color:${nextSlot?'var(--success)':'var(--danger)'};font-weight:600;margin-top:3px">📅 ${t('clinic_service_next_slot')} : ${nextLabel}</div>
               </div>
               <span style="font-size:20px;color:var(--text-muted);flex-shrink:0">›</span>
             </button>
@@ -7435,9 +8504,6 @@ function openClinicServiceModal(serviceId){
             </div>
           `;
         }).join('') || `<div style="font-size:11.5px;color:var(--text-muted);text-align:center;padding:6px">${t('clinic_no_prestations')}</div>`}
-        ${svPrestations.filter(p => p.requiresDoctor).length ? `
-          <div style="margin-top:10px;font-size:11px;color:var(--text-muted);font-style:italic">ℹ️ ${svPrestations.filter(p => p.requiresDoctor).length} prestation(s) nécessitent un médecin — cliquez sur un médecin ci-dessus</div>
-        ` : ''}
       </div>
     ` : ''}
   `;
@@ -7663,12 +8729,10 @@ function clinicBookStep3(){
   const isDoctor = s.mode === 'doctor';
   const doc = isDoctor ? docById(s.doctorId) : null;
   const prestation = !isDoctor ? clinicPrestationById(s.prestationId) : null;
-  /* ⚠️ MODIFICATION #5 : Les créneaux viennent du planning du médecin */
   let availDays = [];
   if(isDoctor && doc){
     availDays = availableDaysFor(doc, 20);
   } else if(!isDoctor && prestation){
-    /* Prestation directe : on utilise les créneaux clinique (24/7) */
     availDays = availableDaysForClinic(c, 20, prestation.duration);
   }
   const slots = s.date ? (
@@ -7870,7 +8934,6 @@ function clinicBookConfirm(){
       <div class="card-title" style="justify-content:center;font-size:18px">${t('rdv_confirmed')}</div>
       <div class="card-sub" style="margin-bottom:16px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:14px;font-family:var(--font-numbers)">${appt.id}</strong></div>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-        <div class="qr">${qrSVG(appt.id)}</div>
         <div style="text-align:left;min-width:200px">
           <div style="font-weight:700;font-size:14px">${c.avatar||'🏥'} ${esc(c.name)}</div>
           ${doc ? `<div style="color:var(--accent-primary);font-size:12px;margin-bottom:6px">🧑‍⚕️ ${esc(doc.name)} — ${esc(doc.specialty)}</div>` : ''}
@@ -7983,9 +9046,6 @@ function openDoctorProfile(id){
             <div class="ic-val" style="font-family:var(--font-numbers);font-size:15px;letter-spacing:1.5px;color:#ec4899;font-weight:700">${esc(d.recettePasswordPlain || '••••')}</div>
           </div>
         </div>
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:center;gap:6px">
-        <span>ℹ️</span><span>Ces mots de passe sont affichés uniquement pour l'administrateur.</span>
       </div>
     </div>
     ` : ''}
@@ -8357,7 +9417,6 @@ function bookStep4(){
       <div class="card-title" style="justify-content:center;font-size:18px">${t('rdv_confirmed')}</div>
       <div class="card-sub" style="margin-bottom:16px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:14px;font-family:var(--font-numbers)">${appt.id}</strong></div>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-        <div class="qr">${qrSVG(appt.id)}</div>
         <div style="text-align:left;min-width:200px">
           <div style="font-weight:700;font-size:14px">${esc(doc.name)}</div>
           <div style="color:var(--accent-primary);font-size:12px;margin-bottom:6px">${esc(doc.specialty)}</div>
@@ -8395,14 +9454,39 @@ function resetBooking(){
 }
 
 /* ============================================================
-   MY APPOINTMENTS (patient)
+   MY APPOINTMENTS (patient) — AVEC URGENCES
    ============================================================ */
 function viewMy(){
   const phone = state.myPhone || '';
   const norm = normPhone(phone);
   const allAppts = phone ? DB.appointments.filter(a=>normPhone(a.patientPhone)===norm && a.status!=='deleted') : [];
+  /* Nettoyer les hiddenAppts obsolètes (>50) */
+  if(state.hiddenAppts.length > 50){
+    const validIds = new Set(DB.appointments.map(a=>a.id));
+    state.hiddenAppts = state.hiddenAppts.filter(id => validIds.has(id)).slice(-50);
+    saveHidden();
+  }
   const visible = allAppts.filter(a=>!state.hiddenAppts.includes(a.id));
   const sorted = visible.slice().sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
+
+  /* Récupérer les urgences du patient */
+  const myEmergencies = (DB.emergencies||[]).filter(e => {
+    if(normPhone(e.patientPhone) === norm) return true;
+    if(state.emergencyMyPhone && normPhone(state.emergencyMyPhone) === norm) return true;
+    return false;
+  });
+  /* Grouper par groupId — ne garder que la première de chaque groupe */
+  const groupedEmg = {};
+  myEmergencies.forEach(e => {
+    if(!groupedEmg[e.groupId]) groupedEmg[e.groupId] = e;
+  });
+  const emergencyGroups = Object.keys(groupedEmg).sort((a,b)=>{
+    const ea = groupedEmg[a], eb = groupedEmg[b];
+    return String(eb.createdAt||'').localeCompare(String(ea.createdAt||''));
+  });
+
+  const hasAny = sorted.length > 0 || emergencyGroups.length > 0;
+
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">📱 ${t('my_rdv_title')}</div>
@@ -8412,15 +9496,27 @@ function viewMy(){
         <button class="pill-btn primary" onclick="lookupPhone()">🔎 ${t('lookup')}</button>
         <button class="pill-btn success" onclick="go('book')">📅 ${t('book_now')}</button>
       </div>
-      ${sorted.length ? `<div class="sep"></div><div style="font-size:11.5px;color:var(--text-muted);text-align:center">💡 ${t('tap_for_details')}</div>`:''}
+      ${hasAny ? `<div class="sep"></div><div style="font-size:11.5px;color:var(--text-muted);text-align:center">💡 ${t('tap_for_details')}</div>`:''}
     </div>
-    ${sorted.length ? sorted.map(a=>patientApptHTML(a)).join('') : `<div class="empty"><div class="empty-ico">📋</div>${t('no_appts')}</div>`}
+    ${emergencyGroups.length ? `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title" style="font-size:15px;color:#b91c1c">🚨 Mes urgences <span class="tag danger">${emergencyGroups.length}</span></div>
+        <div style="margin-top:10px">
+          ${emergencyGroups.map(gid => emergencyCardHTML(gid)).join('')}
+        </div>
+      </div>
+    ` : ''}
+    ${sorted.length ? sorted.map(a=>patientApptHTML(a)).join('') : (emergencyGroups.length ? '' : `<div class="empty"><div class="empty-ico">📋</div>${t('no_appts')}</div>`)}
   `;
 }
 function lookupPhone(){
   const v = ($('#lookupPhone')?.value||'').trim();
   if(!v){ toast(t('required_fields'),'error'); return; }
-  state.myPhone = v; localStorage.setItem('omnimed_phone', v); render();
+  state.myPhone = v; localStorage.setItem('omnimed_phone', v);
+  /* Réinitialiser les hiddenAppts pour garantir la visibilité */
+  state.hiddenAppts = [];
+  saveHidden();
+  render();
 }
 function patientApptHTML(a){
   const doc = docById(a.doctorId);
@@ -8845,6 +9941,7 @@ function openNotifDetail(notifId){
   }
   openModal(n.title, n.message, body, actionsHTML);
 }
+
 /* ============================================================
    VUES MÉDECIN
    ============================================================ */
@@ -9598,7 +10695,6 @@ function openDoctorClinicDetail(linkId){
   const c = clinicById(l.clinicId);
   if(!c) return;
   const sv = l.serviceId ? clinicServiceById(l.serviceId) : null;
-  const services = clinicServicesFor(c.id);
   const myAppts = DB.appointments.filter(a => String(a.clinicId)===String(c.id) && String(a.doctorId)===String(state.doctor.id) && a.status !== 'deleted');
   const todayAppts = myAppts.filter(a => a.date === todayISO() && a.status !== 'cancelled').sort((a,b)=>a.time.localeCompare(b.time));
   const body = `
@@ -9657,7 +10753,6 @@ function declineClinicInvite(linkId){
 function leaveClinic(linkId){
   const l = DB.doctorClinicLinks.find(x=>x.id===linkId);
   if(!l) return;
-  const c = clinicById(l.clinicId);
   openModal('🚪 ' + t('doctor_clinic_leave'), t('doctor_clinic_leave_confirm'), '', `
     <button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
     <button class="pill-btn danger" onclick="doLeaveClinic('${l.id}')">🚪 ${t('doctor_clinic_leave')}</button>`);
@@ -10776,7 +11871,7 @@ function mfPermDeleteConfirm(id){
   openModal('🗑️ ' + t('dossier_delete_perm'),
     t('perm_delete_confirm'),
     `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)">
-      ⚠️ Cette action est <strong>IRRÉVERSIBLE</strong>. Toutes les données du dossier (consultations, ordonnances, documents…) seront <strong>définitivement supprimées</strong>.
+      ⚠️ Cette action est <strong>IRRÉVERSIBLE</strong>. Toutes les données du dossier seront <strong>définitivement supprimées</strong>.
     </div>`,
     `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
      <button class="pill-btn danger" onclick="mfPermDeleteDo('${id}')">🗑️ ${t('dossier_delete_perm')}</button>`);
@@ -11153,7 +12248,7 @@ function mfPrintConsultation(id){
   .meta .strong{color:#7c3aed;font-weight:700;font-family:Rubik,sans-serif}
   .patient-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:18px;font-size:11.5px;line-height:1.8}
   .section{margin-bottom:18px}
-  .section h3{font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:.9px;padding-bottom:6px;border-bottom:1.5px solid #ede9fe;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .section h3{font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:.9px;padding-bottom:6px;border-bottom:1.5px solid #ede9fe;margin-bottom:10px}
   .section p{font-size:11.5px;line-height:1.7;white-space:pre-wrap}
   .footer{margin-top:40px;padding-top:14px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;font-size:10px;color:#6b7280}
   .sign-box{text-align:center;min-width:200px}
@@ -11213,11 +12308,7 @@ function mfPrintPrescription(id){
       </div>
       <div class="med-line"></div>
       <div class="med-detail">
-        ${[
-          mfFormLabel(m.form),
-          m.freq || '',
-          m.duration || ''
-        ].filter(Boolean).join(' · ')}
+        ${[mfFormLabel(m.form), m.freq || '', m.duration || ''].filter(Boolean).join(' · ')}
         ${m.instructions ? `<div class="instr">${esc(m.instructions)}</div>` : ''}
       </div>
     </div>
@@ -12175,7 +13266,7 @@ function printDoctorStats(){
 }
 
 /* ============================================================
-   VUES ADMIN (partie 1)
+   VUES ADMIN
    ============================================================ */
 function renderAdminView(){
   switch(state.view){
@@ -12210,6 +13301,8 @@ function viewAdminDash(){
   const todayRev = billableList.filter(a=>a.date===todayISO()).reduce((sum,a)=>sum+apptCommission(a)+apptClinicCommission(a),0);
   const commission = getGeneralCommission();
   const totalDossiers = DB.medicalFiles.length;
+  const totalEmergencies = (DB.emergencies||[]).length;
+  const pendingEmergencies = (DB.emergencies||[]).filter(e=>e.status==='pending').length;
   return `
     <div class="grid grid-4" style="margin-bottom:14px">
       <div class="stat"><div class="stat-ico">🧑‍⚕️</div><div><div class="stat-val">${totalDocs}</div><div class="stat-lbl">${t('total_doctors')}</div></div></div>
@@ -12217,16 +13310,17 @@ function viewAdminDash(){
       <div class="stat"><div class="stat-ico">👥</div><div><div class="stat-val">${patients}</div><div class="stat-lbl">${t('total_patients')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">📅</div><div><div class="stat-val">${totalAppts}</div><div class="stat-lbl">${t('total_appts')}</div></div></div>
     </div>
-    <div class="grid grid-3" style="margin-bottom:14px">
+    <div class="grid grid-4" style="margin-bottom:14px">
+      <div class="stat" style="background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(245,158,11,.05));border-color:rgba(239,68,68,.35)"><div class="stat-ico" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">🚨</div><div><div class="stat-val" style="color:#b91c1c">${totalEmergencies}</div><div class="stat-lbl">Urgences totales</div></div></div>
+      <div class="stat" style="background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(251,191,36,.04));border-color:rgba(245,158,11,.35)"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val" style="color:#d97706">${pendingEmergencies}</div><div class="stat-lbl">Urgences en attente</div></div></div>
       <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(todayRev)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
       <div class="stat money"><div class="stat-ico">📊</div><div><div class="stat-val">${fmtDA(totalRev)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
-      <div class="stat" style="cursor:pointer" onclick="go('adossiers')"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">📁</div><div><div class="stat-val">${totalDossiers}</div><div class="stat-lbl">${t('dossiers_medical')}</div></div></div>
     </div>
     <div class="grid grid-4" style="margin-bottom:14px">
       <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">✅</div><div><div class="stat-val">${done}</div><div class="stat-lbl">${t('status_done')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--danger-bg);color:var(--danger)">✕</div><div><div class="stat-val">${cancelled}</div><div class="stat-lbl">${t('cancelled_c')}</div></div></div>
+      <div class="stat" style="cursor:pointer" onclick="go('adossiers')"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">📁</div><div><div class="stat-val">${totalDossiers}</div><div class="stat-lbl">${t('dossiers_medical')}</div></div></div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">⚙️ ${t('commission_general')}</div>
@@ -12344,16 +13438,14 @@ function viewAdminDoctors(){
               ${billTag}
               ${days.length?`<span class="tag success">🗓️ ${days.map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`:`<span class="tag danger">🗓️ —</span>`}
               ${clinics.length?`<span class="tag clinic">🏥 ${clinics.length}</span>`:''}
-              ${d.locked
-                ? `<span class="tag danger">🔒 Session verrouillée</span>`
-                : `<span class="tag success">🔓 Session ouverte</span>`}
+              ${d.locked ? `<span class="tag danger">🔒 Session verrouillée</span>` : `<span class="tag success">🔓 Session ouverte</span>`}
             </div>
           </div>
           <div class="appt-actions">
             <button class="mini-btn ghost" onclick="openDoctorProfile('${jsStr(String(d.id))}')">👁️</button>
             ${d.locked
-              ? `<button class="mini-btn green" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Ouvrir la session du médecin">🔓 Ouvrir session</button>`
-              : `<button class="mini-btn red" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Verrouiller la session du médecin">🔒 Verrouiller</button>`}
+              ? `<button class="mini-btn green" onclick="toggleDoctorLock('${jsStr(String(d.id))}')">🔓 Ouvrir session</button>`
+              : `<button class="mini-btn red" onclick="toggleDoctorLock('${jsStr(String(d.id))}')">🔒 Verrouiller</button>`}
             <button class="mini-btn ghost" onclick="openDoctorForm('${jsStr(String(d.id))}')">✏️</button>
             <button class="mini-btn ghost" onclick="openServicesManager('${jsStr(String(d.id))}')">💉</button>
             <button class="mini-btn red" onclick="confirmDeleteDoctor('${jsStr(String(d.id))}')">🗑️</button>
@@ -12784,7 +13876,6 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     };
     DB.doctors.push(newDoc);
     if(isClinicLocal){
-      /* Créer automatiquement le lien médecin-clinique */
       const link = {
         id: uid('DCL-'),
         doctorId: newDoc.id,
@@ -12892,9 +13983,10 @@ function viewAdminClinics(){
       const servCount = clinicServicesFor(c.id).length;
       const prestCount = clinicPrestationsFor(c.id).length;
       const docCount = clinicLinkedDoctorIds(c.id).length;
-      const days = (c.workDays||[]);
       const rating = getClinicRating(c.id);
       const bill = getClinicBilling(c);
+      const localDocsCount = DB.doctors.filter(d=>String(d.ownedByClinic)===String(c.id)).length;
+      const emgCount = (DB.emergencies||[]).filter(e => String(e.clinicId)===String(c.id) && e.status === 'accepted').length;
       let billTag = '';
       if(bill.type === 'commission') billTag = `<span class="tag success">💰 ${n2(bill.commissionAmount)} DA</span>`;
       else if(bill.type === 'sub_monthly' || bill.type === 'sub_yearly'){
@@ -12906,7 +13998,6 @@ function viewAdminClinics(){
         const daysLeft = getSubscriptionDaysLeft(c);
         billTag = `<span class="tag ${active?'success':'danger'}">🎁 ${t('billing_type_sub_trial')}${active?' · '+daysLeft+'j':' · Expiré'}</span>`;
       } else billTag = `<span class="tag muted">💰 ${t('billing_type_none')}</span>`;
-      const localDocsCount = DB.doctors.filter(d=>String(d.ownedByClinic)===String(c.id)).length;
       return `
         <div class="admin-doc-row">
           <div class="clinic-avatar" style="width:52px;height:52px;font-size:26px">${c.avatar||'🏥'}</div>
@@ -12922,19 +14013,18 @@ function viewAdminClinics(){
               <span class="tag accent">💉 ${prestCount} prestations</span>
               <span class="tag accent">🧑‍⚕️ ${docCount} médecins</span>
               ${localDocsCount ? `<span class="tag clinic">🏥 ${localDocsCount} ${t('doctor_local_badge')}</span>`:''}
+              ${emgCount ? `<span class="tag danger">🚨 ${emgCount} urgences</span>`:''}
               ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} (${rating.count})</span>`:`<span class="tag rating-empty">⭐ —</span>`}
               ${billTag}
               <span class="tag success">🕐 24/7</span>
-              ${c.locked
-                ? `<span class="tag danger">🔒 Session verrouillée</span>`
-                : `<span class="tag success">🔓 Session ouverte</span>`}
+              ${c.locked ? `<span class="tag danger">🔒 Session verrouillée</span>` : `<span class="tag success">🔓 Session ouverte</span>`}
             </div>
           </div>
           <div class="appt-actions">
             <button class="mini-btn ghost" onclick="openClinicDetailModal('${jsStr(String(c.id))}')">👁️</button>
             ${c.locked
-              ? `<button class="mini-btn green" onclick="toggleClinicLock('${jsStr(String(c.id))}')" title="Ouvrir la session de la clinique">🔓 Ouvrir session</button>`
-              : `<button class="mini-btn red" onclick="toggleClinicLock('${jsStr(String(c.id))}')" title="Verrouiller la session de la clinique">🔒 Verrouiller</button>`}
+              ? `<button class="mini-btn green" onclick="toggleClinicLock('${jsStr(String(c.id))}')">🔓 Ouvrir session</button>`
+              : `<button class="mini-btn red" onclick="toggleClinicLock('${jsStr(String(c.id))}')">🔒 Verrouiller</button>`}
             <button class="mini-btn ghost" onclick="openClinicForm('${jsStr(String(c.id))}')">✏️</button>
             <button class="mini-btn ghost" onclick="openClinicServicesManagerFromAdmin('${jsStr(String(c.id))}')">🏗️</button>
             <button class="mini-btn red" onclick="confirmDeleteClinic('${jsStr(String(c.id))}')">🗑️</button>
@@ -13232,6 +14322,7 @@ async function saveClinic(id){
       DB.doctorClinicLinks.forEach(l => { if(String(l.clinicId)===String(oldId)) l.clinicId = newId; });
       DB.appointments.forEach(a => { if(String(a.clinicId)===String(oldId)) a.clinicId = newId; });
       DB.doctors.forEach(d => { if(String(d.ownedByClinic)===String(oldId)) d.ownedByClinic = newId; });
+      DB.emergencies.forEach(e => { if(String(e.clinicId)===String(oldId)) e.clinicId = newId; });
       DB.messages.forEach(m => {
         if(m.from && m.from.role === 'clinic' && String(m.from.id)===String(oldId)) m.from = {...m.from, id:newId, key:`clinic_${newId}`};
         if(m.to && m.to.role === 'clinic' && String(m.to.id)===String(oldId)) m.to = {...m.to, id:newId, key:`clinic_${newId}`};
@@ -13296,6 +14387,14 @@ function deleteClinic(id){
     if(String(a.clinicId)===String(id) && a.status !== 'done' && a.status !== 'cancelled'){
       a.status = 'cancelled';
       a.cancelReason = '(clinique supprimée)';
+    }
+  });
+  /* Nettoyer aussi les urgences */
+  DB.emergencies.forEach(e => {
+    if(String(e.clinicId)===String(id) && e.status === 'pending'){
+      e.status = 'declined';
+      e.declinedReason = '(clinique supprimée)';
+      e.respondedAt = nowISO();
     }
   });
   savePendingDeletes();
@@ -13434,6 +14533,7 @@ function doDeleteClinicServiceAdmin(serviceId, clinicId){
   openClinicServicesManagerFromAdmin(clinicId);
   toast(t('clinic_service_deleted'),'success');
 }
+
 /* ============================================================
    ADMIN — STATS
    ============================================================ */
@@ -13524,6 +14624,10 @@ function viewAdminStats(){
   });
   const topWilayas = Object.entries(wilayaCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const periodLabel = getStatsPeriodLabel();
+  const totalEmergencies = (DB.emergencies||[]).length;
+  const acceptedEmergencies = (DB.emergencies||[]).filter(e => e.status === 'accepted').length;
+  const pendingEmergencies = (DB.emergencies||[]).filter(e => e.status === 'pending').length;
+  const declinedEmergencies = (DB.emergencies||[]).filter(e => e.status === 'declined').length;
   return `
     ${renderStatsPeriodSelector()}
     <div class="stats-page-header">
@@ -13546,38 +14650,23 @@ function viewAdminStats(){
         </div>
       </div>
       <div class="sph-grid">
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">🧑‍⚕️</span> ${t('total_doctors')}</div>
-          <div class="sph-val">${DB.doctors.length}</div>
-        </div>
-        <div class="sph-kpi">
-          <div class="sph-lbl"><span class="sph-lbl-ico">🏥</span> ${t('clinics')}</div>
-          <div class="sph-val">${DB.clinics.length}</div>
-        </div>
-        <div class="sph-kpi">
-          <div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div>
-          <div class="sph-val">${s.uniquePatients}</div>
-        </div>
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div>
-          <div class="sph-val">${s.list.length}</div>
-        </div>
-        <div class="sph-kpi success">
-          <div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div>
-          <div class="sph-val">${billable}</div>
-        </div>
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div>
-          <div class="sph-val">${s.totalServiceBookings}</div>
-        </div>
-        <div class="sph-kpi warn">
-          <div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div>
-          <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
-        </div>
-        <div class="sph-kpi money">
-          <div class="sph-lbl"><span class="sph-lbl-ico">💰</span> ${t('stats_total_revenue')}</div>
-          <div class="sph-val" style="font-size:19px">${fmtDA(totalRev)}</div>
-        </div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">🧑‍⚕️</span> ${t('total_doctors')}</div><div class="sph-val">${DB.doctors.length}</div></div>
+        <div class="sph-kpi"><div class="sph-lbl"><span class="sph-lbl-ico">🏥</span> ${t('clinics')}</div><div class="sph-val">${DB.clinics.length}</div></div>
+        <div class="sph-kpi"><div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div><div class="sph-val">${s.uniquePatients}</div></div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div><div class="sph-val">${s.list.length}</div></div>
+        <div class="sph-kpi success"><div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div><div class="sph-val">${billable}</div></div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div><div class="sph-val">${s.totalServiceBookings}</div></div>
+        <div class="sph-kpi warn"><div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div><div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div></div>
+        <div class="sph-kpi money"><div class="sph-lbl"><span class="sph-lbl-ico">💰</span> ${t('stats_total_revenue')}</div><div class="sph-val" style="font-size:19px">${fmtDA(totalRev)}</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(245,158,11,.03));border-color:rgba(239,68,68,.3)">
+      <div class="card-title" style="font-size:15px;color:#b91c1c">🚨 Urgences</div>
+      <div class="stats-tags" style="margin-top:12px">
+        ${statTag('Total', totalEmergencies, 'accent', true)}
+        ${statTag(t('emergency_status_accepted'), acceptedEmergencies, 'success', true)}
+        ${statTag(t('emergency_status_pending'), pendingEmergencies, 'warn', true)}
+        ${statTag(t('emergency_status_declined'), declinedEmergencies, 'muted', true)}
       </div>
     </div>
     <div class="grid grid-2">
@@ -13950,6 +15039,13 @@ function printAdminStats(){
     <div class="kpi warn"><div class="k-ico">⏳</div><div class="k-lbl">${t('pending_c')}</div><div class="k-val">${s.statusCounts.pending}</div></div>
     <div class="kpi money"><div class="k-ico">💰</div><div class="k-lbl">${t('stats_total_revenue')}</div><div class="k-val">${fmtDA(totalRev)}</div></div>
   </div>
+  <div class="section-head"><span class="ico-badge plain">🚨</span> Urgences</div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi info"><div class="k-ico">🚨</div><div class="k-lbl">Total urgences</div><div class="k-val">${(DB.emergencies||[]).length}</div></div>
+    <div class="kpi success"><div class="k-ico">✅</div><div class="k-lbl">${t('emergency_status_accepted')}</div><div class="k-val">${(DB.emergencies||[]).filter(e=>e.status==='accepted').length}</div></div>
+    <div class="kpi warn"><div class="k-ico">⏳</div><div class="k-lbl">${t('emergency_status_pending')}</div><div class="k-val">${(DB.emergencies||[]).filter(e=>e.status==='pending').length}</div></div>
+    <div class="kpi"><div class="k-ico">❌</div><div class="k-lbl">${t('emergency_status_declined')}</div><div class="k-val">${(DB.emergencies||[]).filter(e=>e.status==='declined').length}</div></div>
+  </div>
   <div class="section-head"><span class="ico-badge plain">👥</span> Patients & Statuts</div>
   <div class="grid-2">
     <div class="block">
@@ -14028,7 +15124,7 @@ function printAdminStats(){
 }
 
 /* ============================================================
-   ADMIN — Finance & Facturation
+   ADMIN — Finance
    ============================================================ */
 function viewAdminRevenue(){
   const today = todayISO();
@@ -14238,9 +15334,7 @@ function viewAdminRevenue(){
         </div>
       `}
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
-        <button class="pill-btn primary" style="padding:11px 22px;font-size:13px;font-weight:600" onclick="openBillingModal()">
-          🧾 ${t('billing_generate')}
-        </button>
+        <button class="pill-btn primary" style="padding:11px 22px;font-size:13px;font-weight:600" onclick="openBillingModal()">🧾 ${t('billing_generate')}</button>
       </div>
     </div>
     <div class="card">
@@ -14287,9 +15381,7 @@ function viewAdminRevenue(){
         </div>
       `}
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
-        <button class="pill-btn primary" style="padding:11px 22px;font-size:13px;font-weight:600" onclick="openClinicBillingModal()">
-          🧾 Générer la facture clinique
-        </button>
+        <button class="pill-btn primary" style="padding:11px 22px;font-size:13px;font-weight:600" onclick="openClinicBillingModal()">🧾 Générer la facture clinique</button>
       </div>
     </div>
   `;
@@ -14563,15 +15655,13 @@ function getClinicInvoiceRegistryKey(clinicId, periodType, periodKey){
 }
 function getPeriodKey(){
   const b = state.billing;
-  if(b.periodType === 'day'){
-    return b.dayDate || 'undefined';
-  } else if(b.periodType === 'month'){
+  if(b.periodType === 'day') return b.dayDate || 'undefined';
+  if(b.periodType === 'month'){
     const y = b.year || currentYear();
     const m = b.month || currentMonth();
     return `${y}_${String(m).padStart(2,'0')}`;
-  } else {
-    return `${b.startDate||'x'}_${b.endDate||'y'}`;
   }
+  return `${b.startDate||'x'}_${b.endDate||'y'}`;
 }
 function getSubPeriodKey(){
   const b = state.billing;
@@ -14584,15 +15674,13 @@ function getSubPeriodKey(){
 }
 function getClinicPeriodKey(){
   const b = state.clinicBilling;
-  if(b.periodType === 'day'){
-    return b.dayDate || 'undefined';
-  } else if(b.periodType === 'month'){
+  if(b.periodType === 'day') return b.dayDate || 'undefined';
+  if(b.periodType === 'month'){
     const y = b.year || currentYear();
     const m = b.month || currentMonth();
     return `${y}_${String(m).padStart(2,'0')}`;
-  } else {
-    return `${b.startDate||'x'}_${b.endDate||'y'}`;
   }
+  return `${b.startDate||'x'}_${b.endDate||'y'}`;
 }
 function peekInvoiceNumber(){
   const b = state.billing;
@@ -15365,204 +16453,6 @@ function printClinicBillingReport(){
 <body>${buildClinicInvoicePageHTML(singleClinic, list, periodLabel, invNo, totalWords, total)}</body></html>`;
   printHTML(html);
 }
-
-/* ===== Envoi des factures par messagerie ===== */
-function buildMessageInvoiceHTML(doc, appts, periodLabel, total, isSub, isTrial, invNo){
-  const docLabel = doc ? `${doc.name} — ${doc.specialty}` : t('billing_all_doctors');
-  let content = '';
-  let headerTitle;
-  if(isSub) headerTitle = invNo ? `${t('sub_invoice_header_title')} N° ${invNo}` : t('sub_invoice_header_title');
-  else if(isTrial) headerTitle = t('billing_type_sub_trial');
-  else headerTitle = invNo ? `${t('billing_invoice')} N° ${invNo}` : t('billing_invoice');
-  if(isTrial){
-    const startISO = doc.subStart ? String(doc.subStart).slice(0,10) : '';
-    const endISO = doc.subTrialEnd ? String(doc.subTrialEnd).slice(0,10) : '';
-    content = `
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
-        <div style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🎁 ${t('billing_type_sub_trial')}</div>
-        <div style="font-size:12px;line-height:1.8;color:#1f2937">
-          <div><strong>${t('billing_trial_start')} :</strong> ${startISO?fmtDateFR(startISO):'—'}</div>
-          <div><strong>${t('billing_trial_end')} :</strong> ${endISO?fmtDateFR(endISO):'—'}</div>
-        </div>
-        <div style="margin-top:8px;font-size:11px;color:#059669;font-style:italic">✓ ${t('trial_invoice_note')}</div>
-      </div>`;
-  } else if(isSub){
-    const subData = buildSubscriptionInvoiceData(doc);
-    if(subData){
-      const totalWords = numberToFrenchWords(subData.finalPrice) + ' ' + t('dinars');
-      const financeRows = subData.discount > 0 && subData.kind === 'yearly'
-        ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px"><span style="color:#6b7280">${t('sub_invoice_base_price')}</span><strong>${n2(subData.basePrice)} DA</strong></div>
-           <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;color:#7c3aed"><span>${t('sub_invoice_discount_applied')} (${subData.discount}%)</span><strong>-${n2(subData.basePrice - subData.finalPrice)} DA</strong></div>
-           <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #8b5cf6;margin-top:6px;font-size:14px"><strong style="color:#8b5cf6">${t('sub_invoice_total')}</strong><strong style="color:#059669;font-size:18px">${n2(subData.finalPrice)} DA</strong></div>`
-        : `<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #8b5cf6;font-size:14px"><strong style="color:#8b5cf6">${t('sub_invoice_total')}</strong><strong style="color:#059669;font-size:18px">${n2(subData.finalPrice)} DA</strong></div>`;
-      content = `
-        <div style="background:linear-gradient(135deg,#f5f3ff,#fdf2f8);border:1px solid #e9d5ff;border-radius:12px;padding:14px 16px">
-          <div style="margin-bottom:12px">
-            <div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;margin-bottom:8px">📅 ${t('sub_invoice_info_section')}</div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${t('sub_invoice_type')}</span><strong>${subData.kindLabel}</strong></div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${t('sub_invoice_duration')}</span><strong>1 ${subData.durationLabel}</strong></div>
-            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${t('sub_invoice_period')}</span><strong>${fmtDateFR(subData.startISO)} → ${fmtDateFR(subData.endISO)}</strong></div>
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;margin-bottom:8px">💰 ${t('sub_invoice_finance_section')}</div>
-            ${financeRows}
-          </div>
-          <div style="margin-top:12px;padding:8px 12px;background:#fff;border-radius:8px;font-size:11px;color:#6b7280;font-style:italic;text-align:center">${t('sub_invoice_commission_note')}</div>
-          <div style="margin-top:10px;padding:10px 12px;background:#fff;border:1px dashed #8b5cf6;border-radius:10px;font-size:11.5px;font-style:italic">
-            <strong style="color:#8b5cf6">${t('stop_invoice')} :</strong> ${esc(totalWords)}
-          </div>
-        </div>`;
-    }
-  } else {
-    const rows = appts.map((a,i)=>`
-      <tr>
-        <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px">${i+1}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;white-space:nowrap">${fmtDateFR(a.date)}</td>
-        <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;font-weight:600;color:#7c3aed;white-space:nowrap">${a.time}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px">${esc(a.patientName)}${a.patientAge?` (${a.patientAge})`:''}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280">${esc(a.motif||'—')}</td>
-        <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#059669;font-weight:700;white-space:nowrap">+${n2(apptCommission(a))} DA</td>
-      </tr>
-    `).join('');
-    const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
-    content = `
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr style="background:#f3f4f6">
-              <th style="padding:7px 4px;text-align:center;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">#</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_date')}</th>
-              <th style="padding:7px 4px;text-align:center;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_time')}</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_patient')}</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_motif')}</th>
-              <th style="padding:7px 4px;text-align:right;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_commission')}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <div style="text-align:right;margin-top:12px;padding-top:8px;border-top:1.5px solid #e5e7eb;font-size:13px">
-          <strong>${t('billing_total_amount')} : </strong>
-          <strong style="color:#059669;font-size:16px">${fmtDA(total)}</strong>
-        </div>
-        <div style="margin-top:10px;padding:10px 12px;background:#fff;border:1px dashed #8b5cf6;border-radius:10px;font-size:11.5px;font-style:italic">
-          <strong style="color:#8b5cf6">${t('stop_invoice')} :</strong> ${esc(totalWords)}
-        </div>
-      </div>`;
-  }
-  return `
-    <div style="border:2px solid #8b5cf6;border-radius:14px;padding:16px;background:#fff;font-family:Inter,system-ui,sans-serif;color:#1f2937">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;gap:10px;align-items:center">
-          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:22px">🩺</div>
-          <div>
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:800;color:#8b5cf6;line-height:1;letter-spacing:-.3px">OmniMed</div>
-            <div style="font-size:12px;color:#ec4899;font-weight:700;margin-top:4px">${headerTitle}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:3px"><strong>${esc(docLabel)}</strong></div>
-          </div>
-        </div>
-        <div style="text-align:right;font-size:10.5px;color:#6b7280;line-height:1.5">
-          <div style="font-weight:700;color:#7c3aed">OmniMed une solution OmniSoft</div>
-          <div style="font-weight:600;color:#7c3aed;margin-top:2px">${esc(periodLabel)}</div>
-        </div>
-      </div>
-      ${content}
-    </div>`;
-}
-function buildMessageClinicInvoiceHTML(clinic, appts, periodLabel, total, isSub, isTrial, invNo){
-  const clinicLabel = clinic ? clinic.name : t('clinics');
-  let content = '';
-  let headerTitle;
-  if(isSub) headerTitle = invNo ? `${t('clinic_invoice_title')} N° ${invNo}` : t('clinic_invoice_title');
-  else if(isTrial) headerTitle = t('billing_type_sub_trial');
-  else headerTitle = invNo ? `${t('clinic_invoice_title')} N° ${invNo}` : t('clinic_invoice_title');
-  if(isTrial){
-    const startISO = clinic.subStart ? String(clinic.subStart).slice(0,10) : '';
-    const endISO = clinic.subTrialEnd ? String(clinic.subTrialEnd).slice(0,10) : '';
-    content = `
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
-        <div style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;margin-bottom:8px">🎁 ${t('billing_type_sub_trial')}</div>
-        <div style="font-size:12px;line-height:1.8">
-          <div><strong>${t('billing_trial_start')} :</strong> ${startISO?fmtDateFR(startISO):'—'}</div>
-          <div><strong>${t('billing_trial_end')} :</strong> ${endISO?fmtDateFR(endISO):'—'}</div>
-        </div>
-      </div>`;
-  } else if(isSub){
-    const b = getClinicBilling(clinic);
-    const kind = b.type === 'sub_yearly' ? 'yearly' : 'monthly';
-    const finalPrice = getSubscriptionDiscountedPrice(kind);
-    const totalWords = numberToFrenchWords(finalPrice) + ' ' + t('dinars');
-    const kindLabel = kind === 'yearly' ? t('billing_type_sub_yearly') : t('billing_type_sub_monthly');
-    const startISO = b.subStart ? String(b.subStart).slice(0,10) : '';
-    const endISO = b.subEnd ? String(b.subEnd).slice(0,10) : '';
-    content = `
-      <div style="background:linear-gradient(135deg,#fdf2f8,#f5f3ff);border:1px solid #f9a8d4;border-radius:12px;padding:14px 16px">
-        <div style="margin-bottom:12px">
-          <div style="font-size:10px;font-weight:800;color:#be185d;text-transform:uppercase;margin-bottom:8px">📅 ${t('sub_invoice_info_section')}</div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${t('sub_invoice_type')}</span><strong>${kindLabel}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>${t('sub_invoice_period')}</span><strong>${fmtDateFR(startISO)} → ${fmtDateFR(endISO)}</strong></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid #ec4899;font-size:14px"><strong style="color:#be185d">${t('sub_invoice_total')}</strong><strong style="color:#059669;font-size:18px">${n2(finalPrice)} DA</strong></div>
-        <div style="margin-top:10px;padding:10px 12px;background:#fff;border:1px dashed #ec4899;border-radius:10px;font-size:11.5px;font-style:italic">
-          <strong style="color:#be185d">${t('stop_invoice')} :</strong> ${esc(totalWords)}
-        </div>
-      </div>`;
-  } else {
-    const rows = appts.map((a,i)=>{
-      const doc = docById(a.doctorId);
-      const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
-      return `<tr>
-        <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px">${i+1}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;white-space:nowrap">${fmtDateFR(a.date)}</td>
-        <td style="text-align:center;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;font-weight:600;color:#be185d;white-space:nowrap">${a.time}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px">${esc(a.patientName)}${a.patientAge?` (${a.patientAge})`:''}</td>
-        <td style="padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#4f46e5">${doc ? esc(doc.name) : (prest ? '💉 '+esc(prest.name) : '—')}</td>
-        <td style="text-align:right;padding:5px 4px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#059669;font-weight:700;white-space:nowrap">+${n2(apptClinicCommission(a))} DA</td>
-      </tr>`;
-    }).join('');
-    const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
-    content = `
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr style="background:#f3f4f6">
-              <th style="padding:7px 4px;text-align:center;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">#</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_date')}</th>
-              <th style="padding:7px 4px;text-align:center;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_time')}</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_patient')}</th>
-              <th style="padding:7px 4px;text-align:left;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">🧑‍⚕️ / 💉</th>
-              <th style="padding:7px 4px;text-align:right;font-size:9.5px;text-transform:uppercase;color:#6b7280;font-weight:700">${t('billing_commission')}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <div style="text-align:right;margin-top:12px;padding-top:8px;border-top:1.5px solid #e5e7eb;font-size:13px">
-          <strong>${t('billing_total_amount')} : </strong>
-          <strong style="color:#059669;font-size:16px">${fmtDA(total)}</strong>
-        </div>
-        <div style="margin-top:10px;padding:10px 12px;background:#fff;border:1px dashed #be185d;border-radius:10px;font-size:11.5px;font-style:italic">
-          <strong style="color:#be185d">${t('stop_invoice')} :</strong> ${esc(totalWords)}
-        </div>
-      </div>`;
-  }
-  return `
-    <div style="border:2px solid #ec4899;border-radius:14px;padding:16px;background:#fff;font-family:Inter,system-ui,sans-serif;color:#1f2937">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #ec4899;padding-bottom:10px;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;gap:10px;align-items:center">
-          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#ec4899,#8b5cf6);display:grid;place-items:center;color:#fff;font-size:22px">${clinic ? (clinic.avatar||'🏥') : '🏥'}</div>
-          <div>
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:800;color:#ec4899;line-height:1;letter-spacing:-.3px">OmniMed</div>
-            <div style="font-size:12px;color:#be185d;font-weight:700;margin-top:4px">${headerTitle}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:3px"><strong>${esc(clinicLabel)}</strong></div>
-          </div>
-        </div>
-        <div style="text-align:right;font-size:10.5px;color:#6b7280;line-height:1.5">
-          <div style="font-weight:700;color:#be185d">OmniMed une solution OmniSoft</div>
-          <div style="font-weight:600;color:#be185d;margin-top:2px">${esc(periodLabel)}</div>
-        </div>
-      </div>
-      ${content}
-    </div>`;
-}
 async function sendInvoicesToDoctors(){
   const me = currentUserInfo();
   if(!me){ toast(t('required_fields'),'error'); return; }
@@ -16305,6 +17195,7 @@ function exportSection(type){
       notifications: DB.notifications,
       messages: DB.messages,
       medicalFiles: DB.medicalFiles,
+      emergencies: DB.emergencies,
       invoiceRegistry: DB.invoiceRegistry,
       subInvoiceRegistry: DB.subInvoiceRegistry,
       clinicInvoiceRegistry: DB.clinicInvoiceRegistry
@@ -16410,6 +17301,7 @@ function doImportSection(){
       if(d.notifications) DB.notifications = d.notifications;
       if(d.messages) DB.messages = d.messages;
       if(d.medicalFiles) DB.medicalFiles = d.medicalFiles;
+      if(d.emergencies) DB.emergencies = d.emergencies;
       if(d.invoiceRegistry) DB.invoiceRegistry = d.invoiceRegistry;
       if(d.subInvoiceRegistry) DB.subInvoiceRegistry = d.subInvoiceRegistry;
       if(d.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = d.clinicInvoiceRegistry;
@@ -16431,6 +17323,7 @@ function doImportSection(){
 function renderClinicView(){
   switch(state.view){
     case 'cdash': return viewClinicDash();
+    case 'cemergency': return viewClinicEmergencies();
     case 'cdoctors': return viewClinicDoctors();
     case 'cservices': return viewClinicServices();
     case 'cprestations': return viewClinicPrestations();
@@ -16464,7 +17357,21 @@ function viewClinicDash(){
     d,
     n: clinicAppts.filter(a => String(a.doctorId)===String(d.id)).length
   })).sort((a,b) => b.n - a.n).slice(0, 5);
+  const pendingEmg = pendingEmergenciesForClinic(c.id).length;
+  const acceptedEmgToday = emergenciesForClinic(c.id).filter(e => e.status==='accepted' && (e.respondedAt||'').slice(0,10) === todayISO()).length;
   return `
+    ${pendingEmg ? `
+      <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(245,158,11,.06));border:2px solid #ef4444;cursor:pointer" onclick="go('cemergency')">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#ef4444,#dc2626);display:grid;place-items:center;font-size:32px;flex-shrink:0;animation:emergencyIconPulse 1.2s ease-in-out infinite">🚨</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:17px;font-weight:800;color:#b91c1c;margin-bottom:4px">${pendingEmg} URGENCE${pendingEmg>1?'S':''} EN ATTENTE</div>
+            <div style="font-size:12.5px;color:var(--text-main)">Cliquez pour gérer les urgences →</div>
+          </div>
+          <span style="font-size:24px;color:#b91c1c">›</span>
+        </div>
+      </div>
+    ` : ''}
     <div class="grid grid-4" style="margin-bottom:14px">
       <div class="stat"><div class="stat-ico">🧑‍⚕️</div><div><div class="stat-val">${myDoctorIds.length}</div><div class="stat-lbl">${t('clinic_total_doctors')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">🏗️</div><div><div class="stat-val">${clinicServicesFor(c.id).length}</div><div class="stat-lbl">${t('clinic_total_services')}</div></div></div>
@@ -16472,10 +17379,10 @@ function viewClinicDash(){
       <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">📅</div><div><div class="stat-val">${clinicAppts.length}</div><div class="stat-lbl">${t('clinic_total_appts')}</div></div></div>
     </div>
     <div class="grid grid-4" style="margin-bottom:14px">
+      <div class="stat" style="cursor:pointer" onclick="go('cemergency')"><div class="stat-ico" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">🚨</div><div><div class="stat-val" style="color:#b91c1c">${pendingEmg}</div><div class="stat-lbl">Urgences en attente</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending.length}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed.length}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
       <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(todayRev)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
-      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(totalRev)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">🕐 ${t('clinic_open_24_7')}</div>
@@ -16528,11 +17435,6 @@ function viewClinicDash(){
     </div>
   `;
 }
-
-/* ------------------------------------------------------------
-   MODIFICATION #6 : Ajouter un médecin de la clinique (owned by clinic)
-   MODIFICATION #4 : Invitation avec suggestion de médecins disponibles
-   ------------------------------------------------------------ */
 function viewClinicDoctors(){
   const c = state.clinic;
   const links = clinicLinksFor(c.id);
@@ -16641,8 +17543,6 @@ function viewClinicDoctors(){
     </div>
   `;
 }
-
-/* --- MODIFICATION #4 : Inviter un médecin avec suggestions liées --- */
 function openClinicInviteDoctorModal(){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
@@ -16733,11 +17633,8 @@ function cancelClinicInvite(linkId){
   render();
   toast('Invitation annulée','info');
 }
-
-/* --- MODIFICATION #6 : Ajouter un médecin local à la clinique --- */
 function openClinicAddLocalDoctorModal(){
   const c = state.clinic;
-  /* Ouvrir directement le formulaire de médecin avec ownedByClinicId */
   openDoctorForm(null, false, String(c.id));
 }
 function openClinicServicePicker(linkId){
@@ -16793,8 +17690,6 @@ function doRemoveClinicDoctor(linkId){
   render();
   toast(t('clinic_doctor_removed'),'success');
 }
-
-/* --- Clinique : services --- */
 function viewClinicServices(){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
@@ -16887,11 +17782,6 @@ function doDeleteClinicService(serviceId){
   render();
   toast(t('clinic_service_deleted'),'success');
 }
-
-/* ------------------------------------------------------------
-   MODIFICATION #3 : Prestations avec verrouillage/déverrouillage
-   + verrouillage automatique si aucun médecin disponible
-   ------------------------------------------------------------ */
 function viewClinicPrestations(){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
@@ -16899,7 +17789,6 @@ function viewClinicPrestations(){
   if(!services.length){
     return `<div class="card"><div class="empty" style="padding:30px"><div class="empty-ico">🏗️</div>Créez d'abord des services.</div></div>`;
   }
-  /* Auto-lock check */
   autoLockPrestations();
   return `
     <div class="card" style="margin-bottom:14px">
@@ -16911,7 +17800,7 @@ function viewClinicPrestations(){
         <button class="pill-btn primary" onclick="openClinicPrestationForm(null)">+ ${t('clinic_prestation_add')}</button>
       </div>
       <div class="letter-amount" style="font-style:normal;margin-top:10px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
-        🔒 <strong>Verrouillage :</strong> Une prestation qui <em>nécessite un médecin</em> est verrouillée automatiquement si aucun médecin disponible n'est rattaché au service. Vous pouvez aussi la verrouiller / déverrouiller manuellement.
+        🔒 <strong>Verrouillage :</strong> Une prestation qui <em>nécessite un médecin</em> est verrouillée automatiquement si aucun médecin disponible n'est rattaché au service.
       </div>
     </div>
     ${services.map(sv => {
@@ -16941,7 +17830,7 @@ function viewClinicPrestations(){
             <button class="mini-btn ghost" onclick="openClinicPrestationForm('${p.id}')">✏️</button>
             <button class="mini-btn out-red" onclick="openClinicDeletePrestationConfirm('${p.id}')">🗑️</button>
           </div>
-          ${manualLocked ? `<div style="font-size:10.5px;color:var(--danger);text-align:right;padding:2px 8px 6px;font-weight:600">🔒 Verrouillée manuellement — cliquez sur 🔓 pour déverrouiller</div>` : ''}
+          ${manualLocked ? `<div style="font-size:10.5px;color:var(--danger);text-align:right;padding:2px 8px 6px;font-weight:600">🔒 Verrouillée manuellement</div>` : ''}
           ${autoLocked ? `<div style="font-size:10.5px;color:var(--warn);text-align:right;padding:2px 8px 6px;font-weight:600">⚠️ ${t('prestation_auto_lock_hint')}</div>` : ''}
         `;
         }).join('') : `<div class="empty" style="padding:16px">${t('clinic_no_prestations')}</div>`}
@@ -16954,7 +17843,6 @@ function togglePrestationLock(prestationId){
   if(!p) return;
   const currentlyLocked = effectivePrestationLocked(p);
   if(currentlyLocked){
-    /* Déverrouiller : retirer le verrou manuel, et si autoLocked, forcer le déverrouillage manuel */
     p.lockedByClinic = false;
     p.locked = false;
     p.autoLocked = false;
@@ -16962,7 +17850,6 @@ function togglePrestationLock(prestationId){
     render();
     toast(t('prestation_unlocked'),'success');
   } else {
-    /* Verrouiller manuellement */
     p.lockedByClinic = true;
     p.locked = true;
     p.autoLocked = false;
@@ -17044,11 +17931,11 @@ function doDeleteClinicPrestation(prestationId){
   toast(t('clinic_prestation_deleted'),'success');
 }
 
-/* --- Clinique : RDV --- */
+/* --- Clinique : RDV (CORRECTION affichage instantané) --- */
 function viewClinicAppts(){
   const c = state.clinic;
   const f = state.clinicData.clinicApptFilter;
-  if(!f.date) f.date = todayISO();
+  /* Correction : ne plus filtrer par défaut sur aujourd'hui */
   let list = DB.appointments.filter(a => String(a.clinicId)===String(c.id) && a.status !== 'deleted');
   if(f.status !== 'all') list = list.filter(a => a.status === f.status);
   if(f.date) list = list.filter(a => a.date === f.date);
@@ -17065,20 +17952,29 @@ function viewClinicAppts(){
       return false;
     });
   }
-  list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
+  /* Tri : les plus récents d'abord (pour voir instantanément les nouveaux RDV) */
+  list.sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
   const totalPages = Math.max(1, Math.ceil(list.length / APPTS_PER_PAGE));
   const page = Math.min(state.apptsPage || 1, totalPages);
   const slice = list.slice((page-1)*APPTS_PER_PAGE, page*APPTS_PER_PAGE);
   const sliceIds = slice.map(a => a.id);
   const fbtn = (v,lbl,cls) => `<button class="filter-btn ${cls} ${f.status===v?'active':''}" onclick="state.clinicData.clinicApptFilter.status='${v}';state.apptsPage=1;render()">${lbl}</button>`;
   const services = clinicServicesFor(c.id);
+  const pendingCount = DB.appointments.filter(a => String(a.clinicId)===String(c.id) && a.status === 'pending').length;
   return `
     <div class="card" style="margin-bottom:12px">
+      ${pendingCount ? `
+        <div style="margin-bottom:12px;padding:10px 14px;background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.06));border:1.5px solid rgba(245,158,11,.5);border-radius:12px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">⏳</span>
+          <span style="flex:1;font-size:13px;font-weight:700;color:#92400e">${pendingCount} RDV en attente de confirmation</span>
+          <button class="pill-btn" style="background:var(--warn);color:#fff;border-color:var(--warn)" onclick="state.clinicData.clinicApptFilter.status='pending';state.clinicData.clinicApptFilter.date='';state.apptsPage=1;render()">Voir</button>
+        </div>
+      ` : ''}
       <div class="field" style="margin-bottom:12px">
         <input class="input" id="clApptSearch" placeholder="🔎 ${t('search_appt_ph')}" value="${esc(f.search||'')}" oninput="state.clinicData.clinicApptFilter.search=this.value;state.apptsPage=1;render()">
       </div>
       <div class="grid grid-3">
-        <input class="input" type="date" value="${f.date}" onchange="state.clinicData.clinicApptFilter.date=this.value;state.apptsPage=1;render()">
+        <input class="input" type="date" value="${f.date||''}" onchange="state.clinicData.clinicApptFilter.date=this.value;state.apptsPage=1;render()">
         <select class="select" onchange="state.clinicData.clinicApptFilter.doctorId=this.value;state.apptsPage=1;render()">
           <option value="all">${t('filter_doctor')} — ${t('filter_all')}</option>
           ${clinicLinkedDoctors(c.id).map(d=>`<option value="${jsStr(String(d.id))}" ${String(f.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)}</option>`).join('')}
@@ -17096,7 +17992,7 @@ function viewClinicAppts(){
         ${fbtn('done','✅ '+t('status_done'),'done')}
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
-        <button class="pill-btn danger" onclick="state.clinicData.clinicApptFilter={status:'all',date:todayISO(),search:'',doctorId:'all',serviceId:'all'};state.apptsPage=1;render()">🗑️ Réinitialiser</button>
+        <button class="pill-btn danger" onclick="state.clinicData.clinicApptFilter={status:'all',date:'',search:'',doctorId:'all',serviceId:'all'};state.apptsPage=1;render()">🗑️ Réinitialiser</button>
       </div>
     </div>
     ${renderBulkToolbar(sliceIds)}
@@ -17221,6 +18117,7 @@ function viewClinicStats(){
     return [sv.name, n];
   }).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const periodLabel = getStatsPeriodLabel();
+  const emgAll = emergenciesForClinic(c.id);
   return `
     ${renderStatsPeriodSelector()}
     <div class="stats-page-header">
@@ -17241,34 +18138,22 @@ function viewClinicStats(){
         </div>
       </div>
       <div class="sph-grid">
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">🧑‍⚕️</span> ${t('clinic_total_doctors')}</div>
-          <div class="sph-val">${clinicLinkedDoctorIds(c.id).length}</div>
-        </div>
-        <div class="sph-kpi">
-          <div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div>
-          <div class="sph-val">${s.uniquePatients}</div>
-        </div>
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div>
-          <div class="sph-val">${s.list.length}</div>
-        </div>
-        <div class="sph-kpi success">
-          <div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div>
-          <div class="sph-val">${billableList.length}</div>
-        </div>
-        <div class="sph-kpi info">
-          <div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div>
-          <div class="sph-val">${s.totalServiceBookings}</div>
-        </div>
-        <div class="sph-kpi warn">
-          <div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div>
-          <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
-        </div>
-        <div class="sph-kpi money">
-          <div class="sph-lbl"><span class="sph-lbl-ico">💰</span> ${t('clinic_revenue_total')}</div>
-          <div class="sph-val" style="font-size:19px">${fmtDA(totalRev)}</div>
-        </div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">🧑‍⚕️</span> ${t('clinic_total_doctors')}</div><div class="sph-val">${clinicLinkedDoctorIds(c.id).length}</div></div>
+        <div class="sph-kpi"><div class="sph-lbl"><span class="sph-lbl-ico">👥</span> ${t('stats_unique_patients')}</div><div class="sph-val">${s.uniquePatients}</div></div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">📅</span> ${t('stats_total_appts')}</div><div class="sph-val">${s.list.length}</div></div>
+        <div class="sph-kpi success"><div class="sph-lbl"><span class="sph-lbl-ico">✅</span> ${t('stats_done_c')}</div><div class="sph-val">${billableList.length}</div></div>
+        <div class="sph-kpi info"><div class="sph-lbl"><span class="sph-lbl-ico">💉</span> ${t('stats_total_services')}</div><div class="sph-val">${s.totalServiceBookings}</div></div>
+        <div class="sph-kpi warn"><div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div><div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div></div>
+        <div class="sph-kpi money"><div class="sph-lbl"><span class="sph-lbl-ico">💰</span> ${t('clinic_revenue_total')}</div><div class="sph-val" style="font-size:19px">${fmtDA(totalRev)}</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(245,158,11,.03));border-color:rgba(239,68,68,.3)">
+      <div class="card-title" style="font-size:15px;color:#b91c1c">🚨 Urgences (clinique)</div>
+      <div class="stats-tags" style="margin-top:12px">
+        ${statTag('Total', emgAll.length, 'accent', true)}
+        ${statTag(t('emergency_status_accepted'), emgAll.filter(e=>e.status==='accepted').length, 'success', true)}
+        ${statTag(t('emergency_status_pending'), emgAll.filter(e=>e.status==='pending').length, 'warn', true)}
+        ${statTag(t('emergency_status_declined'), emgAll.filter(e=>e.status==='declined').length, 'muted', true)}
       </div>
     </div>
     <div class="grid grid-2">
@@ -17338,7 +18223,7 @@ function printClinicStats(){
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid}
+  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
   .cover .logo-box{display:flex;gap:16px;align-items:center}
@@ -17432,10 +18317,6 @@ function printClinicStats(){
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
 }
-
-/* ============================================================
-   CLINIQUE — RECETTE (finance)
-   ============================================================ */
 function viewClinicRecetteLocked(){
   return `
     <div class="card" style="text-align:center;padding:40px 24px">
@@ -17803,10 +18684,6 @@ function printClinicRevenue(){
   </div>
 </body></html>`);
 }
-
-/* ============================================================
-   CLINIQUE — PROFIL
-   ============================================================ */
 function viewClinicProfile(){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
@@ -18009,8 +18886,9 @@ async function init(){
   if(!state.statsPeriod.month) state.statsPeriod.month = currentMonth();
   if(!state.statsPeriod.year) state.statsPeriod.year = currentYear();
   state.quickRevVisible = QUICK_REV_PER_PAGE;
+  /* Sync emergencies */
+  state.emergencies = (DB.emergencies || []).slice();
   loadPrefs(); checkReminders();
-  /* Auto-lock des prestations cliniques */
   try { autoLockPrestations(); } catch(e){}
   setInterval(checkReminders, 5 * 60 * 1000);
   setInterval(async () => {
@@ -18046,6 +18924,10 @@ async function init(){
   applyDir(); render();
   subscribeRealtime();
   setupVisibilityResync();
+  /* Vérification urgences si clinique déjà connectée */
+  if(state.role === 'clinic' && state.clinic){
+    setTimeout(() => checkNewEmergenciesForClinic(), 800);
+  }
 }
 window.addEventListener('DOMContentLoaded', init);
 
@@ -18130,27 +19012,20 @@ Object.assign(window, {
   mfMergeStart, mfMergeRowHTML, mfMergeFilter, mfMergeChoose, mfMergeSwap, mfMergeDo,
   mfPrintDossierModal, mfDoPrintDossier,
   mfPrintConsultation, mfPrintPrescription,
-  /* MODIFICATION #2 — clinique publique */
   openClinicPublic, startClinicBooking, pickClinicService, pickClinicDoctor, pickClinicPrestation, confirmClinicBooking,
   openClinicServiceModal, chooseDoctorForService, chooseAutoPlanForService, chooseDirectPrestationForService,
   findAutoDoctorForService, firstAvailableSlotForDoctor, availableDaysForDoctorInClinic,
-  /* MODIFICATION #6 — ajouter médecin local */
   openClinicAddLocalDoctorModal,
-  /* MODIFICATION #4 — invitation */
   openClinicInviteDoctorModal, renderClinicInviteSuggest, sendClinicInvite, cancelClinicInvite,
   openClinicServicePicker, saveClinicServiceLink, openClinicRemoveDoctorConfirm, doRemoveClinicDoctor,
-  /* MODIFICATION #3 — services + prestations verrouillage */
   openClinicServiceForm, saveClinicService, openClinicDeleteServiceConfirm, doDeleteClinicService,
   openClinicPrestationForm, saveClinicPrestation, openClinicDeletePrestationConfirm, doDeleteClinicPrestation,
   togglePrestationLock, autoLockPrestations, effectivePrestationLocked, prestationHasAvailableDoctor,
   clinicConfirmAppt, clinicValidateAppt, clinicCancelAppt, clinicDoCancel,
   toggleClinicSession, openClinicBillingModal, printClinicBillingReport,
-  /* clinique côté médecin */
   openDoctorClinicDetail, acceptClinicInvite, declineClinicInvite, leaveClinic, doLeaveClinic,
-  /* clinique côté admin */
   openClinicForm, saveClinic, confirmDeleteClinic, deleteClinic, toggleClinicLock, openClinicDetailModal,
   openClinicServicesManagerFromAdmin, openClinicServiceFormAdmin, saveClinicServiceAdmin, deleteClinicServiceAdmin, doDeleteClinicServiceAdmin,
-  /* helpers */
   clinicById, clinicServiceById, clinicPrestationById, clinicServicesFor, clinicPrestationsFor,
   clinicPrestationsForService, clinicLinksFor, clinicLinksForDoctor, clinicLinkedDoctorIds,
   clinicLinkedDoctors, clinicPendingLinks, doctorPendingInvites, isDoctorInClinic, getDoctorServiceInClinic,
@@ -18158,8 +19033,16 @@ Object.assign(window, {
   renderClinicServicesListManager,
   peekClinicInvoiceNumber, assignClinicInvoiceNumberForClinic, formatClinicInvoiceNumberFromCount,
   computeClinicBillingData, computeClinicRevenue,
-  /* MODIFICATION #5 — clinique 24/7 */
-  isClinicWorkDay, slotsForClinic, availableDaysForClinic
+  isClinicWorkDay, slotsForClinic, availableDaysForClinic,
+  /* 🚨 URGENCES */
+  openEmergencyModal, submitEmergency, pickEmergencyType,
+  emergencyCardHTML, askCancelEmergency, cancelEmergency,
+  emergencyClinicsForWilaya, emergenciesForPatientPhone, emergenciesForClinic,
+  pendingEmergenciesForClinic, emergencyGroupStatus, emergencyStatusInfo,
+  emergencyTypeLabel, emergencyTypeIcon, genEmergencyId, genEmergencyGroupId,
+  checkNewEmergenciesForClinic, showNextEmergencyAlert, closeEmergencyAlert,
+  acceptEmergency, askDeclineEmergency, declineEmergency,
+  viewClinicEmergencies
 });
 </script>
 </body>
