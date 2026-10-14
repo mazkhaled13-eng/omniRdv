@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <title>OmniMed — Plateforme Médicale</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -439,9 +438,6 @@ body.dark .bar{background:rgba(255,255,255,.08)}
   background:var(--glass-bg);font-size:10px;font-weight:700;flex-shrink:0;font-family:var(--font-numbers)}
 .step.active .step-num{background:var(--accent-primary);color:#fff}
 .step.done .step-num{background:var(--success);color:#fff}
-.qr{width:90px;height:90px;background:#fff;border-radius:var(--radius-md);
-  display:grid;place-items:center;padding:6px;border:1px solid var(--glass-border)}
-.qr svg{width:100%;height:100%}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .chip{padding:6px 11px;border-radius:var(--radius-pill);font-size:11.5px;font-weight:500;
   background:var(--glass-bg-3);border:1px solid var(--glass-border);
@@ -662,7 +658,6 @@ body.dark .queue-hero.today .qh-queue-num{color:#6ee7b7}
   .invoice-meta{text-align:left}
   #toasts{top:12px;left:12px;right:12px;transform:none;max-width:none}
   .toast{min-width:0;width:100%}
-  .qr{width:76px;height:76px}
   .wday{min-width:44px;padding:7px 9px;font-size:11px}
   .tag.stat-tag-lg{padding:8px 13px}
   .tag.stat-tag-lg .st-val{font-size:17px}
@@ -1847,6 +1842,74 @@ body[dir="rtl"] .clinic-booking-modal-doc:hover{transform:translateX(-3px)}
   transform:translateY(-1px);
   box-shadow:var(--shadow);
 }
+
+/* ============================================================
+   🏠 ACCUEIL V2 — Hero actions
+   ============================================================ */
+.hero-actions{background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(236,72,153,.06));border:1px solid rgba(139,92,246,.25);border-radius:var(--radius-xl);padding:18px 20px;margin-bottom:14px}
+.hero-hello{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+.hero-emoji{width:52px;height:52px;border-radius:15px;background:linear-gradient(135deg,var(--accent-primary),#ec4899);display:grid;place-items:center;font-size:26px;flex-shrink:0;box-shadow:0 8px 20px rgba(139,92,246,.3)}
+.hero-title{font-family:var(--font-display);font-size:22px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--accent-primary),#ec4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1}
+.hero-sub{font-size:12px;color:var(--text-muted);margin-top:3px;font-weight:500}
+.hero-btn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:700px){.hero-btn-grid{grid-template-columns:1fr}}
+.hero-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 10px;border-radius:var(--radius-lg);border:2px solid transparent;cursor:pointer;font-family:inherit;transition:all .2s ease;text-align:center;background:var(--glass-bg)}
+.hero-btn:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.hero-btn.primary{background:linear-gradient(135deg,var(--accent-primary),#ec4899);color:#fff;border-color:var(--accent-primary);box-shadow:0 8px 22px rgba(139,92,246,.32)}
+.hero-btn.primary:hover{box-shadow:0 12px 28px rgba(139,92,246,.45)}
+.hero-btn.outline{background:transparent;border-color:var(--accent-primary);color:var(--accent-primary)}
+.hero-btn.outline:hover{background:var(--accent-light);color:var(--accent-primary)}
+.hero-btn.emergency{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:#ef4444;box-shadow:0 8px 22px rgba(239,68,68,.4);animation:emergencyPulse 2s ease-in-out infinite}
+.hero-btn.emergency:hover{box-shadow:0 12px 28px rgba(239,68,68,.55);animation-play-state:paused}
+@keyframes emergencyPulse{0%,100%{box-shadow:0 8px 22px rgba(239,68,68,.4);transform:scale(1)}50%{box-shadow:0 8px 26px rgba(239,68,68,.6),0 0 0 8px rgba(239,68,68,.12);transform:scale(1.01)}}
+.hero-btn-ico{font-size:28px;line-height:1}
+.hero-btn-lbl{font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.15}
+.hero-btn-sub{font-size:10.5px;opacity:.85;font-weight:500;line-height:1.2}
+.home-search-v2{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.home-search-v2 .search-main{flex:1;min-width:200px;font-size:15px;padding:13px 16px}
+.filters-toggle{padding:13px 16px;border-radius:var(--radius-md);border:1px solid var(--glass-border);background:var(--glass-bg-3);color:var(--text-main);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap}
+.filters-toggle:hover{background:var(--accent-light);color:var(--accent-primary);border-color:var(--accent-primary)}
+.filters-panel{margin-top:12px;padding-top:12px;border-top:1px solid var(--glass-border)}
+
+/* ============================================================
+   🚨 URGENCES
+   ============================================================ */
+.emergency-types-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:6px}
+@media(max-width:520px){.emergency-types-grid{grid-template-columns:1fr}}
+.emergency-type-btn{padding:11px 12px;border-radius:var(--radius-md);border:1.5px solid var(--glass-border);background:var(--glass-bg-3);cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;transition:var(--transition);text-align:left;color:var(--text-main)}
+.emergency-type-btn:hover{border-color:var(--danger);background:rgba(239,68,68,.08)}
+.emergency-type-btn.selected{border-color:var(--danger);background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08));color:var(--danger);font-weight:700}
+.emergency-type-btn .et-ico{font-size:20px;flex-shrink:0}
+.my-emergency-card{border-radius:var(--radius-md);padding:12px 14px;margin-bottom:8px;background:var(--glass-bg);border:1px solid var(--glass-border);border-left:4px solid var(--danger);transition:var(--transition)}
+.my-emergency-card.status-pending{background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(251,191,36,.03));border-left-color:var(--warn)}
+.my-emergency-card.status-accepted{background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(5,150,105,.03));border-left-color:var(--success)}
+.my-emergency-card.status-declined{opacity:.75;background:rgba(239,68,68,.04);border-left-color:var(--danger)}
+.my-emergency-card.status-cancelled{opacity:.6;background:var(--glass-bg-3);border-left-color:var(--text-muted)}
+.clinic-emergency-popup{position:fixed;inset:0;z-index:250;background:rgba(15,23,42,.7);backdrop-filter:blur(10px);display:grid;place-items:center;padding:16px;animation:fade .25s ease}
+.clinic-emergency-inner{background:linear-gradient(155deg,#fff 0%,#fef2f2 100%);border:3px solid #ef4444;border-radius:var(--radius-xl);padding:22px 26px;width:100%;max-width:620px;max-height:96vh;overflow-y:auto;box-shadow:0 25px 60px rgba(239,68,68,.4);animation:pop .3s ease;position:relative}
+body.dark .clinic-emergency-inner{background:linear-gradient(155deg,rgba(30,30,45,.98) 0%,rgba(60,20,20,.98) 100%)}
+.clinic-emergency-inner .ce-header{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:2px solid rgba(239,68,68,.3);margin-bottom:16px}
+.clinic-emergency-inner .ce-ico{width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#ef4444,#dc2626);display:grid;place-items:center;font-size:30px;flex-shrink:0;animation:emergencyPulse 1.6s ease-in-out infinite;box-shadow:0 8px 20px rgba(239,68,68,.4)}
+.clinic-emergency-inner .ce-title{font-size:19px;font-weight:800;color:#b91c1c;letter-spacing:-.3px;line-height:1.15}
+body.dark .clinic-emergency-inner .ce-title{color:#fca5a5}
+.clinic-emergency-inner .ce-sub{font-size:12px;color:var(--text-muted);margin-top:3px}
+.clinic-emergency-inner .ce-info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:520px){.clinic-emergency-inner .ce-info-grid{grid-template-columns:1fr}}
+.clinic-emergency-inner .ce-info{background:rgba(255,255,255,.7);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:10px 12px}
+body.dark .clinic-emergency-inner .ce-info{background:rgba(255,255,255,.05)}
+.clinic-emergency-inner .ce-info-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:800;color:#b91c1c;margin-bottom:3px}
+body.dark .clinic-emergency-inner .ce-info-lbl{color:#fca5a5}
+.clinic-emergency-inner .ce-info-val{font-size:13.5px;font-weight:700;color:var(--text-main);word-break:break-word;line-height:1.35}
+.clinic-emergency-inner .ce-desc{background:rgba(255,255,255,.7);border:1px dashed rgba(239,68,68,.35);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.6;color:var(--text-main)}
+body.dark .clinic-emergency-inner .ce-desc{background:rgba(255,255,255,.05)}
+.clinic-emergency-inner .ce-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+@media(max-width:520px){.clinic-emergency-inner .ce-actions{grid-template-columns:1fr}}
+.clinic-emergency-inner .ce-btn{padding:14px;border-radius:var(--radius-md);border:none;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:var(--transition);letter-spacing:.2px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.clinic-emergency-inner .ce-btn.accept{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 6px 16px rgba(16,185,129,.35)}
+.clinic-emergency-inner .ce-btn.accept:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(16,185,129,.45)}
+.clinic-emergency-inner .ce-btn.decline{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 6px 16px rgba(239,68,68,.35)}
+.clinic-emergency-inner .ce-btn.decline:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(239,68,68,.45)}
+.clinic-emergency-inner .ce-countdown{text-align:center;font-size:11px;color:var(--text-muted);margin-top:12px;padding-top:12px;border-top:1px dashed rgba(239,68,68,.25);font-style:italic}
 </style>
 </head>
 <body>
@@ -1983,7 +2046,18 @@ const DEFAULT_CLINIC_SERVICES = [
 const DAY_NAMES_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const DAY_NAMES_LONG  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
+const EMERGENCY_TYPES = [
+  { id:'surgical',    ico:'🔪', key:'emergency_type_surgical' },
+  { id:'cardiac',     ico:'🫀', key:'emergency_type_cardiac' },
+  { id:'neuro',       ico:'🧠', key:'emergency_type_neuro' },
+  { id:'trauma',      ico:'🦴', key:'emergency_type_trauma' },
+  { id:'respiratory', ico:'🫁', key:'emergency_type_respiratory' },
+  { id:'pediatric',   ico:'🧸', key:'emergency_type_pediatric' },
+  { id:'obstetric',   ico:'🤰', key:'emergency_type_obstetric' },
+  { id:'intoxication',ico:'☠️', key:'emergency_type_intoxication' },
+  { id:'burns',       ico:'🔥', key:'emergency_type_burns' },
+  { id:'other',       ico:'🚨', key:'emergency_type_other' }
+];
 function numberToFrenchWords(n){
   n = Math.floor(Math.abs(n));
   if(n === 0) return 'zéro';
@@ -2659,7 +2733,62 @@ const T = {
     doctor_added_to_clinic:'Médecin ajouté à la clinique',
     step_auto_plan_hint:'Le système a sélectionné automatiquement un médecin disponible',
     selected_auto_doctor:'Médecin sélectionné automatiquement',
-    select_doctor_first:'Sélectionnez un médecin'
+    select_doctor_first:'Sélectionnez un médecin',
+
+    /* --- Accueil v2 --- */
+    home_hero_sub:'Que souhaitez-vous faire ?',
+    home_hero_book:'Prendre un RDV',
+    home_hero_clinic:'Trouver une clinique',
+    home_hero_emergency:'URGENCE',
+    home_hero_book_sub:'Choisir un médecin',
+    home_hero_clinic_sub:'Voir les cliniques',
+    home_hero_emergency_sub:'Aide immédiate',
+    filters_advanced:'Filtres avancés',
+    filters_hide:'Masquer les filtres',
+
+    /* --- Urgences --- */
+    emergency_title:'Déclarer une urgence',
+    emergency_sub:'Remplissez les informations ci-dessous. La clinique vous contactera immédiatement.',
+    emergency_type:'Type d\'urgence',
+    emergency_desc:'Description (facultatif)',
+    emergency_desc_ph:'Décrivez brièvement la situation…',
+    emergency_submit:'🚨 Envoyer l\'urgence',
+    emergency_sent:'Urgence envoyée',
+    emergency_no_clinic:'Aucune clinique avec service d\'urgence disponible pour le moment',
+    emergency_my:'Mes urgences',
+    emergency_my_none:'Aucune urgence en cours',
+    emergency_status_pending:'En attente d\'une clinique',
+    emergency_status_accepted:'Acceptée',
+    emergency_status_declined:'Refusée',
+    emergency_status_cancelled:'Annulée',
+    emergency_cancel:'Annuler l\'urgence',
+    emergency_cancel_confirm:'Annuler cette urgence ?',
+    emergency_cancelled_ok:'Urgence annulée',
+    emergency_accepted_by:'Acceptée par',
+    emergency_clinic_response:'Réponse de la clinique',
+    emergency_clinic_popup_title:'URGENCE ENTRANTE',
+    emergency_clinic_popup_sub:'Un patient déclare une urgence. Répondez rapidement.',
+    emergency_accept:'Accepter',
+    emergency_decline:'Refuser',
+    emergency_decline_reason:'Motif du refus (facultatif)',
+    emergency_accepted_ok:'Urgence acceptée',
+    emergency_declined_ok:'Urgence refusée',
+    emergency_already_handled:'Cette urgence a déjà été traitée',
+    emergency_send_to_clinics:'{n} clinique(s) notifiée(s)',
+    emergency_required:'Nom, téléphone et wilaya sont obligatoires',
+    emergency_type_required:'Veuillez choisir un type d\'urgence',
+    emergency_type_surgical:'Urgence chirurgicale',
+    emergency_type_cardiac:'Urgence cardiaque',
+    emergency_type_neuro:'Urgence neurologique',
+    emergency_type_trauma:'Urgence traumatologique',
+    emergency_type_respiratory:'Urgence respiratoire',
+    emergency_type_pediatric:'Urgence pédiatrique',
+    emergency_type_obstetric:'Urgence obstétrique',
+    emergency_type_intoxication:'Intoxication',
+    emergency_type_burns:'Brûlures',
+    emergency_type_other:'Autre urgence',
+    emergency_popup_close:'Fermer',
+    emergency_selected_type:'Type sélectionné'
   },
   en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',nav_clinic:'Clinic Area',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
@@ -3233,7 +3362,62 @@ const T = {
     doctor_added_to_clinic:'Doctor added to clinic',
     step_auto_plan_hint:'The system automatically selected an available doctor',
     selected_auto_doctor:'Automatically selected doctor',
-    select_doctor_first:'Select a doctor'
+    select_doctor_first:'Select a doctor',
+
+    /* --- Home v2 --- */
+    home_hero_sub:'What would you like to do?',
+    home_hero_book:'Book an appointment',
+    home_hero_clinic:'Find a clinic',
+    home_hero_emergency:'EMERGENCY',
+    home_hero_book_sub:'Choose a doctor',
+    home_hero_clinic_sub:'View clinics',
+    home_hero_emergency_sub:'Immediate help',
+    filters_advanced:'Advanced filters',
+    filters_hide:'Hide filters',
+
+    /* --- Emergencies --- */
+    emergency_title:'Declare an emergency',
+    emergency_sub:'Fill in the information below. A clinic will contact you immediately.',
+    emergency_type:'Emergency type',
+    emergency_desc:'Description (optional)',
+    emergency_desc_ph:'Briefly describe the situation…',
+    emergency_submit:'🚨 Send emergency',
+    emergency_sent:'Emergency sent',
+    emergency_no_clinic:'No clinic with emergency service available at the moment',
+    emergency_my:'My emergencies',
+    emergency_my_none:'No active emergency',
+    emergency_status_pending:'Waiting for a clinic',
+    emergency_status_accepted:'Accepted',
+    emergency_status_declined:'Declined',
+    emergency_status_cancelled:'Cancelled',
+    emergency_cancel:'Cancel emergency',
+    emergency_cancel_confirm:'Cancel this emergency?',
+    emergency_cancelled_ok:'Emergency cancelled',
+    emergency_accepted_by:'Accepted by',
+    emergency_clinic_response:'Clinic response',
+    emergency_clinic_popup_title:'INCOMING EMERGENCY',
+    emergency_clinic_popup_sub:'A patient is declaring an emergency. Respond quickly.',
+    emergency_accept:'Accept',
+    emergency_decline:'Decline',
+    emergency_decline_reason:'Decline reason (optional)',
+    emergency_accepted_ok:'Emergency accepted',
+    emergency_declined_ok:'Emergency declined',
+    emergency_already_handled:'This emergency has already been handled',
+    emergency_send_to_clinics:'{n} clinic(s) notified',
+    emergency_required:'Name, phone and wilaya are required',
+    emergency_type_required:'Please choose an emergency type',
+    emergency_type_surgical:'Surgical emergency',
+    emergency_type_cardiac:'Cardiac emergency',
+    emergency_type_neuro:'Neurological emergency',
+    emergency_type_trauma:'Trauma emergency',
+    emergency_type_respiratory:'Respiratory emergency',
+    emergency_type_pediatric:'Pediatric emergency',
+    emergency_type_obstetric:'Obstetric emergency',
+    emergency_type_intoxication:'Intoxication',
+    emergency_type_burns:'Burns',
+    emergency_type_other:'Other emergency',
+    emergency_popup_close:'Close',
+    emergency_selected_type:'Selected type'
   },
   ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',nav_clinic:'فضاء العيادة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
@@ -3807,7 +3991,62 @@ const T = {
     doctor_added_to_clinic:'تمت إضافة الطبيب للعيادة',
     step_auto_plan_hint:'اختار النظام تلقائيًا طبيبًا متاحًا',
     selected_auto_doctor:'طبيب مختار تلقائيًا',
-    select_doctor_first:'اختر طبيبًا'
+    select_doctor_first:'اختر طبيبًا',
+
+    /* --- Accueil v2 --- */
+    home_hero_sub:'ماذا تريد أن تفعل؟',
+    home_hero_book:'حجز موعد',
+    home_hero_clinic:'العثور على عيادة',
+    home_hero_emergency:'طوارئ',
+    home_hero_book_sub:'اختر طبيبًا',
+    home_hero_clinic_sub:'عرض العيادات',
+    home_hero_emergency_sub:'مساعدة فورية',
+    filters_advanced:'فلاتر متقدمة',
+    filters_hide:'إخفاء الفلاتر',
+
+    /* --- Urgences --- */
+    emergency_title:'الإعلان عن حالة طوارئ',
+    emergency_sub:'املأ المعلومات أدناه. ستتصل بك العيادة فورًا.',
+    emergency_type:'نوع الطوارئ',
+    emergency_desc:'الوصف (اختياري)',
+    emergency_desc_ph:'صف الحالة بإيجاز…',
+    emergency_submit:'🚨 إرسال الطوارئ',
+    emergency_sent:'تم إرسال الطوارئ',
+    emergency_no_clinic:'لا توجد عيادة بها خدمة طوارئ متاحة حاليًا',
+    emergency_my:'حالات الطوارئ الخاصة بي',
+    emergency_my_none:'لا توجد حالة طوارئ نشطة',
+    emergency_status_pending:'في انتظار عيادة',
+    emergency_status_accepted:'مقبولة',
+    emergency_status_declined:'مرفوضة',
+    emergency_status_cancelled:'ملغاة',
+    emergency_cancel:'إلغاء الطوارئ',
+    emergency_cancel_confirm:'إلغاء هذه الحالة؟',
+    emergency_cancelled_ok:'تم إلغاء الطوارئ',
+    emergency_accepted_by:'تم القبول من قبل',
+    emergency_clinic_response:'رد العيادة',
+    emergency_clinic_popup_title:'حالة طوارئ واردة',
+    emergency_clinic_popup_sub:'مريض يعلن حالة طوارئ. استجب بسرعة.',
+    emergency_accept:'قبول',
+    emergency_decline:'رفض',
+    emergency_decline_reason:'سبب الرفض (اختياري)',
+    emergency_accepted_ok:'تم قبول الطوارئ',
+    emergency_declined_ok:'تم رفض الطوارئ',
+    emergency_already_handled:'تمت معالجة هذه الحالة بالفعل',
+    emergency_send_to_clinics:'تم إشعار {n} عيادة',
+    emergency_required:'الاسم والهاتف والولاية إلزامية',
+    emergency_type_required:'يرجى اختيار نوع الطوارئ',
+    emergency_type_surgical:'طوارئ جراحية',
+    emergency_type_cardiac:'طوارئ قلبية',
+    emergency_type_neuro:'طوارئ عصبية',
+    emergency_type_trauma:'طوارئ الرضوح',
+    emergency_type_respiratory:'طوارئ تنفسية',
+    emergency_type_pediatric:'طوارئ الأطفال',
+    emergency_type_obstetric:'طوارئ التوليد',
+    emergency_type_intoxication:'تسمم',
+    emergency_type_burns:'حروق',
+    emergency_type_other:'طوارئ أخرى',
+    emergency_popup_close:'إغلاق',
+    emergency_selected_type:'النوع المحدد'
   }
 };
 const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
@@ -3905,7 +4144,19 @@ const state = {
     from: '', to: '',
     sections: { summary: true, allergies: true, antecedents: true, consultations: true, vitals: true, prescriptions: true, labtests: true }
   },
-  _importPending: null
+  _importPending: null,
+
+  /* --- Urgences + Accueil v2 --- */
+  filtersOpen: false,
+  emergencyForm: {
+    patientName: '',
+    patientPhone: '',
+    patientWilaya: '',
+    patientAge: '',
+    emergencyType: '',
+    description: ''
+  },
+  emergencyPopupShown: []
 };
 const SPECIALTY_AVATARS = {
   'Généraliste':'🩺','Cardiologie':'🫀','Dermatologie':'🧴','Pédiatrie':'🧸','Dentaire':'🦷',
@@ -4178,7 +4429,8 @@ function seedData(){
     notifications: [],
     messages: [],
     medicalFiles: [],
-    medications:[]
+    medications:[],
+    emergencies: []
   };
 }
 
@@ -4200,10 +4452,11 @@ const _pendingDeletes = (() => {
       clinics:      Array.isArray(raw.clinics)      ? raw.clinics      : [],
       clinicServices:    Array.isArray(raw.clinicServices)    ? raw.clinicServices    : [],
       clinicPrestations: Array.isArray(raw.clinicPrestations) ? raw.clinicPrestations : [],
-      doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : []
+      doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : [],
+      emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : []
     };
   } catch(e){
-    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [] };
+    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [] };
   }
 })();
 function savePendingDeletes(){
@@ -4211,6 +4464,25 @@ function savePendingDeletes(){
 }
 
 /* ---------- LOAD depuis Supabase ---------- */
+const LS_PROTECTED_APPTS = 'omnimed_protected_appts';
+function getProtectedAppts(){
+  try { return JSON.parse(localStorage.getItem(LS_PROTECTED_APPTS) || '{}'); }
+  catch(e){ return {}; }
+}
+function protectAppt(id){
+  const map = getProtectedAppts();
+  map[id] = Date.now();
+  /* Nettoyer les entrées > 10 min */
+  const now = Date.now();
+  Object.keys(map).forEach(k => { if(now - map[k] > 10 * 60 * 1000) delete map[k]; });
+  try { localStorage.setItem(LS_PROTECTED_APPTS, JSON.stringify(map)); } catch(e){}
+}
+function unprotectAppt(id){
+  const map = getProtectedAppts();
+  if(map[id]){ delete map[id]; try { localStorage.setItem(LS_PROTECTED_APPTS, JSON.stringify(map)); } catch(e){} }
+}
+function getProtectedApptIds(){ return Object.keys(getProtectedAppts()); }
+
 async function loadDB(){
   let localBackup = null;
   try {
@@ -4237,7 +4509,8 @@ async function loadDB(){
       sb.from('clinic_services').select('*'),
       sb.from('clinic_prestations').select('*'),
       sb.from('doctor_clinic_links').select('*'),
-      sb.from('clinic_invoice_registry').select('*')
+      sb.from('clinic_invoice_registry').select('*'),
+      sb.from('emergencies').select('*').order('created_at',{ascending:false})
     ]);
 
     const unwrapOne = (r) => {
@@ -4268,6 +4541,7 @@ async function loadDB(){
     const cpR     = unwrapArr(results[14]);
     const dclR    = unwrapArr(results[15]);
     const cirR    = unwrapArr(results[16]);
+    const emgR    = unwrapArr(results[17]);
 
     const criticalError = docR.error || apptR.error;
     if(criticalError){
@@ -4398,8 +4672,46 @@ async function loadDB(){
       medicalFiles: (medR.data||[]).filter(m=>!_pendingDeletes.medicalFiles.includes(String(m.id))).map(m=>({
         id:m.id, doctorId:m.doctor_id, patientPhone:m.patient_phone,
         data: m.data || {}
+      })),
+
+      emergencies: (emgR.data||[]).filter(e=>!_pendingDeletes.emergencies.includes(String(e.id))).map(e=>({
+        id: e.id,
+        patientName: e.patient_name,
+        patientPhone: e.patient_phone,
+        patientWilaya: e.patient_wilaya,
+        patientAge: e.patient_age,
+        emergencyType: e.emergency_type,
+        description: e.description||'',
+        status: e.status||'pending',
+        assignedClinicId: e.assigned_clinic_id||null,
+        assignedClinicName: e.assigned_clinic_name||null,
+        clinicResponse: e.clinic_response||null,
+        createdAt: e.created_at,
+        respondedAt: e.responded_at,
+        updatedAt: e.updated_at
       }))
     };
+
+    /* --- PROTECTION : réinjecter les RDV créés localement et pas encore
+       arrivés côté serveur (évite la disparition des RDV fraîchement créés) --- */
+    try {
+      const protectedIds = getProtectedApptIds();
+      if(protectedIds.length){
+        const serverIds = new Set(DB.appointments.map(a => String(a.id)));
+        const localMap = {};
+        if(localBackup && Array.isArray(localBackup.appointments)){
+          localBackup.appointments.forEach(a => { localMap[String(a.id)] = a; });
+        }
+        protectedIds.forEach(pid => {
+          if(!serverIds.has(String(pid)) && localMap[String(pid)]){
+            DB.appointments.push(localMap[String(pid)]);
+          } else if(serverIds.has(String(pid))){
+            /* Le serveur confirme → on peut retirer la protection */
+            unprotectAppt(pid);
+          }
+        });
+      }
+    } catch(e){ console.warn('Protection RDV:', e); }
 
     (comR.data||[]).forEach(r=>{
       if(!DB.communes[r.wilaya]) DB.communes[r.wilaya]=[];
@@ -4433,6 +4745,7 @@ async function loadDB(){
     if(!DB.medicalFiles) DB.medicalFiles = [];
     if(!DB.medications) DB.medications = [];
     if(!DB.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = {};
+        if(!DB.emergencies) DB.emergencies = [];
 
     remoteOK = true;
 
@@ -4528,7 +4841,10 @@ async function pushToSupabase(){
       await sb.from('doctor_clinic_links').delete().in('id', _pendingDeletes.doctorClinicLinks);
       _pendingDeletes.doctorClinicLinks = []; savePendingDeletes();
     }
-
+    if(_pendingDeletes.emergencies.length){
+      await sb.from('emergencies').delete().in('id', _pendingDeletes.emergencies);
+      _pendingDeletes.emergencies = []; savePendingDeletes();
+    }
     if(DB.doctors.length){
       await sb.from('doctors').upsert(DB.doctors.map(d=>({
         id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
@@ -4624,6 +4940,17 @@ async function pushToSupabase(){
       for(let i=0;i<rows.length;i+=100){
         await sb.from('appointments').upsert(rows.slice(i,i+100));
       }
+      /* --- Vérification : les RDV protégés doivent exister côté serveur --- */
+      try {
+        const protectedIds = getProtectedApptIds();
+        if(protectedIds.length){
+          const { data: check } = await sb.from('appointments').select('id').in('id', protectedIds);
+          const foundIds = new Set((check||[]).map(x => String(x.id)));
+          protectedIds.forEach(pid => {
+            if(foundIds.has(String(pid))) unprotectAppt(pid);
+          });
+        }
+      } catch(e){ console.warn('Vérification sync RDV:', e); }
     }
 
     const notifs = DB.notifications.slice(0,200);
@@ -4658,7 +4985,24 @@ async function pushToSupabase(){
         await sb.from('medical_files').upsert(rows.slice(i,i+50));
       }
     }
-
+    if(DB.emergencies && DB.emergencies.length){
+      await sb.from('emergencies').upsert(DB.emergencies.map(e=>({
+        id: e.id,
+        patient_name: e.patientName,
+        patient_phone: e.patientPhone,
+        patient_wilaya: e.patientWilaya,
+        patient_age: e.patientAge != null ? Number(e.patientAge) : null,
+        emergency_type: e.emergencyType,
+        description: e.description||'',
+        status: e.status||'pending',
+        assigned_clinic_id: e.assignedClinicId||null,
+        assigned_clinic_name: e.assignedClinicName||null,
+        clinic_response: e.clinicResponse||null,
+        created_at: e.createdAt,
+        responded_at: e.respondedAt||null,
+        updated_at: new Date().toISOString()
+      })));
+    }
     if(DB.specialties.length) await sb.from('specialties').upsert(DB.specialties.map(n=>({name:n})));
     if(DB.wilayas.length) await sb.from('wilayas').upsert(DB.wilayas.map(n=>({name:n})));
     const comRows = [];
@@ -4718,8 +5062,9 @@ function snapshotDB(){
     invoiceRegistry:    JSON.stringify(DB.invoiceRegistry),
     subInvoiceRegistry: JSON.stringify(DB.subInvoiceRegistry),
     clinicInvoiceRegistry: JSON.stringify(DB.clinicInvoiceRegistry),
-    medicalFiles:       JSON.stringify(DB.medicalFiles),
-    medications:        JSON.stringify(DB.medications || [])
+        medicalFiles:       JSON.stringify(DB.medicalFiles),
+    medications:        JSON.stringify(DB.medications || []),
+    emergencies:        JSON.stringify(DB.emergencies || [])
   };
 }
 function relevantKeysForCurrentView(){
@@ -4730,7 +5075,7 @@ function relevantKeysForCurrentView(){
   if(isAdmin) return null;
   if(isClinic){
     if(v === 'cdash' || v === 'cappts' || v === 'cdoctors' || v === 'cservices' || v === 'cprestations' || v === 'cstats')
-      return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings'];
+      return ['appointments','emergencies','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings'];
     if(v === 'crecette') return ['appointments','clinics','doctors','services','settings'];
     if(v === 'cprof')    return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','settings'];
     if(v === 'cmessages')return ['messages','clinics','doctors'];
@@ -4747,7 +5092,7 @@ function relevantKeysForCurrentView(){
   }
   if(v === 'home' || v === 'book')
     return ['doctors','specialties','wilayas','communes','appointments','services','clinics','clinicServices','clinicPrestations','doctorClinicLinks'];
-  if(v === 'my')     return ['appointments','doctors','notifications','clinics','clinicServices','clinicPrestations'];
+  if(v === 'my')     return ['appointments','emergencies','doctors','notifications','clinics','clinicServices','clinicPrestations'];
   if(v === 'login')  return null;
   return ['doctors','appointments','services','settings','clinics','clinicServices','clinicPrestations'];
 }
@@ -4759,7 +5104,7 @@ let _realtimeStatusStableTimer = null;
 function subscribeRealtime(){
   if(_realtimeChannel) return;
 
-  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry'];
+  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies'];
   let chan = sb.channel('omnimed-changes');
   const handler = () => {
     if(_isApplyingRemote) return;
@@ -4771,7 +5116,11 @@ function subscribeRealtime(){
       const ae = document.activeElement;
       const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')
                         && !ae.readOnly && !ae.disabled;
-      if(isEditing){
+      /* Pour les vues RDV (médecin + clinique), on force le refresh même si
+         un champ est focus — sinon les nouveaux RDV n'apparaissent jamais. */
+      const forceRefreshViews = ['cappts','cdash','dappts','ddash'];
+      const forceRefresh = forceRefreshViews.includes(state.view);
+      if(isEditing && !forceRefresh){
         if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
         _realtimeDebounce = setTimeout(handler, 800);
         return;
@@ -4982,6 +5331,18 @@ const currentMonth = () => new Date().getMonth()+1;
 const currentYear  = () => new Date().getFullYear();
 const fmtDateFR = iso => { const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
 const normPhone = p => String(p||'').replace(/[\s\-\.\(\)]/g,'');
+/* Normalisation profonde : gère +213 / 213 / sans préfixe */
+function normPhoneDeep(p){
+  let s = String(p||'').replace(/[\s\-\.\(\)]/g,'');
+  if(!s) return '';
+  /* Retirer + ou 00 */
+  s = s.replace(/^(\+|00)/, '');
+  /* Remplacer 213 en tête par 0 */
+  if(s.startsWith('213')) s = '0' + s.substring(3);
+  /* Ajouter 0 si manquant et longueur plausible */
+  if(!s.startsWith('0') && s.length >= 9) s = '0' + s;
+  return s;
+}
 
 function getUserKey(role, id){
   if(role === 'admin') return 'admin';
@@ -6565,33 +6926,8 @@ function getDoctorSearchCounts(doctorId){
 }
 
 /* ============================================================
-   QR
+   QR — supprimé (voir Étape 26)
    ============================================================ */
-function qrSVG(seed){
-  try{
-    if(typeof qrcode !== 'function') throw new Error('lib manquante');
-    const qr = qrcode(0, 'M');
-    qr.addData(String(seed));
-    qr.make();
-    return qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
-  }catch(e){
-    console.warn('QR fallback:', e);
-    let h = 0; for(const c of String(seed)) h = (h*31 + c.charCodeAt(0)) >>> 0;
-    const n = 21, cells = [];
-    const rand = () => { h = (h*1664525 + 1013904223) >>> 0; return h / 4294967296; };
-    for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const finder = (x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
-      let on;
-      if(finder){
-        const lx = x>=n-7 ? x-(n-7) : x;
-        const ly = y>=n-7 ? y-(n-7) : y;
-        on = (lx===0||lx===6||ly===0||ly===6) || (lx>=2&&lx<=4&&ly>=2&&ly<=4);
-      } else on = rand() > 0.55;
-      if(on) cells.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="#1f2937"/>`);
-    }
-    return `<svg viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg">${cells.join('')}</svg>`;
-  }
-}
 
 /* ============================================================
    RENDER PRINCIPAL
@@ -6665,6 +7001,8 @@ function render(){
       }catch(e){}
     }
   }
+  /* Popup urgence automatique pour les cliniques */
+  setTimeout(() => { try { maybeShowClinicEmergencyPopup(); } catch(e){} }, 120);
 }
 function applyDir(){
   document.body.dir = state.lang==='ar' ? 'rtl' : 'ltr';
@@ -7023,39 +7361,70 @@ function viewHome(){
   const recentDocs = allRecentDocs.slice((page-1)*RECENT_PER_PAGE, page*RECENT_PER_PAGE);
   const recentClinics = allRecentClinics.slice(0, RECENT_PER_PAGE);
   const clinicsCount = DB.clinics.filter(c=>!isClinicHiddenFromPatients(c)).length;
+  const filtersOpen = !!state.filtersOpen;
   return `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">🔍 ${t('find_doc')}</div>
-      <div class="home-search">
-        <div class="home-buttons">
-          <button class="pill-btn primary home-btn-lg" onclick="go('book')">📅 ${t('book_now')}</button>
-          <button class="pill-btn home-btn-lg home-btn-outline" onclick="go('my')">📋 ${t('my')}</button>
+    <div class="hero-actions">
+      <div class="hero-hello">
+        <div class="hero-emoji">🩺</div>
+        <div>
+          <div class="hero-title">${esc(t('welcome'))}</div>
+          <div class="hero-sub">${esc(t('home_hero_sub'))}</div>
         </div>
-        <div class="toggle-group" style="align-self:flex-start">
+      </div>
+      <div class="hero-btn-grid">
+        <button class="hero-btn primary" onclick="go('book')">
+          <div class="hero-btn-ico">📅</div>
+          <div class="hero-btn-lbl">${esc(t('home_hero_book'))}</div>
+          <div class="hero-btn-sub">${esc(t('home_hero_book_sub'))}</div>
+        </button>
+        <button class="hero-btn outline" onclick="scrollToClinicSearch()">
+          <div class="hero-btn-ico">🏥</div>
+          <div class="hero-btn-lbl">${esc(t('home_hero_clinic'))}</div>
+          <div class="hero-btn-sub">${esc(t('home_hero_clinic_sub'))}</div>
+        </button>
+        <button class="hero-btn emergency" onclick="openEmergencyModal()">
+          <div class="hero-btn-ico">🚨</div>
+          <div class="hero-btn-lbl">${esc(t('home_hero_emergency'))}</div>
+          <div class="hero-btn-sub">${esc(t('home_hero_emergency_sub'))}</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="card" id="home-search-card" style="margin-bottom:14px">
+      <div class="home-search-v2">
+        <input class="input search-main" id="homeSearchQ" placeholder="🔍 ${esc(t('search_ph'))}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
+        <button type="button" class="filters-toggle" onclick="state.filtersOpen=!state.filtersOpen;render()">
+          ⚙️ ${filtersOpen ? esc(t('filters_hide')) : esc(t('filters_advanced'))} ${filtersOpen ? '▴' : '▾'}
+        </button>
+      </div>
+      ${filtersOpen ? `
+      <div class="filters-panel">
+        <div class="toggle-group" style="align-self:flex-start;margin-bottom:10px">
           <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()">🔎 ${t('clinic_search_toggle_all')}</button>
           <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()">🧑‍⚕️ ${t('clinic_search_toggle_doctors')}</button>
           <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()">🏥 ${t('clinic_search_toggle_clinics')} <span class="tag accent" style="margin-left:4px;font-size:9px;padding:1px 6px">${clinicsCount}</span></button>
         </div>
         <div class="home-search-row">
-          <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
           ${showDoctors ? `
           <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()">
             <option value="">${t('all_spec')}</option>
             ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
           </select>` : `<div></div>`}
-        </div>
-        <div class="home-search-row">
           <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()">
             <option value="">${t('all_wilaya')}</option>
             ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
           </select>
+        </div>
+        <div class="home-search-row" style="margin-top:8px">
           <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()" ${!wilaya?'disabled style="opacity:.5"':''}>
             <option value="">${t('commune')} — ${t('filter_all')}</option>
             ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
           </select>
+          ${searching ? `<button class="pill-btn danger" onclick="state.search={q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'};render()">🗑️ ${t('filter_all')}</button>` : `<div></div>`}
         </div>
-      </div>
+      </div>` : ''}
     </div>
+
     ${searching ? `
       ${showClinics && clinicResults.length ? `
       <div class="card" style="margin-bottom:14px">
@@ -7071,35 +7440,35 @@ function viewHome(){
           ${doctorResults.map(d=>searchResultLabelHTML(d)).join('')}
         </div>
       </div>` : ''}
-      ${(showDoctors && doctorResults.length===0 && showClinics && clinicResults.length===0) || 
-        (!showDoctors && clinicResults.length===0) || 
+      ${(showDoctors && doctorResults.length===0 && showClinics && clinicResults.length===0) ||
+        (!showDoctors && clinicResults.length===0) ||
         (!showClinics && doctorResults.length===0) ? `
       <div class="card" style="margin-bottom:14px">
         <div class="empty" style="padding:24px"><div class="empty-ico">🔍</div>${t('no_search_results')}</div>
       </div>` : ''}
-    ` : ''}
-    <!-- MODIFICATION #1 : Split en 2 sections -->
-    <div class="recent-dual-grid">
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:16px">🆕 ${t('recently_added')} <span class="tag accent">${allRecentDocs.length}</span></div>
-        <div class="card-sub">${t('recently_added_sub')}</div>
-        ${recentDocs.length ? `
-          <div class="doctor-list" style="margin-top:10px">
-            ${recentDocs.slice(0, 8).map(d=>recentDoctorRowHTML(d)).join('')}
-          </div>
-          ${allRecentDocs.length > 8 ? renderRecentPagination(page, Math.ceil(allRecentDocs.length/8), allRecentDocs.length) : ''}
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🩺</div>${t('no_doctors_yet')}</div>`}
+    ` : `
+      <div class="recent-dual-grid">
+        <div class="recent-section-card">
+          <div class="card-title" style="font-size:16px">🆕 ${t('recently_added')} <span class="tag accent">${allRecentDocs.length}</span></div>
+          <div class="card-sub">${t('recently_added_sub')}</div>
+          ${recentDocs.length ? `
+            <div class="doctor-list" style="margin-top:10px">
+              ${recentDocs.slice(0, 8).map(d=>recentDoctorRowHTML(d)).join('')}
+            </div>
+            ${allRecentDocs.length > 8 ? renderRecentPagination(page, Math.ceil(allRecentDocs.length/8), allRecentDocs.length) : ''}
+          ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🩺</div>${t('no_doctors_yet')}</div>`}
+        </div>
+        <div class="recent-section-card">
+          <div class="card-title" style="font-size:16px">🆕 ${t('recently_added_clinics')} <span class="tag accent">${allRecentClinics.length}</span></div>
+          <div class="card-sub">${t('recently_added_clinics_sub')}</div>
+          ${recentClinics.length ? `
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+              ${recentClinics.map(c=>recentClinicRowHTML(c)).join('')}
+            </div>
+          ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🏥</div>${t('no_clinics_yet')}</div>`}
+        </div>
       </div>
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:16px">🆕 ${t('recently_added_clinics')} <span class="tag accent">${allRecentClinics.length}</span></div>
-        <div class="card-sub">${t('recently_added_clinics_sub')}</div>
-        ${recentClinics.length ? `
-          <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-            ${recentClinics.map(c=>recentClinicRowHTML(c)).join('')}
-          </div>
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🏥</div>${t('no_clinics_yet')}</div>`}
-      </div>
-    </div>
+    `}
   `;
 }
 function recentClinicRowHTML(c){
@@ -7849,6 +8218,7 @@ async function confirmClinicBooking(){
     clinicRating: 0
   };
   DB.appointments.push(appt);
+  protectAppt(appt.id);
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
   if(doc) pushNotif('doctor','Nouvelle demande de RDV clinique', `${name} — ${fmtDate(s.date)} ${s.time} (${c.name})`, doc.id, appt.id);
   pushClinicNotif('Nouvelle demande de RDV', `${name} — ${fmtDate(s.date)} ${s.time}`, c.id, appt.id);
@@ -7870,7 +8240,6 @@ function clinicBookConfirm(){
       <div class="card-title" style="justify-content:center;font-size:18px">${t('rdv_confirmed')}</div>
       <div class="card-sub" style="margin-bottom:16px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:14px;font-family:var(--font-numbers)">${appt.id}</strong></div>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-        <div class="qr">${qrSVG(appt.id)}</div>
         <div style="text-align:left;min-width:200px">
           <div style="font-weight:700;font-size:14px">${c.avatar||'🏥'} ${esc(c.name)}</div>
           ${doc ? `<div style="color:var(--accent-primary);font-size:12px;margin-bottom:6px">🧑‍⚕️ ${esc(doc.name)} — ${esc(doc.specialty)}</div>` : ''}
@@ -8339,6 +8708,7 @@ async function confirmBooking(){
     clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
   };
   DB.appointments.push(appt);
+  protectAppt(appt.id);
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
   pushNotif('doctor','Nouvelle demande de RDV', `${name} — ${fmtDate(s.date)} ${s.time}`, doc.id, appt.id);
   pushNotif('patient','Demande envoyée', `En attente de validation par ${doc.name}`, null, appt.id);
@@ -8357,7 +8727,6 @@ function bookStep4(){
       <div class="card-title" style="justify-content:center;font-size:18px">${t('rdv_confirmed')}</div>
       <div class="card-sub" style="margin-bottom:16px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:14px;font-family:var(--font-numbers)">${appt.id}</strong></div>
       <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
-        <div class="qr">${qrSVG(appt.id)}</div>
         <div style="text-align:left;min-width:200px">
           <div style="font-weight:700;font-size:14px">${esc(doc.name)}</div>
           <div style="color:var(--accent-primary);font-size:12px;margin-bottom:6px">${esc(doc.specialty)}</div>
@@ -8393,16 +8762,55 @@ function resetBooking(){
     patientName:'',patientPhone:'',patientEmail:'',patientWilaya:'',patientPassword:'',motif:''};
   state.view='book'; render();
 }
-
+function scrollToClinicSearch(){
+  state.filtersOpen = true;
+  state.search.mode = 'clinics';
+  render();
+  setTimeout(() => {
+    const el = document.getElementById('homeSearchQ');
+    if(el){ el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }, 60);
+}
+async function forceSyncRefresh(){
+  toast('🔄 Synchronisation…', 'info');
+  _isApplyingRemote = true;
+  try {
+    await loadDB();
+    if(state.doctor){
+      const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
+      if(refreshed) state.doctor = refreshed;
+    }
+    if(state.clinic){
+      const refreshed = DB.clinics.find(c=>c.id===state.clinic.id);
+      if(refreshed) state.clinic = refreshed;
+    }
+  } finally {
+    _isApplyingRemote = false;
+  }
+  render();
+  toast('✓ Synchronisé', 'success');
+}
 /* ============================================================
    MY APPOINTMENTS (patient)
    ============================================================ */
 function viewMy(){
   const phone = state.myPhone || '';
-  const norm = normPhone(phone);
-  const allAppts = phone ? DB.appointments.filter(a=>normPhone(a.patientPhone)===norm && a.status!=='deleted') : [];
+  const norm = normPhoneDeep(phone);
+  const allAppts = phone ? DB.appointments.filter(a=>{
+    if(a.status === 'deleted') return false;
+    const aNorm = normPhoneDeep(a.patientPhone);
+    return aNorm && aNorm === norm;
+  }) : [];
   const visible = allAppts.filter(a=>!state.hiddenAppts.includes(a.id));
   const sorted = visible.slice().sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
+
+  /* --- Urgences patient --- */
+  const myEmergencies = phone ? (DB.emergencies || []).filter(e => {
+    const eNorm = normPhoneDeep(e.patientPhone);
+    return eNorm && eNorm === norm;
+  }).sort((a,b) => String(b.createdAt||'').localeCompare(String(a.createdAt||''))) : [];
+  const activeEmergencies = myEmergencies.filter(e => e.status === 'pending' || e.status === 'accepted');
+
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">📱 ${t('my_rdv_title')}</div>
@@ -8411,9 +8819,26 @@ function viewMy(){
         <input class="input" id="lookupPhone" type="tel" inputmode="tel" value="${esc(phone)}" placeholder="+213 6…" style="flex:1;min-width:180px">
         <button class="pill-btn primary" onclick="lookupPhone()">🔎 ${t('lookup')}</button>
         <button class="pill-btn success" onclick="go('book')">📅 ${t('book_now')}</button>
+        <button class="pill-btn danger" onclick="openEmergencyModal()">🚨 ${t('home_hero_emergency')}</button>
       </div>
       ${sorted.length ? `<div class="sep"></div><div style="font-size:11.5px;color:var(--text-muted);text-align:center">💡 ${t('tap_for_details')}</div>`:''}
     </div>
+    ${activeEmergencies.length ? `
+      <div class="card" style="margin-bottom:14px;border-color:rgba(239,68,68,.35);background:linear-gradient(135deg,rgba(239,68,68,.06),rgba(220,38,38,.02))">
+        <div class="card-title" style="font-size:15px;color:#b91c1c">🚨 ${t('emergency_my')} <span class="tag danger">${activeEmergencies.length}</span></div>
+        <div style="margin-top:10px">
+          ${activeEmergencies.map(e => renderPatientEmergencyCard(e)).join('')}
+        </div>
+      </div>
+    ` : ''}
+    ${myEmergencies.length > activeEmergencies.length ? `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-title" style="font-size:13.5px;opacity:.75">📜 ${t('emergency_my')} — historique</div>
+        <div style="margin-top:8px">
+          ${myEmergencies.filter(e => e.status !== 'pending' && e.status !== 'accepted').slice(0, 5).map(e => renderPatientEmergencyCard(e)).join('')}
+        </div>
+      </div>
+    ` : ''}
     ${sorted.length ? sorted.map(a=>patientApptHTML(a)).join('') : `<div class="empty"><div class="empty-ico">📋</div>${t('no_appts')}</div>`}
   `;
 }
@@ -8469,6 +8894,349 @@ function hidePatientAppt(id){
   if(!state.hiddenAppts.includes(id)) state.hiddenAppts.push(id);
   saveHidden();
   render();
+}
+function renderPatientEmergencyCard(e){
+  const typeMeta = EMERGENCY_TYPES.find(x => x.id === e.emergencyType);
+  const typeLbl = typeMeta ? t(typeMeta.key) : e.emergencyType;
+  const typeIco = typeMeta ? typeMeta.ico : '🚨';
+  const statusCls = 'status-' + (e.status || 'pending');
+  const statusLbl = {
+    pending:  t('emergency_status_pending'),
+    accepted: t('emergency_status_accepted'),
+    declined: t('emergency_status_declined'),
+    cancelled:t('emergency_status_cancelled')
+  }[e.status] || e.status;
+  const statusTagCls = {
+    pending:'warn', accepted:'success', declined:'danger', cancelled:'muted'
+  }[e.status] || 'muted';
+  const canCancel = (e.status === 'pending' || e.status === 'accepted');
+  return `
+    <div class="my-emergency-card ${statusCls}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-bottom:6px">
+        <div style="display:flex;gap:8px;align-items:center;min-width:0">
+          <span style="font-size:22px">${typeIco}</span>
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:13.5px">${esc(typeLbl)}</div>
+            <div style="font-size:10.5px;color:var(--text-muted);font-family:var(--font-numbers)">
+              ${new Date(e.createdAt || Date.now()).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+            </div>
+          </div>
+        </div>
+        <span class="tag ${statusTagCls}" style="font-size:10px">${esc(statusLbl)}</span>
+      </div>
+      ${e.assignedClinicName ? `
+        <div style="font-size:11.5px;color:var(--success);font-weight:700;margin-top:4px">
+          ✅ ${t('emergency_accepted_by')} : <strong>${esc(e.assignedClinicName)}</strong>
+        </div>
+      ` : ''}
+      ${e.clinicResponse ? `
+        <div style="font-size:11.5px;color:var(--text-main);margin-top:6px;padding:6px 10px;background:var(--glass-bg-3);border-radius:6px;border-left:3px solid var(--accent-primary)">
+          <strong>💬 ${t('emergency_clinic_response')} :</strong> ${esc(e.clinicResponse)}
+        </div>
+      ` : ''}
+      ${e.description ? `
+        <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;font-style:italic">"${esc(e.description)}"</div>
+      ` : ''}
+      ${canCancel ? `
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="mini-btn out-red" onclick="askCancelEmergency('${e.id}')">✕ ${t('emergency_cancel')}</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+/* ---- Urgences : côté PATIENT ---- */
+function openEmergencyModal(){
+  state.emergencyForm = {
+    patientName: state.emergencyForm?.patientName || '',
+    patientPhone: state.emergencyForm?.patientPhone || state.myPhone || '',
+    patientWilaya: state.emergencyForm?.patientWilaya || '',
+    patientAge: state.emergencyForm?.patientAge || '',
+    emergencyType: state.emergencyForm?.emergencyType || '',
+    description: state.emergencyForm?.description || ''
+  };
+  const f = state.emergencyForm;
+  const typesHTML = EMERGENCY_TYPES.map(tp => `
+    <button type="button" class="emergency-type-btn ${f.emergencyType===tp.id?'selected':''}"
+      onclick="pickEmergencyType('${tp.id}')">
+      <span class="et-ico">${tp.ico}</span>
+      <span>${esc(t(tp.key))}</span>
+    </button>
+  `).join('');
+  const body = `
+    <div class="letter-amount" style="font-style:normal;margin-bottom:14px;color:#b91c1c;border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)">
+      ⚠️ <strong>${esc(t('emergency_sub'))}</strong>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${t('fullname')} *</label>
+        <input class="input" id="emgName" value="${esc(f.patientName)}" oninput="state.emergencyForm.patientName=this.value"></div>
+      <div class="field"><label>${t('phone')} *</label>
+        <input class="input" id="emgPhone" type="tel" value="${esc(f.patientPhone)}" oninput="state.emergencyForm.patientPhone=this.value"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${t('patient_wilaya')} *</label>
+        <select class="select" id="emgWilaya" onchange="state.emergencyForm.patientWilaya=this.value">
+          <option value="">${t('patient_wilaya_ph')}</option>
+          ${DB.wilayas.map(w=>`<option ${f.patientWilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>${t('age')}</label>
+        <input class="input" id="emgAge" type="number" min="0" max="130" value="${esc(f.patientAge)}" oninput="state.emergencyForm.patientAge=this.value" placeholder="${t('age_ph')}"></div>
+    </div>
+    <div class="field">
+      <label>${t('emergency_type')} *</label>
+      <div class="emergency-types-grid">${typesHTML}</div>
+    </div>
+    <div class="field">
+      <label>${t('emergency_desc')}</label>
+      <textarea class="textarea" id="emgDesc" style="min-height:70px" placeholder="${t('emergency_desc_ph')}" oninput="state.emergencyForm.description=this.value">${esc(f.description)}</textarea>
+    </div>
+  `;
+  const actions = `
+    <button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+    <button class="pill-btn danger" onclick="submitEmergency()" style="padding:11px 22px;font-weight:700">🚨 ${t('emergency_submit')}</button>
+  `;
+  openModal('🚨 ' + t('emergency_title'), t('emergency_sub'), body, actions, true);
+}
+function pickEmergencyType(typeId){
+  state.emergencyForm.emergencyType = typeId;
+  /* Re-render juste le modal (plus rapide que tout render()) */
+  const currentModal = document.querySelector('.modal-back');
+  if(currentModal){
+    const wasOpen = true;
+    const scrollPos = currentModal.querySelector('.modal')?.scrollTop || 0;
+    closeModal();
+    openEmergencyModal();
+    setTimeout(()=>{
+      const m = document.querySelector('.modal-back .modal');
+      if(m) m.scrollTop = scrollPos;
+    }, 20);
+  } else {
+    render();
+  }
+}
+function submitEmergency(){
+  const f = state.emergencyForm;
+  const name = (f.patientName||'').trim();
+  const phone = (f.patientPhone||'').trim();
+  const wilaya = (f.patientWilaya||'').trim();
+  if(!name || !phone || !wilaya){ toast(t('emergency_required'),'error'); return; }
+  if(!f.emergencyType){ toast(t('emergency_type_required'),'error'); return; }
+
+  /* Trouver les cliniques avec un service Urgences (ou Maternité si obstétrique) */
+  const isObstetric = f.emergencyType === 'obstetric';
+  const targetClinics = DB.clinics.filter(c => {
+    if(isClinicHiddenFromPatients(c)) return false;
+    const services = clinicServicesFor(c.id);
+    if(isObstetric){
+      return services.some(s => (s.name||'').toLowerCase().includes('matern'));
+    }
+    return services.some(s => {
+      const n = (s.name||'').toLowerCase();
+      return n.includes('urgence') || n.includes('urgences');
+    });
+  });
+  if(!targetClinics.length){
+    toast(t('emergency_no_clinic'),'error');
+    return;
+  }
+
+  /* Création de l'urgence (broadcast) */
+  const emergency = {
+    id: 'EMG-' + Math.random().toString(36).slice(2,7).toUpperCase(),
+    patientName: name,
+    patientPhone: phone,
+    patientWilaya: wilaya,
+    patientAge: f.patientAge ? Number(f.patientAge) : null,
+    emergencyType: f.emergencyType,
+    description: (f.description||'').trim(),
+    status: 'pending',
+    assignedClinicId: null,
+    assignedClinicName: null,
+    clinicResponse: null,
+    createdAt: nowISO(),
+    respondedAt: null,
+    updatedAt: nowISO()
+  };
+  DB.emergencies.unshift(emergency);
+
+  /* Notification pour chaque clinique concernée */
+  targetClinics.forEach(c => {
+    DB.notifications.unshift({
+      id: uid('NE-'),
+      role: 'clinic',
+      title: '🚨 ' + t('emergency_clinic_popup_title'),
+      message: `${name} — ${t(EMERGENCY_TYPES.find(x=>x.id===f.emergencyType)?.key || 'emergency_type_other')}`,
+      toDoctorId: String(c.id),
+      apptId: null,
+      emergencyId: emergency.id,
+      date: nowISO(),
+      read: false
+    });
+  });
+  DB.notifications = DB.notifications.slice(0, 200);
+
+  state.myPhone = phone;
+  localStorage.setItem('omnimed_phone', phone);
+  state.emergencyForm = { patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:'' };
+  saveDB();
+  closeModal();
+  render();
+  toast('🚨 ' + t('emergency_sent') + ' — ' + t('emergency_send_to_clinics').replace('{n}', targetClinics.length), 'success');
+}
+function askCancelEmergency(id){
+  openModal('✕ ' + t('emergency_cancel'), t('emergency_cancel_confirm'), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+     <button class="pill-btn danger" onclick="cancelEmergency('${id}')">✕ ${t('emergency_cancel')}</button>`);
+}
+function cancelEmergency(id){
+  const e = DB.emergencies.find(x => x.id === id);
+  if(!e){ closeModal(); return; }
+  e.status = 'cancelled';
+  e.updatedAt = nowISO();
+  saveDB();
+  closeModal();
+  render();
+  toast(t('emergency_cancelled_ok'), 'info');
+}
+/* ---- Urgences : côté CLINIQUE ---- */
+const LS_DISMISSED_EMG = 'omnimed_dismissed_emg_';
+function getDismissedEmergencies(clinicId){
+  try {
+    return JSON.parse(localStorage.getItem(LS_DISMISSED_EMG + String(clinicId)) || '[]');
+  } catch(e){ return []; }
+}
+function addDismissedEmergency(clinicId, emgId){
+  const list = getDismissedEmergencies(clinicId);
+  if(!list.includes(emgId)){
+    list.push(emgId);
+    if(list.length > 100) list.splice(0, list.length - 100);
+    try { localStorage.setItem(LS_DISMISSED_EMG + String(clinicId), JSON.stringify(list)); } catch(e){}
+  }
+}
+
+/* Retourne les urgences en attente que cette clinique doit voir */
+function pendingEmergenciesForClinic(clinicId){
+  const clinic = clinicById(clinicId);
+  if(!clinic) return [];
+  const services = clinicServicesFor(clinicId);
+  const hasUrgences = services.some(s => {
+    const n = (s.name||'').toLowerCase();
+    return n.includes('urgence');
+  });
+  const hasMaternite = services.some(s => (s.name||'').toLowerCase().includes('matern'));
+  const dismissed = getDismissedEmergencies(clinicId);
+  return (DB.emergencies || []).filter(e => {
+    if(e.status !== 'pending') return false;
+    if(e.assignedClinicId) return false;
+    if(dismissed.includes(e.id)) return false;
+    if(e.emergencyType === 'obstetric') return hasMaternite || hasUrgences;
+    return hasUrgences;
+  });
+}
+
+/* Affiche la grande popup urgence (appelée après render si role=clinic) */
+function maybeShowClinicEmergencyPopup(){
+  if(state.role !== 'clinic' || !state.clinic) return;
+  /* Ne pas superposer si un modal est déjà ouvert (hors popup urgence) */
+  const existingPopup = document.getElementById('clinicEmergencyPopup');
+  if(existingPopup) return;
+  const pending = pendingEmergenciesForClinic(state.clinic.id);
+  if(!pending.length) return;
+  showClinicEmergencyPopup(pending[0].id);
+}
+
+function showClinicEmergencyPopup(emgId){
+  const e = DB.emergencies.find(x => x.id === emgId);
+  if(!e || e.status !== 'pending') return;
+  const typeMeta = EMERGENCY_TYPES.find(x => x.id === e.emergencyType);
+  const typeLbl = typeMeta ? t(typeMeta.key) : e.emergencyType;
+  const typeIco = typeMeta ? typeMeta.ico : '🚨';
+  const root = document.getElementById('modal-root');
+  if(!root) return;
+  root.innerHTML = `
+    <div class="clinic-emergency-popup" id="clinicEmergencyPopup">
+      <div class="clinic-emergency-inner">
+        <div class="ce-header">
+          <div class="ce-ico">🚨</div>
+          <div>
+            <div class="ce-title">${esc(t('emergency_clinic_popup_title'))}</div>
+            <div class="ce-sub">${esc(t('emergency_clinic_popup_sub'))}</div>
+          </div>
+        </div>
+
+        <div class="ce-info-grid">
+          <div class="ce-info">
+            <div class="ce-info-lbl">👤 ${t('fullname')}</div>
+            <div class="ce-info-val">${esc(e.patientName||'—')}</div>
+          </div>
+          <div class="ce-info">
+            <div class="ce-info-lbl">📞 ${t('phone')}</div>
+            <div class="ce-info-val" style="font-family:var(--font-numbers)">${esc(e.patientPhone||'—')}</div>
+          </div>
+          <div class="ce-info">
+            <div class="ce-info-lbl">🗺️ ${t('patient_wilaya')}</div>
+            <div class="ce-info-val">${esc(e.patientWilaya||'—')}</div>
+          </div>
+          <div class="ce-info">
+            <div class="ce-info-lbl">🎂 ${t('age')}</div>
+            <div class="ce-info-val">${e.patientAge ? esc(e.patientAge) + ' ' + t('billing_years_old') : '—'}</div>
+          </div>
+          <div class="ce-info" style="grid-column:1 / -1;border-color:rgba(239,68,68,.5);background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08))">
+            <div class="ce-info-lbl" style="color:#b91c1c">${typeIco} ${t('emergency_type')}</div>
+            <div class="ce-info-val" style="color:#b91c1c;font-size:15px;font-weight:800">${esc(typeLbl)}</div>
+          </div>
+        </div>
+
+        ${e.description ? `
+          <div class="ce-desc">
+            <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:800;color:#b91c1c;margin-bottom:5px">📝 ${t('emergency_desc')}</div>
+            ${esc(e.description)}
+          </div>
+        ` : ''}
+
+        <div class="ce-actions">
+          <button class="ce-btn decline" onclick="declineEmergency('${e.id}')">✕ ${esc(t('emergency_decline'))}</button>
+          <button class="ce-btn accept" onclick="acceptEmergency('${e.id}')">✓ ${esc(t('emergency_accept'))}</button>
+        </div>
+        <div class="ce-countdown">⏱️ ${t('emergency_clinic_popup_sub')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function acceptEmergency(emgId){
+  const e = DB.emergencies.find(x => x.id === emgId);
+  if(!e || e.status !== 'pending'){
+    toast(t('emergency_already_handled'),'error');
+    hideClinicEmergencyPopup();
+    return;
+  }
+  e.status = 'accepted';
+  e.assignedClinicId = state.clinic.id;
+  e.assignedClinicName = state.clinic.name;
+  e.respondedAt = nowISO();
+  e.updatedAt = nowISO();
+  pushNotif('patient', '✅ ' + t('emergency_status_accepted'),
+    `${t('emergency_accepted_by')} ${state.clinic.name}`, null, null);
+  saveDB();
+  hideClinicEmergencyPopup();
+  render();
+  toast('✅ ' + t('emergency_accepted_ok'), 'success');
+}
+function declineEmergency(emgId){
+  const e = DB.emergencies.find(x => x.id === emgId);
+  if(!e){ hideClinicEmergencyPopup(); return; }
+  /* Marquer localement comme refusée par cette clinique — l'urgence reste
+     visible pour les AUTRES cliniques (status reste 'pending') */
+  addDismissedEmergency(state.clinic.id, emgId);
+  hideClinicEmergencyPopup();
+  render();
+  toast(t('emergency_declined_ok'), 'info');
+}
+function hideClinicEmergencyPopup(){
+  const popup = document.getElementById('clinicEmergencyPopup');
+  if(popup) popup.remove();
 }
 function modifyAppt(id){
   const a = DB.appointments.find(x=>x.id===id);
@@ -8964,8 +9732,9 @@ function viewDoctorAppts(){
       <div class="grid grid-2">
         <input class="input" type="date" value="${f.date}" onchange="state.filter.date=this.value;state.apptsPage=1;render()">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="pill-btn primary" onclick="forceSyncRefresh()" style="flex:1">🔄 Actualiser</button>
           <button class="pill-btn danger" onclick="state.filter={status:'all',date:todayISO(),search:''};state.apptsPage=1;render()" style="flex:1">🗑️ Réinitialiser</button>
-          <button class="pill-btn primary" onclick="openPrintRDVModal()" style="flex:1">🖨️ ${t('print_rdv')}</button>
+          <button class="pill-btn" onclick="openPrintRDVModal()" style="flex:1">🖨️ ${t('print_rdv')}</button>
         </div>
       </div>
       <div class="chips" style="margin-top:12px;margin-bottom:0">
@@ -9515,6 +10284,7 @@ async function createInternalAppt(){
     clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
   };
   DB.appointments.push(appt);
+  protectAppt(appt.id);
   pushNotif('patient','RDV interne créé', `Votre RDV ${appt.id} le ${fmtDate(appt.date)} à ${appt.time}`, null, appt.id);
   saveDB();
   state.internalForm = {patientName:'', patientAge:'', patientPhone:'', patientEmail:'', date:'', time:'', motif:'', services:[], patientWilaya:'', documents:[]};
@@ -17095,7 +17865,8 @@ function viewClinicAppts(){
         ${fbtn('cancelled','✕ '+t('status_cancelled'),'cancelled')}
         ${fbtn('done','✅ '+t('status_done'),'done')}
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="pill-btn primary" onclick="forceSyncRefresh()">🔄 Actualiser</button>
         <button class="pill-btn danger" onclick="state.clinicData.clinicApptFilter={status:'all',date:todayISO(),search:'',doctorId:'all',serviceId:'all'};state.apptsPage=1;render()">🗑️ Réinitialiser</button>
       </div>
     </div>
@@ -18051,6 +18822,7 @@ window.addEventListener('DOMContentLoaded', init);
 
 Object.assign(window, {
   go, setRole, toggleDark, setLang, goHome,
+  scrollToClinicSearch,
   openAccountLogin, doAccountLogin, logoutAccount,
   openRecettePasswordModal, checkRecettePassword,
   openClinicRecettePasswordModal, checkClinicRecettePassword,
@@ -18159,7 +18931,20 @@ Object.assign(window, {
   peekClinicInvoiceNumber, assignClinicInvoiceNumberForClinic, formatClinicInvoiceNumberFromCount,
   computeClinicBillingData, computeClinicRevenue,
   /* MODIFICATION #5 — clinique 24/7 */
-  isClinicWorkDay, slotsForClinic, availableDaysForClinic
+  isClinicWorkDay, slotsForClinic, availableDaysForClinic,
+
+  /* --- Urgences --- */
+  openEmergencyModal, pickEmergencyType, submitEmergency,
+  askCancelEmergency, cancelEmergency,
+  showClinicEmergencyPopup, hideClinicEmergencyPopup,
+  acceptEmergency, declineEmergency,
+  pendingEmergenciesForClinic, getDismissedEmergencies, addDismissedEmergency,
+  maybeShowClinicEmergencyPopup, renderPatientEmergencyCard,
+  EMERGENCY_TYPES,
+
+  /* --- Fix sync --- */
+  forceSyncRefresh, normPhoneDeep,
+  protectAppt, unprotectAppt, getProtectedAppts, getProtectedApptIds
 });
 </script>
 </body>
