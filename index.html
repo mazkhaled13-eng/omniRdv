@@ -5036,7 +5036,9 @@ async function pushToSupabase(){
 let _syncBadgeTimer = null;
 let _lastSyncBadgeState = null;
 
+let _lastSyncTime = 0;
 function markSyncBadge(ok){
+  if(ok) _lastSyncTime = Date.now();
   if(_syncBadgeTimer) clearTimeout(_syncBadgeTimer);
   const delay = ok ? 0 : 1200;
   _syncBadgeTimer = setTimeout(() => {
@@ -5047,6 +5049,8 @@ function markSyncBadge(ok){
     if(!el) return;
     el.className = 'sync-badge ' + (ok ? 'online' : 'offline');
     el.textContent = ok ? '🟢 En ligne' : '🔴 Hors-ligne';
+    /* Ajouter un titre avec l'heure de dernière sync */
+    if(ok) el.title = 'Dernière sync : ' + new Date().toLocaleTimeString('fr-FR');
   }, delay);
 }
 
@@ -5112,25 +5116,33 @@ function subscribeRealtime(){
 
   const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies'];
   let chan = sb.channel('omnimed-changes');
+  let _rtEventQueue = 0;
   const handler = () => {
     if(_isApplyingRemote) return;
-    if(_isPushing) return;
-    if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
+    /* ⚠️ SUPPRESSION des checks _isPushing + _lastPushTime.
+       On laisse passer tous les events et c'est la comparaison snapshot
+       qui décidera si oui ou non il faut re-render.
+       → Résout le cas où un RDV créé sur un autre appareil n'apparaissait jamais. */
+
+    _rtEventQueue++;
 
     if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
     _realtimeDebounce = setTimeout(async () => {
+      const myEventId = _rtEventQueue;
+
       const ae = document.activeElement;
-      const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')
+      const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')
                         && !ae.readOnly && !ae.disabled;
-      /* Pour les vues RDV (médecin + clinique), on force le refresh même si
-         un champ est focus — sinon les nouveaux RDV n'apparaissent jamais. */
-      const forceRefreshViews = ['cappts','cdash','dappts','ddash'];
-      const forceRefresh = forceRefreshViews.includes(state.view);
-      if(isEditing && !forceRefresh){
+      /* On autorise le refresh si la perte de focus dure trop longtemps :
+         on compte combien de fois on a reporté. Si > 6 (≈5s), on force. */
+      handler._postponeCount = handler._postponeCount || 0;
+      if(isEditing && handler._postponeCount < 6){
+        handler._postponeCount++;
         if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
         _realtimeDebounce = setTimeout(handler, 800);
         return;
       }
+      handler._postponeCount = 0;
 
       _isApplyingRemote = true;
       try{
@@ -5152,8 +5164,11 @@ function subscribeRealtime(){
         const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
         if(changedKeys.length === 0) return;
 
-        const relevant = relevantKeysForCurrentView();
-        if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
+        /* ⚠️ On ne filtre plus par relevantKeys : si quelque chose a changé,
+           on re-render. C'est moins "propre" mais beaucoup plus fiable. */
+        // (conservé en commentaire pour référence)
+        // const relevant = relevantKeysForCurrentView();
+        // if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
 
         const activeEl  = document.activeElement;
         const activeId  = activeEl?.id;
@@ -5226,16 +5241,26 @@ function subscribeRealtime(){
       state.realtimeConnected = isConnected;
       markSyncBadge(isConnected);
     }, delay);
-    console.log('Realtime:', status);
+    console.log('[Realtime]', status);
 
     if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
-      console.warn('Realtime déconnecté, reconnexion dans 3s…');
+      console.warn('[Realtime] Déconnecté, reconnexion dans 3s…');
       setTimeout(() => {
         if(_realtimeChannel){
           try { sb.removeChannel(_realtimeChannel); }catch(e){}
           _realtimeChannel = null;
           subscribeRealtime();
         }
+        /* Forcer une resync immédiate après reconnexion */
+        setTimeout(() => {
+          if(state.view && !_isApplyingRemote){
+            _isApplyingRemote = true;
+            (async () => {
+              try { await loadDB(); render(); }
+              finally { _isApplyingRemote = false; }
+            })();
+          }
+        }, 1500);
       }, 3000);
     }
   });
@@ -5244,11 +5269,10 @@ function setupVisibilityResync(){
   let lastResync = 0;
   const triggerResync = () => {
     const now = Date.now();
-    if(now - lastResync < 1500) return;
+    if(now - lastResync < 800) return;
     lastResync = now;
     if(_isApplyingRemote) return;
-    if(_isPushing) return;
-    if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
+    /* On retire les checks _isPushing et _lastPushTime : trop agressifs */
     _isApplyingRemote = true;
     (async () => {
       try {
@@ -8805,6 +8829,51 @@ async function forceSyncRefresh(){
   }
   render();
   toast('✓ Synchronisé', 'success');
+}
+/* ============================================================
+   🔍 DIAGNOSTIC REALTIME — appeler diagRealtime() dans la console
+   ============================================================ */
+function diagRealtime(){
+  const report = {
+    channel: _realtimeChannel ? 'exists' : 'NULL',
+    connected: state.realtimeConnected,
+    lastPush: _lastPushTime ? new Date(_lastPushTime).toLocaleTimeString('fr-FR') : 'jamais',
+    lastSync: _lastSyncTime ? new Date(_lastSyncTime).toLocaleTimeString('fr-FR') : 'jamais',
+    view: state.view,
+    role: state.role,
+    appointments: (DB.appointments||[]).length,
+    emergencies: (DB.emergencies||[]).length,
+    pendingDeletes: {
+      doctors: _pendingDeletes.doctors.length,
+      appointments: _pendingDeletes.appointments.length,
+      emergencies: (_pendingDeletes.emergencies||[]).length
+    }
+  };
+  console.log('%c🔍 DIAGNOSTIC REALTIME', 'background:#8b5cf6;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold');
+  console.table(report);
+  console.log('Channel state:', _realtimeChannel?.state);
+  return report;
+}
+
+async function forceFullResync(){
+  console.log('🔄 Resync complet forcé…');
+  toast('🔄 Resync complet…', 'info');
+  _isApplyingRemote = true;
+  try {
+    await loadDB();
+    if(state.doctor){
+      const r = DB.doctors.find(d=>d.id===state.doctor.id);
+      if(r) state.doctor = r;
+    }
+    if(state.clinic){
+      const r = DB.clinics.find(c=>c.id===state.clinic.id);
+      if(r) state.clinic = r;
+    }
+  } finally {
+    _isApplyingRemote = false;
+  }
+  render();
+  toast('✓ Resync effectué', 'success');
 }
 /* ============================================================
    MY APPOINTMENTS (patient)
@@ -18800,13 +18869,17 @@ async function init(){
   /* Auto-lock des prestations cliniques */
   try { autoLockPrestations(); } catch(e){}
   setInterval(checkReminders, 5 * 60 * 1000);
+
+  /* ⚠️ Polling de secours : toutes les 12s, même si realtime est connecté,
+     on force une vérification silencieuse. Si le WebSocket est mort,
+     c'est ce mécanisme qui maintient la synchronisation. */
   setInterval(async () => {
     if(_isApplyingRemote) return;
-    if(_isPushing) return;
-    if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
     if(document.visibilityState !== 'visible') return;
     const ae = document.activeElement;
-    if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return;
+    /* On ne bloque QUE si l'utilisateur est en train d'écrire dans un texte */
+    if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && !ae.readOnly && !ae.disabled) return;
+
     _isApplyingRemote = true;
     try {
       const before = snapshotDB();
@@ -18823,13 +18896,14 @@ async function init(){
       const after = snapshotDB();
       const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
       if(changedKeys.length === 0) return;
-      const relevant = relevantKeysForCurrentView();
-      if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
       render();
+      /* Marquer le badge comme "à jour" */
+      const badge = document.getElementById('syncBadge');
+      if(badge){ badge.className = 'sync-badge online'; badge.textContent = '🟢 En ligne'; }
     } finally {
       _isApplyingRemote = false;
     }
-  }, 60000);
+  }, 12000);
   applyDir(); render();
   subscribeRealtime();
   setupVisibilityResync();
@@ -18960,7 +19034,10 @@ Object.assign(window, {
 
   /* --- Fix sync --- */
   forceSyncRefresh, normPhoneDeep,
-  protectAppt, unprotectAppt, getProtectedAppts, getProtectedApptIds
+  protectAppt, unprotectAppt, getProtectedAppts, getProtectedApptIds,
+
+  /* --- Diagnostic --- */
+  diagRealtime, forceFullResync
 });
 </script>
 </body>
