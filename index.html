@@ -18826,8 +18826,8 @@ function showEmergencyAlertModal(e){
         </div>
         <div class="em-timer" id="emTimer">⏱️ ${t('emergency_created')} …</div>
         <div class="em-actions">
-          <button class="em-btn decline" onclick="declineEmergency('${e.id}')">❌ ${t('emergency_decline')}</button>
-          <button class="em-btn accept" onclick="acceptEmergency('${e.id}')">✅ ${t('emergency_accept')}</button>
+          <button class="em-btn decline" onclick="askEmergencyAction('${e.id}', 'declined')">❌ ${t('emergency_decline')}</button>
+          <button class="em-btn accept" onclick="askEmergencyAction('${e.id}', 'accepted')">✅ ${t('emergency_accept')}</button>
         </div>
         <div class="em-audio-hint" id="emAudioHint" onclick="enableEmergencyAudio()">🔊 ${t('emergency_sound_enable')}</div>
       </div>
@@ -18846,34 +18846,62 @@ function showEmergencyAlertModal(e){
 function acceptEmergency(emergencyId){
   const e = DB.emergencies.find(x => x.id === emergencyId);
   if(!e) return;
-  if(!window.confirm(t('emergency_confirm_accept'))) return;
   e.status = 'accepted';
   e.respondedAt = new Date().toISOString();
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Acceptée';
-  markEmergencyProcessed(emergencyId);          // 🆕 anti-réapparition
+  markEmergencyProcessed(emergencyId);
   pushNotif('patient', '✅ Urgence acceptée', `${e.assignedClinicName} a accepté votre urgence ${e.id}`, null, null);
-  saveDB({immediate: true});                    // 🆕 push instantané (pas de debounce)
+  saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
+  closeModal(); // Ferme notre popup de confirmation
   render();
   toast('✅ ' + t('emergency_status_accepted'), 'success');
 }
+
 function declineEmergency(emergencyId){
   const e = DB.emergencies.find(x => x.id === emergencyId);
   if(!e) return;
-  if(!window.confirm(t('emergency_confirm_decline'))) return;
   e.status = 'declined';
   e.respondedAt = new Date().toISOString();
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Refusée';
-  markEmergencyProcessed(emergencyId);          // 🆕
+  markEmergencyProcessed(emergencyId);
   pushNotif('patient', '❌ Urgence refusée', `${e.assignedClinicName} n'a pas pu prendre en charge votre urgence ${e.id}`, null, null);
-  saveDB({immediate: true});                    // 🆕
+  saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
+  closeModal(); // Ferme notre popup de confirmation
   render();
   toast(t('emergency_status_declined'), 'info');
+}
+function askEmergencyAction(emergencyId, action){
+  const isAccept = action === 'accepted';
+  
+  // On monte le z-index de la modale pour qu'elle s'affiche AU-DESSUS de l'alerte rouge
+  const modalRoot = document.getElementById('modal-root');
+  if(modalRoot) modalRoot.style.zIndex = '500';
+
+  // On utilise la fonction openModal existante pour garder le design de l'app
+  openModal(
+    isAccept ? '✅ Confirmer l\'acceptation' : '❌ Confirmer le refus', 
+    '', 
+    `<div style="text-align:center; padding:10px 0">
+      <div style="font-size:50px; margin-bottom:12px; filter:drop-shadow(0 4px 10px ${isAccept ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'})">
+        ${isAccept ? '🚑' : '⚠️'}
+      </div>
+      <div style="font-size:14.5px; color:var(--text-main); line-height:1.6; font-weight:500">
+        ${isAccept 
+          ? 'Êtes-vous sûr de vouloir prendre en charge cette urgence ? Le patient sera notifié immédiatement.' 
+          : 'Êtes-vous sûr de vouloir refuser cette urgence ? Le patient devra contacter les secours.'}
+      </div>
+    </div>`, 
+    `<button class="pill-btn" onclick="closeModal(); document.getElementById('modal-root').style.zIndex='100';" style="flex:1">Annuler</button>
+     <button class="pill-btn ${isAccept ? 'success' : 'danger'}" onclick="document.getElementById('modal-root').style.zIndex='100'; ${isAccept ? `acceptEmergency('${emergencyId}')` : `declineEmergency('${emergencyId}')`}" style="flex:1.5; justify-content:center; font-weight:700">
+       ${isAccept ? 'Oui, accepter' : 'Oui, décliner'}
+     </button>`
+  );
 }
 function cancelEmergency(emergencyId){
   const e = DB.emergencies.find(x => x.id === emergencyId);
@@ -19282,6 +19310,7 @@ async function playPatientEmergencyAlert(isAccepted){
 // Modale plein écran : urgence acceptée / refusée
 function showPatientEmergencyResultModal(n, result){
   playPatientEmergencyAlert(result === 'accepted');
+  closeModal(); // 🆕 Ferme la fenêtre "Urgence envoyée" si elle est encore ouverte
   const root = document.getElementById('emergencyModalRoot');
   if(!root) return;
   const isAcc = result === 'accepted';
