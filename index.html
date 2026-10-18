@@ -4013,6 +4013,27 @@ const state = {
   },
   _importPending: null
 };
+/* ============================================================
+   🚨 TRACKING DES URGENCES TRAITÉES (anti-réapparition modale)
+   ============================================================ */
+let _emergencyProcessed = [];
+try {
+  _emergencyProcessed = JSON.parse(localStorage.getItem('omnimed_processed_emergencies') || '[]');
+  if(!Array.isArray(_emergencyProcessed)) _emergencyProcessed = [];
+} catch(e) { _emergencyProcessed = []; }
+
+function markEmergencyProcessed(id){
+  if(!id) return;
+  if(_emergencyProcessed.includes(id)) return;
+  _emergencyProcessed.push(id);
+  if(_emergencyProcessed.length > 300) _emergencyProcessed = _emergencyProcessed.slice(-300);
+  try {
+    localStorage.setItem('omnimed_processed_emergencies', JSON.stringify(_emergencyProcessed));
+  } catch(e){}
+}
+function isEmergencyProcessed(id){
+  return _emergencyProcessed.includes(id);
+}
 const SPECIALTY_AVATARS = {
   'Généraliste':'🩺','Cardiologie':'🫀','Dermatologie':'🧴','Pédiatrie':'🧸','Dentaire':'🦷',
   'Ophtalmologie':'👁️','Gynécologie':'🤰','Neurologie':'🧠','Orthopédie':'🦴','ORL':'👂',
@@ -4583,7 +4604,8 @@ async function loadDB(){
 }
 
 /* ---------- SAVE (debounced full-sync) ---------- */
-function saveDB(){
+function saveDB(opts){
+  opts = opts || {};
   try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
   if(_isApplyingRemote) return;
 
@@ -4593,21 +4615,30 @@ function saveDB(){
     return;
   }
 
-  if(_syncTimer) clearTimeout(_syncTimer);
+  if(_syncTimer){ clearTimeout(_syncTimer); _syncTimer = null; }
+
+  if(opts.immediate){
+    // ⚡ Push sans délai (urgences : accepter/refuser/annuler)
+    pushToSupabase().catch(()=>{});
+    return;
+  }
+
   _syncTimer = setTimeout(async () => {
     _syncTimer = null;
     await pushToSupabase();
-  }, 30); // ⚡ réduit de 500 → 30ms
+  }, 30);
 }
 
 let _isPushing = false;
 let _lastPushTime = 0;
-const PUSH_GRACE_MS = 500; // ⚡ réduit de 2500 → 500ms
-let _lastPushedSnapshot = null; // 🆕 tracking des tables modifiées
+const PUSH_GRACE_MS = 400;
+let _lastPushedSnapshot = null;
+let _needRepush = false; // 🆕 : si un push est demandé pendant un push en cours
 
 async function pushToSupabase(){
-  if(_isPushing) return;
+  if(_isPushing){ _needRepush = true; return; }
   _isPushing = true;
+  _needRepush = false;
   try {
     const current = snapshotDB();
     const prev = _lastPushedSnapshot;
@@ -4899,6 +4930,11 @@ async function pushToSupabase(){
   }finally{
     _isPushing = false;
     _lastPushTime = Date.now();
+    if(_needRepush){
+      _needRepush = false;
+      // relance immédiate : on a des changements non poussés
+      setTimeout(() => { pushToSupabase().catch(()=>{}); }, 50);
+    }
   }
 }
 
@@ -5093,21 +5129,31 @@ function subscribeRealtime(){
   let chan = sb.channel('omnimed-changes');
 
   // ⚡ Le handler reçoit le payload → on sait QUELLE table a changé
+  let _realtimeRetryTimer = null;
+
   const handler = async (payload) => {
     if(_isApplyingRemote) return;
-    if(_isPushing) return;
-    if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
+
+    // ⚡ On DIFFÈRE (au lieu de sauter) si on est en train de pusher ou juste après
+    if(_isPushing || (Date.now() - _lastPushTime) < PUSH_GRACE_MS){
+      if(_realtimeRetryTimer) clearTimeout(_realtimeRetryTimer);
+      _realtimeRetryTimer = setTimeout(() => handler(payload), 150);
+      return;
+    }
 
     const changedTable = payload?.table || null;
 
     if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
     _realtimeDebounce = setTimeout(async () => {
       const ae = document.activeElement;
-      const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')
-                        && !ae.readOnly && !ae.disabled;
-      if(isEditing){
+      // ⚡ On ne diffère QUE pour les vrais champs texte (PAS les selects/checkbox)
+      const isEditingText = ae && 
+        (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') &&
+        !ae.readOnly && !ae.disabled &&
+        !['checkbox','radio','button','submit','file','reset','color','range'].includes((ae.type||'').toLowerCase());
+      if(isEditingText){
         if(_realtimeDebounce) clearTimeout(_realtimeDebounce);
-        _realtimeDebounce = setTimeout(() => handler(payload), 300); // retry rapide (était 800)
+        _realtimeDebounce = setTimeout(() => handler(payload), 250);
         return;
       }
 
@@ -18535,7 +18581,9 @@ function openEmergencyForm(){
   `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
    <button class="pill-btn danger" onclick="submitEmergency()">🚨 ${t('emergency_send')}</button>`, true);
 }
+let _submittingEmergency = false;
 function submitEmergency(){
+  if(_submittingEmergency) return;  // 🆕 anti double-clic
   const name = ($('#emgName')?.value||'').trim();
   const phone = ($('#emgPhone')?.value||'').trim();
   const wilaya = ($('#emgWilaya')?.value||'').trim();
@@ -18545,6 +18593,8 @@ function submitEmergency(){
   if(!name || !phone || !wilaya){
     toast(t('required_fields'),'error'); return;
   }
+  _submittingEmergency = true;
+  setTimeout(() => { _submittingEmergency = false; }, 1500);
   const clinics = findClinicsWithEmergencyService(wilaya);
   if(!clinics.length){
     toast(t('emergency_no_clinic'),'error');
@@ -18575,7 +18625,7 @@ function submitEmergency(){
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
   state.emergencyForm = {patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:''};
   pushClinicNotif('🚨 URGENCE ENTRANTE', `${name} — ${type || 'Autre'}`, clinic.id, null);
-  saveDB();
+  saveDB({immediate: true});   // 🆕 push instantané
   closeModal();
   openModal('✅ ' + t('emergency_sent_title'), '',
     `<div style="text-align:center;padding:16px 8px">
@@ -18597,7 +18647,9 @@ function submitEmergency(){
 function checkClinicEmergencies(){
   if(!state.clinic) return;
   const pending = DB.emergencies.filter(e =>
-    String(e.assignedClinicId) === String(state.clinic.id) && e.status === 'pending'
+    String(e.assignedClinicId) === String(state.clinic.id) &&
+    e.status === 'pending' &&
+    !isEmergencyProcessed(e.id)  // 🆕 : ne pas ré-afficher une urgence déjà traitée
   );
   if(!pending.length){
     if(state.emergencyAlertId){
@@ -18654,8 +18706,9 @@ function acceptEmergency(emergencyId){
   e.respondedAt = new Date().toISOString();
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Acceptée';
+  markEmergencyProcessed(emergencyId);          // 🆕 anti-réapparition
   pushNotif('patient', '✅ Urgence acceptée', `${e.assignedClinicName} a accepté votre urgence ${e.id}`, null, null);
-  saveDB();
+  saveDB({immediate: true});                    // 🆕 push instantané (pas de debounce)
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
   render();
@@ -18669,8 +18722,9 @@ function declineEmergency(emergencyId){
   e.respondedAt = new Date().toISOString();
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Refusée';
+  markEmergencyProcessed(emergencyId);          // 🆕
   pushNotif('patient', '❌ Urgence refusée', `${e.assignedClinicName} n'a pas pu prendre en charge votre urgence ${e.id}`, null, null);
-  saveDB();
+  saveDB({immediate: true});                    // 🆕
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
   render();
@@ -18783,6 +18837,68 @@ function viewMyEmergencies(){
 /* ============================================================
    INIT
    ============================================================ */
+/* ============================================================
+   ⚡ POLLING RAPIDE — filet de sécurité si Realtime est instable
+   Fréquence : 2 s pour urgences, 3 s pour RDV (quand rôle actif)
+   ============================================================ */
+let _criticalPollTimer = null;
+
+function arraysEqualBrief(a, b){
+  if(a.length !== b.length) return false;
+  for(let i = 0; i < a.length; i++){
+    if(a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function snapshotEmergenciesBrief(){
+  return DB.emergencies.map(e => `${e.id}:${e.status}:${e.updatedAt||''}`).sort();
+}
+function snapshotApptsBrief(){
+  return DB.appointments.map(a => `${a.id}:${a.status}:${a.date}:${a.time}:${a.updatedAt||''}`).sort();
+}
+
+function startCriticalPolling(){
+  if(_criticalPollTimer) clearInterval(_criticalPollTimer);
+  _criticalPollTimer = setInterval(async () => {
+    if(document.visibilityState !== 'visible') return;
+    if(_isApplyingRemote || _isPushing) return;
+    if(Date.now() - _lastPushTime < 1200) return;   // grâce courte après un push local
+
+    const isClinic = state.role === 'clinic' && state.clinic;
+    const isDoctor = state.role === 'doctor' && state.doctor;
+    const isAdmin  = state.role === 'admin' && state.admin;
+    if(!isClinic && !isDoctor && !isAdmin) return;
+
+    let needRender = false;
+
+    // 🚨 Urgences : poll toutes les 2 s (critique pour la modale)
+    if(isClinic){
+      try{
+        const before = snapshotEmergenciesBrief();
+        await loadTable('emergencies');
+        const after = snapshotEmergenciesBrief();
+        if(!arraysEqualBrief(before, after)) needRender = true;
+      }catch(e){}
+    }
+
+    // 📅 RDV : poll toutes les 3 s (via compteur modulo)
+    _criticalPollTick = (_criticalPollTick || 0) + 1;
+    if(_criticalPollTick % 2 === 0){
+      try{
+        const before = snapshotApptsBrief();
+        await loadTable('appointments');
+        const after = snapshotApptsBrief();
+        if(!arraysEqualBrief(before, after)) needRender = true;
+      }catch(e){}
+    }
+
+    if(needRender && !_isApplyingRemote){
+      try{ render(); }catch(e){}
+    }
+  }, 2000);
+}
+let _criticalPollTick = 0;   
 async function init(){
   try{ await idb.open(); }catch(e){}
   await loadDB();
@@ -18838,6 +18954,7 @@ async function init(){
   applyDir(); render();
   subscribeRealtime();
   setupVisibilityResync();
+  startCriticalPolling();   // 🆕 polling rapide urgences/RDV
 }
 window.addEventListener('DOMContentLoaded', init);
 
