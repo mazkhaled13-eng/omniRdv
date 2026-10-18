@@ -9436,6 +9436,334 @@ function openNotifDetail(notifId){
 /* ============================================================
    VUES MÉDECIN
    ============================================================ */
+   /* ============================================================
+   📤 ENVOI DU DOSSIER MÉDICAL PAR MESSAGERIE INTERNE
+   ============================================================ */
+
+function getDossierRecipients(){
+  const me = currentUserInfo();
+  if(!me) return [];
+  const list = [];
+  DB.doctors.forEach(d => {
+    if(me.role === 'doctor' && String(d.id) === String(me.id)) return;
+    list.push({
+      key: `doctor_${d.id}`, role: 'doctor', id: d.id,
+      name: d.name, avatar: specialtyAvatar(d.specialty),
+      specialty: d.specialty, typeLabel: 'Médecin'
+    });
+  });
+  DB.clinics.forEach(c => {
+    if(me.role === 'clinic' && String(c.id) === String(me.id)) return;
+    list.push({
+      key: `clinic_${c.id}`, role: 'clinic', id: c.id,
+      name: c.name, avatar: c.avatar || '🏥',
+      specialty: c.wilaya || '', typeLabel: 'Clinique'
+    });
+  });
+  return list;
+}
+
+function openSendDossierById(fileId){
+  state.dossier.fileId = fileId;
+  openSendDossierModal();
+}
+
+function openSendDossierModal(){
+  const f = mfCurrent();
+  if(!f){ toast('Dossier introuvable','error'); return; }
+  const me = currentUserInfo();
+  if(!me){ toast('Erreur d\'identité','error'); return; }
+  const recipients = getDossierRecipients();
+  if(!recipients.length){ toast('Aucun destinataire disponible','error'); return; }
+
+  state._sendDossier = {
+    toKey: '',
+    subject: 'Dossier médical — ' + (f.data.patientName || ''),
+    body: ''
+  };
+
+  const body = `
+    <div class="field">
+      <label>Destinataire *</label>
+      <div id="sendDossierRecipientBox"></div>
+    </div>
+    <div class="field">
+      <label>Objet</label>
+      <input class="input" id="sendDossierSubject" value="${esc(state._sendDossier.subject)}" maxlength="200" oninput="state._sendDossier.subject=this.value">
+    </div>
+    <div class="field">
+      <label>Message (facultatif)</label>
+      <textarea class="textarea" id="sendDossierBody" style="min-height:70px" placeholder="Message accompagnant le dossier…" oninput="state._sendDossier.body=this.value"></textarea>
+    </div>
+    <div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
+      📎 <strong>Contenu joint automatiquement :</strong> synthèse, allergies, antécédents, consultations, constantes, ordonnances, analyses.
+    </div>
+  `;
+  openModal('📤 Envoyer le dossier médical', (f.data.patientName || ''), body,
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn primary" onclick="sendDossierToRecipient()">📤 Envoyer</button>`, true);
+  setTimeout(() => renderSendDossierRecipientPicker(''), 20);
+}
+
+function renderSendDossierRecipientPicker(q){
+  const box = document.getElementById('sendDossierRecipientBox');
+  if(!box) return;
+  const d = state._sendDossier;
+  if(d && d.toKey){
+    const rec = getDossierRecipients().find(r => r.key === d.toKey);
+    if(rec){
+      box.innerHTML = `
+        <div class="selected-recipient">
+          <span style="display:flex;align-items:center;gap:8px;min-width:0">
+            <span style="font-size:16px">${rec.avatar}</span>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              ${esc(rec.name)} <span style="opacity:.75;font-weight:500">— ${esc(rec.typeLabel)}${rec.specialty?' · '+esc(rec.specialty):''}</span>
+            </span>
+          </span>
+          <button class="mini-btn out-red" onclick="clearSendDossierRecipient()">✕ Changer</button>
+        </div>`;
+      return;
+    }
+  }
+  /* ✅ L'input est créé UNE SEULE FOIS ici */
+  box.innerHTML = `
+    <div class="doc-search-wrap">
+      <input class="input" id="sendDossierSearch" placeholder="Rechercher un médecin ou une clinique…" value="${esc(q||'')}"
+        oninput="updateSendDossierSuggestions(this.value)" autocomplete="off">
+      <div class="doc-search-suggest" id="sendDossierSuggest" style="position:static;margin-top:6px;max-height:280px"></div>
+    </div>`;
+  updateSendDossierSuggestions(q);
+}
+
+/* ✅ Nouvelle fonction : met à jour UNIQUEMENT la liste (ne touche pas à l'input) */
+function updateSendDossierSuggestions(q){
+  const box = document.getElementById('sendDossierSuggest');
+  if(!box) return;
+  const query = (q||'').trim().toLowerCase();
+  const all = getDossierRecipients();
+  const filtered = query ? all.filter(r => {
+    const hay = `${r.name} ${r.specialty||''} ${r.typeLabel||''}`.toLowerCase();
+    return hay.includes(query);
+  }) : all.slice(0, 20);
+
+  box.innerHTML = filtered.length ? filtered.map(r => `
+    <button type="button" class="doc-search-suggest-item" onclick="pickSendDossierRecipient('${jsStr(r.key)}')">
+      <span class="sug-avatar">${r.avatar}</span>
+      <span class="sug-info">
+        <span class="sug-name">${esc(r.name)} <span class="tag ${r.role==='clinic'?'clinic':'accent'}" style="font-size:9px;padding:1px 6px;margin-left:4px">${esc(r.typeLabel)}</span></span>
+        <span class="sug-spec">${esc(r.specialty||'—')}</span>
+      </span>
+    </button>
+  `).join('') : `<div class="doc-search-suggest-item" style="cursor:default;opacity:.6">Aucun résultat</div>`;
+}
+
+function pickSendDossierRecipient(key){
+  if(!state._sendDossier) state._sendDossier = {toKey:'', subject:'', body:''};
+  state._sendDossier.toKey = key;
+  renderSendDossierRecipientPicker('');
+}
+function clearSendDossierRecipient(){
+  if(state._sendDossier) state._sendDossier.toKey = '';
+  renderSendDossierRecipientPicker('');
+}
+
+async function sendDossierToRecipient(){
+  const me = currentUserInfo();
+  if(!me){ toast('Erreur','error'); return; }
+  const d = state._sendDossier;
+  if(!d || !d.toKey){ toast('Sélectionnez un destinataire','error'); return; }
+  const rec = getDossierRecipients().find(r => r.key === d.toKey);
+  if(!rec){ toast('Destinataire introuvable','error'); return; }
+  const f = mfCurrent();
+  if(!f){ toast('Dossier introuvable','error'); return; }
+
+  const html = buildDossierHTMLForMessage(f);
+  const subject = (d.subject||'').trim() || ('Dossier médical — ' + (f.data.patientName||''));
+  const bodyText = (d.body||'').trim() || `Dossier médical du patient ${f.data.patientName||''}`;
+
+  const msg = {
+    id: 'MSG-'+uid('M'),
+    from: {key: me.key, role: me.role, id: me.id, name: me.name, avatar: me.avatar},
+    to: {key: rec.key, role: rec.role, id: rec.id, name: rec.name, avatar: rec.avatar},
+    subject,
+    body: bodyText,
+    bodyHTML: html,
+    files: [],
+    date: nowISO(),
+    read: false,
+    deletedBy: []
+  };
+  DB.messages.unshift(msg);
+  saveDB();
+  state._sendDossier = null;
+  closeModal();
+  render();
+  toast('📤 Dossier envoyé à ' + rec.name, 'success');
+}
+
+function buildDossierHTMLForMessage(f){
+  const d = f.data;
+  const doc = docById(f.doctorId);
+  const now = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const parts = [];
+
+  // En-tête
+  parts.push(`
+    <div style="border:2px solid #8b5cf6;border-radius:14px;padding:16px;background:#fff;font-family:Inter,system-ui,sans-serif;color:#1f2937">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:22px">📁</div>
+          <div>
+            <div style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:800;color:#8b5cf6;line-height:1;letter-spacing:-.3px">OmniMed</div>
+            <div style="font-size:12px;color:#ec4899;font-weight:700;margin-top:4px">Dossier médical</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:3px"><strong>${esc(d.patientName||'—')}</strong></div>
+          </div>
+        </div>
+        <div style="text-align:right;font-size:10.5px;color:#6b7280;line-height:1.5">
+          <div style="font-weight:700;color:#7c3aed">OmniMed une solution OmniSoft</div>
+          <div style="font-weight:600;color:#7c3aed;margin-top:2px">${now}</div>
+        </div>
+      </div>
+  `);
+
+  // Infos patient
+  parts.push(`
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11.5px;line-height:1.7">
+      <div><strong>Patient :</strong> ${esc(d.patientName||'—')} ${d.patientAge ? '— '+d.patientAge+' ans' : ''} ${d.patientSex ? '· '+(d.patientSex==='M'?'Masculin':'Féminin') : ''}</div>
+      <div><strong>Téléphone :</strong> ${esc(f.patientPhone||'—')}</div>
+      ${d.patientWilaya ? `<div><strong>Wilaya :</strong> ${esc(d.patientWilaya)}</div>` : ''}
+      ${d.bloodType ? `<div><strong>Groupe sanguin :</strong> ${esc(d.bloodType)}</div>` : ''}
+      ${doc ? `<div><strong>Médecin traitant :</strong> ${esc(doc.name)} — ${esc(doc.specialty)}</div>` : ''}
+    </div>
+  `);
+
+  let sectionsCount = 0;
+
+  // Allergies
+  if((d.allergies||[]).length){
+    sectionsCount++;
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #fee2e2">⚠️ Allergies (${d.allergies.length})</div>
+        ${d.allergies.map(a=>`<div style="font-size:11px;padding:3px 0"><strong>${esc(a.name)}</strong> — ${a.severity==='severe'?'Sévère':a.severity==='moderate'?'Modérée':'Légère'}${a.notes?' · '+esc(a.notes):''}</div>`).join('')}
+      </div>
+    `);
+  }
+
+  // Antécédents
+  if((d.antecedents||[]).length){
+    sectionsCount++;
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">📚 Antécédents (${d.antecedents.length})</div>
+        ${d.antecedents.map(a=>`<div style="font-size:11px;padding:3px 0"><strong>${esc(a.label)}</strong> — ${a.type==='medical'?'Médical':a.type==='surgical'?'Chirurgical':'Familial'}${a.date?' · '+fmtDateFR(a.date):''}${a.notes?' · '+esc(a.notes):''}</div>`).join('')}
+      </div>
+    `);
+  }
+
+  // Consultations (20 dernières)
+  if((d.consultations||[]).length){
+    sectionsCount++;
+    const sorted = d.consultations.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0, 20);
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">📝 Consultations (${d.consultations.length})${d.consultations.length>20?' — 20 dernières':''}</div>
+        ${sorted.map(c=>`
+          <div style="background:#fafafa;border-left:3px solid #8b5cf6;padding:6px 8px;margin-bottom:5px;border-radius:4px;font-size:11px;line-height:1.5">
+            <div style="font-weight:700;color:#7c3aed">${fmtDateFR(c.date||'')} ${c.time||''}</div>
+            ${c.motif?`<div><strong>Motif :</strong> ${esc(c.motif)}</div>`:''}
+            ${c.observations?`<div><strong>Observations :</strong> ${esc(c.observations)}</div>`:''}
+            ${c.diagnostic?`<div><strong>Diagnostic :</strong> ${esc(c.diagnostic)}</div>`:''}
+            ${c.conduite?`<div><strong>Conduite :</strong> ${esc(c.conduite)}</div>`:''}
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  // Constantes (10 dernières)
+  if((d.vitals||[]).length){
+    sectionsCount++;
+    const sorted = d.vitals.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0, 10);
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">📊 Constantes vitales (${d.vitals.length})${d.vitals.length>10?' — 10 dernières':''}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+          <thead><tr style="background:#f3f4f6">
+            <th style="padding:4px;text-align:left">Date</th>
+            <th style="padding:4px;text-align:center">Poids</th>
+            <th style="padding:4px;text-align:center">Taille</th>
+            <th style="padding:4px;text-align:center">IMC</th>
+            <th style="padding:4px;text-align:center">TA</th>
+            <th style="padding:4px;text-align:center">FC</th>
+            <th style="padding:4px;text-align:center">T°</th>
+            <th style="padding:4px;text-align:center">SpO₂</th>
+          </tr></thead>
+          <tbody>
+            ${sorted.map(v=>{
+              const bmi = mfBMI(v.weight, v.height);
+              return `<tr>
+                <td style="padding:3px 4px;border-bottom:1px solid #f3f4f6">${fmtDateFR(v.date||'')}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${v.weight||'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${v.height||'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${bmi!=null?bmi:'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${(v.taSys||v.taDia)?`${v.taSys||'—'}/${v.taDia||'—'}`:'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${v.fc||'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${v.temp||'—'}</td>
+                <td style="padding:3px 4px;text-align:center;border-bottom:1px solid #f3f4f6">${v.spo2||'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `);
+  }
+
+  // Ordonnances actives (10 dernières)
+  const activePresc = (d.prescriptions||[]).filter(p=>!p.archived);
+  if(activePresc.length){
+    sectionsCount++;
+    const sorted = activePresc.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0, 10);
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">💊 Ordonnances (${activePresc.length})</div>
+        ${sorted.map(p=>`
+          <div style="background:#fafafa;border-left:3px solid #10b981;padding:6px 8px;margin-bottom:5px;border-radius:4px;font-size:11px;line-height:1.5">
+            <div style="font-weight:700;color:#059669">${fmtDateFR(p.date||'')} ${p.time||''}</div>
+            ${(p.medications||[]).map((m,i)=>`<div style="padding:2px 0">${i+1}. <strong>${esc(m.name)}</strong> ${m.dosage?'· '+esc(m.dosage):''} ${m.freq?'· '+esc(m.freq):''} ${m.duration?'· '+esc(m.duration):''}</div>`).join('')}
+            ${p.notes?`<div style="font-style:italic;color:#6b7280;margin-top:3px">${esc(p.notes)}</div>`:''}
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  // Analyses (10 dernières)
+  if((d.labTests||[]).length){
+    sectionsCount++;
+    const sorted = d.labTests.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0, 10);
+    parts.push(`
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">🔬 Analyses & Examens (${d.labTests.length})${d.labTests.length>10?' — 10 dernières':''}</div>
+        ${sorted.map(l=>`
+          <div style="background:#fafafa;border-left:3px solid #f59e0b;padding:6px 8px;margin-bottom:5px;border-radius:4px;font-size:11px;line-height:1.5">
+            <div style="font-weight:700;color:#d97706">${fmtDateFR(l.date||'')} — ${esc(l.name)} (${l.type==='imagerie'?'Imagerie':'Biologie'})</div>
+            ${l.result?`<div><strong>Résultat :</strong> ${esc(l.result)}</div>`:''}
+            ${l.interpretation?`<div><strong>Interprétation :</strong> ${esc(l.interpretation)}</div>`:''}
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  if(sectionsCount === 0){
+    parts.push(`<div style="text-align:center;padding:20px;color:#9ca3af;font-style:italic">Aucune donnée médicale enregistrée pour ce patient.</div>`);
+  }
+
+  parts.push(`</div>`);
+  return parts.join('');
+}
 function renderDoctorView(){
   switch(state.view){
     case 'ddash': return viewDoctorDash();
@@ -10368,6 +10696,11 @@ function mfListCardHTML(f){
             </div>
           ` : ''}
         </div>
+        ${!archived && currentUserInfo() ? `
+          <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
+            <button class="mini-btn purple" onclick="openSendDossierById('${f.id}')" title="Envoyer le dossier par messagerie">📤</button>
+          </div>
+        ` : ''}
       </div>
     </div>
   `;
@@ -10432,6 +10765,7 @@ function viewDossierSingle(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">
           <button class="pill-btn primary" onclick="mfPrintDossierModal()">🖨️ ${t('print_dossier')}</button>
+          ${!isArchived ? `<button class="pill-btn success" onclick="openSendDossierModal()">📤 Envoyer le dossier</button>` : ''}
           ${!isArchived ? `
             <button class="pill-btn" onclick="mfOpenEditInfo()">✏️ ${t('save')}</button>
             <button class="pill-btn" onclick="mfMergeStart()">🔗 ${t('merge_dossier')}</button>
@@ -17038,16 +17372,6 @@ function viewClinicDash(){
   const pending = clinicAppts.filter(a => a.status === 'pending');
   const confirmed = clinicAppts.filter(a => a.status === 'confirmed');
   const done = clinicAppts.filter(a => a.status === 'done');
-  const todayRev = done.filter(a => a.date === todayISO()).reduce((s,a) => {
-    const doc = docById(a.doctorId);
-    const fee = doc ? (doc.fee||0) : 0;
-    return s + fee + (a.servicesTotal||0);
-  }, 0);
-  const totalRev = done.reduce((s,a) => {
-    const doc = docById(a.doctorId);
-    const fee = doc ? (doc.fee||0) : 0;
-    return s + fee + (a.servicesTotal||0);
-  }, 0);
   const docStats = clinicLinkedDoctors(c.id).map(d => ({
     d,
     n: clinicAppts.filter(a => String(a.doctorId)===String(d.id)).length
@@ -17059,15 +17383,9 @@ function viewClinicDash(){
       <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">💉</div><div><div class="stat-val">${clinicPrestationsFor(c.id).length}</div><div class="stat-lbl">${t('clinic_total_prestations')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">📅</div><div><div class="stat-val">${clinicAppts.length}</div><div class="stat-lbl">${t('clinic_total_appts')}</div></div></div>
     </div>
-    <div class="grid grid-4" style="margin-bottom:14px">
+    <div class="grid grid-2" style="margin-bottom:14px">
       <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending.length}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed.length}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
-      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(todayRev)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
-      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(totalRev)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
-    </div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title" style="font-size:15px">🕐 ${t('clinic_open_24_7')}</div>
-      <div class="card-sub" style="margin-bottom:0">${t('clinic_open_24_7_hint')}</div>
     </div>
     <div class="grid grid-2" style="margin-bottom:14px">
       <div class="card" style="cursor:pointer" onclick="go('cappts')">
@@ -18773,20 +19091,42 @@ function submitEmergency(){
   saveDB({immediate: true});   // 🆕 push instantané
   closeModal();
   openModal('✅ ' + t('emergency_sent_title'), '',
-    `<div style="text-align:center;padding:16px 8px">
-      <div style="font-size:48px;margin-bottom:8px">🚨</div>
-      <div style="font-weight:700;font-size:16px;margin-bottom:6px">${esc(t('emergency_sent_to'))} <span style="color:var(--danger)">${esc(clinic.name)}</span></div>
-      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">📍 ${esc(clinic.wilaya)}${clinic.commune?' · '+esc(clinic.commune):''}</div>
-      <div class="info-compact one-col" style="margin-bottom:8px">
-        <div class="ic-item">
-          <div class="ic-lbl">🆔 ${t('emergency_id')}</div>
-          <div class="ic-val" style="font-family:var(--font-numbers)">${emgId}</div>
-        </div>
+    `<div style="text-align:center; padding:10px 0">
+      
+      <!-- Icône de succès avec halo -->
+      <div style="width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg, rgba(16,185,129,.15), rgba(16,185,129,.05)); border:2px solid rgba(16,185,129,.3); display:grid; place-items:center; font-size:36px; margin:0 auto 16px; box-shadow:0 8px 24px rgba(16,185,129,.15)">
+        🚑
       </div>
-      <div style="font-size:12px;color:var(--text-muted)">⏳ ${t('emergency_status_pending')} — La clinique va répondre sous peu.</div>
+
+      <!-- Titre et Clinique -->
+      <div style="font-size:13px; text-transform:uppercase; letter-spacing:1px; font-weight:800; color:var(--text-muted); margin-bottom:6px">${esc(t('emergency_sent_to'))}</div>
+      <div style="font-size:22px; font-weight:800; color:var(--danger); letter-spacing:-.5px; margin-bottom:6px; line-height:1.2">${esc(clinic.name)}</div>
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:6px">
+        <span>📍</span> ${esc(clinic.wilaya)}${clinic.commune?' · '+esc(clinic.commune):''}
+      </div>
+
+      <!-- Ticket ID (Style Billet) -->
+      <div style="background:var(--glass-bg-3); border:1.5px dashed var(--glass-border); border-radius:14px; padding:14px; margin-bottom:20px; position:relative">
+        <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:4px">🆔 ${t('emergency_id')}</div>
+        <div style="font-family:var(--font-numbers); font-size:20px; font-weight:800; color:var(--accent-primary); letter-spacing:1.5px">${emgId}</div>
+      </div>
+
+      <!-- Statut d'attente -->
+      <div style="display:inline-flex; align-items:center; justify-content:center; gap:8px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); padding:10px 16px; border-radius:var(--radius-pill); color:#b45309; font-size:12.5px; font-weight:600; width:100%">
+        <span style="animation: emergencyFabPulse 2s infinite; font-size:16px">⏳</span> 
+        <span>${t('emergency_status_pending')} — La clinique va répondre sous peu.</span>
+      </div>
+
     </div>`,
-    `<button class="pill-btn danger" onclick="cancelEmergency('${emgId}')">✕ ${t('emergency_cancel_btn')}</button>
-     <button class="pill-btn primary" onclick="closeModal();go('myEmergencies')">📋 ${t('emergency_my')}</button>`);
+    // Les boutons réorganisés : Mes urgences (principal) & Annuler (secondaire)
+    `<div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap:wrap-reverse">
+      <button class="pill-btn danger" onclick="cancelEmergency('${emgId}')" style="flex:1; justify-content:center; padding:12px; font-weight:600">
+        ✕ ${t('emergency_cancel_btn')}
+      </button>
+      <button class="pill-btn primary" onclick="closeModal();go('myEmergencies')" style="flex:1.5; justify-content:center; padding:12px; font-weight:700; box-shadow:0 4px 12px rgba(139,92,246,.3)">
+        📋 ${t('emergency_my')}
+      </button>
+    </div>`);
   render();
 }
 function checkClinicEmergencies(){
@@ -19587,7 +19927,12 @@ Object.assign(window, {
   /* 🆕 Surveillance patient temps réel */
   snapshotPatientStatuses, detectPatientChangesAndUpdate, applyPatientNotifications,
   showPatientStatusToast, playPatientBeep, playPatientEmergencyAlert,
-  showPatientEmergencyResultModal, shouldSkipRenderForPatient, pollPatientData
+  showPatientEmergencyResultModal, shouldSkipRenderForPatient, pollPatientData,
+    /* 📤 Envoi dossier médical par messagerie */
+  getDossierRecipients, openSendDossierModal, openSendDossierById,
+  renderSendDossierRecipientPicker, pickSendDossierRecipient, clearSendDossierRecipient,
+  sendDossierToRecipient, buildDossierHTMLForMessage,
+    updateSendDossierSuggestions,
 });
 </script>
 </body>
