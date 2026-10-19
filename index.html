@@ -4865,29 +4865,26 @@ async function pushToSupabase(){
       })));
     }
 
-    // ---- APPOINTMENTS ----
+    // ---- APPOINTMENTS (OPTIMISÉ) ----
     if(syncAppointments && DB.appointments.length){
       const rows = DB.appointments.map(a=>({
-        id:a.id, doctor_id: a.doctorId ? String(a.doctorId) : null,  patient_name:a.patientName,
-        patient_age:a.patientAge, patient_phone:a.patientPhone,
-        patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
-        patient_password:a.patientPassword||'', date:a.date, time:a.time,
-        motif:a.motif||'', services:a.services||[], services_total:a.servicesTotal||0,
-        documents:a.documents||[], status:a.status, internal:!!a.internal,
-        clinic_id:a.clinicId||null,
-        clinic_service_id:a.clinicServiceId||null,
-        prestation_id:a.prestationId||null,
-        appt_type:a.apptType||'cabinet',
-        clinic_rating:a.clinicRating||0,
-        rating:a.rating||0, notes:a.notes||'', cancel_reason:a.cancelReason||null,
-        reminders:a.reminders||{h2:false},
-        updated_at:new Date().toISOString(),
-        deleted_at:a.status==='deleted'?new Date().toISOString():null
-      }));
-      for(let i=0;i<rows.length;i+=100){
-        await sb.from('appointments').upsert(rows.slice(i,i+100));
-      }
-    }
+          id:a.id, doctor_id: a.doctorId ? String(a.doctorId) : null, patient_name:a.patientName,
+              patient_age:a.patientAge, patient_phone:a.patientPhone,
+                  patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
+                      patient_password:a.patientPassword||'', date:a.date, time:a.time,
+                          motif:a.motif||'', services:a.services||[], services_total:a.servicesTotal||0,
+                              documents:a.documents||[], status:a.status, internal:!!a.internal,
+                                  clinic_id:a.clinicId||null, clinic_service_id:a.clinicServiceId||null,
+                                      prestation_id:a.prestationId||null, appt_type:a.apptType||'cabinet',
+                                          clinic_rating:a.clinicRating||0, rating:a.rating||0, notes:a.notes||'', 
+                                              cancel_reason:a.cancelReason||null, reminders:a.reminders||{h2:false},
+                                                  updated_at:new Date().toISOString(),
+                                                      deleted_at:a.status==='deleted'?new Date().toISOString():null
+                                                        }));
+                                                          
+                                                            // Envoi en UNE SEULE FOIS ultra-rapide
+                                                              await sb.from('appointments').upsert(rows);
+                                                              }
 
     // ---- NOTIFICATIONS ----
     if(syncNotifications){
