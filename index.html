@@ -4868,7 +4868,7 @@ async function pushToSupabase(){
     // ---- APPOINTMENTS ----
     if(syncAppointments && DB.appointments.length){
       const rows = DB.appointments.map(a=>({
-        id:a.id, doctor_id:String(a.doctorId), patient_name:a.patientName,
+        id:a.id, doctor_id: a.doctorId ? String(a.doctorId) : null,  patient_name:a.patientName,
         patient_age:a.patientAge, patient_phone:a.patientPhone,
         patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
         patient_password:a.patientPassword||'', date:a.date, time:a.time,
