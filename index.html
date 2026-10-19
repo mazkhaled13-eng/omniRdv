@@ -5096,7 +5096,13 @@ async function loadTable(tableName){
   try {
     switch(tableName){
       case 'appointments': {
-        const { data, error } = await sb.from('appointments').select('*').order('created_at',{ascending:false});
+        let query = sb.from('appointments').select('*').order('created_at',{ascending:false});
+if(state.role === 'doctor' && state.doctor) {
+  query = query.eq('doctor_id', state.doctor.id);
+} else if(state.role === 'clinic' && state.clinic) {
+  query = query.eq('clinic_id', state.clinic.id);
+}
+const { data, error } = await query;
         if(error) return false;
         DB.appointments = (data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
           id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
