@@ -1887,6 +1887,129 @@ body[dir="rtl"] .clinic-booking-modal-doc:hover{transform:translateX(-3px)}
 }
 .emergency-fab:hover{transform:translateY(-2px)}
 @media(max-width:640px){.emergency-fab{padding:13px 20px;font-size:13px}}
+
+/* ============================================================
+   📩 NOTIFICATIONS CLINIQUE — Grille 5 par ligne
+   ============================================================ */
+.clinic-notif-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+}
+@media(max-width:1200px){ .clinic-notif-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:900px){ .clinic-notif-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:640px){ .clinic-notif-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:400px){ .clinic-notif-grid{ grid-template-columns:1fr; } }
+
+.clinic-notif-mini{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:11px 12px;
+  background:var(--glass-bg);
+  border:1.5px solid var(--glass-border);
+  border-radius:var(--radius-md);
+  cursor:pointer;
+  transition:var(--transition);
+  text-align:left;
+  font-family:inherit;
+  color:var(--text-main);
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+}
+.clinic-notif-mini:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-sm);
+  border-color:var(--accent-primary);
+}
+.clinic-notif-mini.emergency{
+  background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.03));
+  border-color:rgba(239,68,68,.4);
+}
+.clinic-notif-mini.emergency:hover{
+  border-color:var(--danger);
+  box-shadow:0 6px 16px rgba(239,68,68,.18);
+}
+.clinic-notif-mini .cnm-icon{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  font-size:17px;
+  flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  color:#fff;
+}
+.clinic-notif-mini.emergency .cnm-icon{
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+}
+.clinic-notif-mini .cnm-badge{
+  position:absolute;
+  top:9px;
+  right:9px;
+  font-size:8.5px;
+  font-weight:800;
+  padding:2px 7px;
+  border-radius:9999px;
+  border:1px solid rgba(139,92,246,.4);
+  background:var(--accent-light);
+  color:var(--accent-primary);
+  letter-spacing:.3px;
+  text-transform:uppercase;
+}
+.clinic-notif-mini.emergency .cnm-badge{
+  background:rgba(239,68,68,.15);
+  color:#b91c1c;
+  border-color:rgba(239,68,68,.4);
+}
+.clinic-notif-mini .cnm-name{
+  font-weight:700;
+  font-size:12.5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.3;
+  margin-top:2px;
+}
+.clinic-notif-mini .cnm-meta{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-size:10.5px;
+  color:var(--text-muted);
+  line-height:1.3;
+}
+.clinic-notif-mini .cnm-meta span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.clinic-notif-mini .cnm-status{
+  margin-top:auto;
+  padding-top:4px;
+}
+.clinic-notif-mini.emergency .cnm-name{
+  color:#b91c1c;
+}
+body.dark .clinic-notif-mini.emergency .cnm-name{ color:#fca5a5; }
+
+/* 🚨 RDV URGENCE — style dans la liste des RDV */
+.appt.clinic-appt.emergency-appt{
+  background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(239,68,68,.03));
+  border-left:4px solid var(--danger);
+  border-color:rgba(239,68,68,.35);
+}
+.appt.clinic-appt.emergency-appt:hover{
+  box-shadow:0 6px 20px rgba(239,68,68,.15);
+  border-color:rgba(239,68,68,.6);
+}
+.appt.clinic-appt.emergency-appt .appt-time{
+  background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.06));
+  color:var(--danger);
+}
 </style>
 </head>
 <body>
@@ -4523,6 +4646,7 @@ async function loadDB(){
         documents:a.documents||[], status:a.status, internal:!!a.internal,
         clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
         prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
+        emergencyId: a.emergency_id || null,
         clinicRating:a.clinic_rating||0,
         rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
         reminders:a.reminders||{h2:false},
@@ -4865,26 +4989,40 @@ async function pushToSupabase(){
       })));
     }
 
-    // ---- APPOINTMENTS (OPTIMISÉ) ----
+        // ---- APPOINTMENTS (OPTIMISÉ) ----
     if(syncAppointments && DB.appointments.length){
       const rows = DB.appointments.map(a=>({
-          id:a.id, doctor_id: a.doctorId ? String(a.doctorId) : null, patient_name:a.patientName,
-              patient_age:a.patientAge, patient_phone:a.patientPhone,
-                  patient_email:a.patientEmail||'', patient_wilaya:a.patientWilaya||'',
-                      patient_password:a.patientPassword||'', date:a.date, time:a.time,
-                          motif:a.motif||'', services:a.services||[], services_total:a.servicesTotal||0,
-                              documents:a.documents||[], status:a.status, internal:!!a.internal,
-                                  clinic_id:a.clinicId||null, clinic_service_id:a.clinicServiceId||null,
-                                      prestation_id:a.prestationId||null, appt_type:a.apptType||'cabinet',
-                                          clinic_rating:a.clinicRating||0, rating:a.rating||0, notes:a.notes||'', 
-                                              cancel_reason:a.cancelReason||null, reminders:a.reminders||{h2:false},
-                                                  updated_at:new Date().toISOString(),
-                                                      deleted_at:a.status==='deleted'?new Date().toISOString():null
-                                                        }));
-                                                          
-                                                            // Envoi en UNE SEULE FOIS ultra-rapide
-                                                              await sb.from('appointments').upsert(rows);
-                                                              }
+        id:a.id,
+        doctor_id: a.doctorId ? String(a.doctorId) : null,
+        patient_name:a.patientName,
+        patient_age:a.patientAge,
+        patient_phone:a.patientPhone,
+        patient_email:a.patientEmail||'',
+        patient_wilaya:a.patientWilaya||'',
+        patient_password:a.patientPassword||'',
+        date:a.date,
+        time:a.time,
+        motif:a.motif||'',
+        services:a.services||[],
+        services_total:a.servicesTotal||0,
+        documents:a.documents||[],
+        status:a.status,
+        internal:!!a.internal,
+        clinic_id:a.clinicId||null,
+        clinic_service_id:a.clinicServiceId||null,
+        prestation_id:a.prestationId||null,
+        appt_type:a.apptType||'cabinet',
+        emergency_id: a.emergencyId || null,
+        clinic_rating:a.clinicRating||0,
+        rating:a.rating||0,
+        notes:a.notes||'',
+        cancel_reason:a.cancelReason||null,
+        reminders:a.reminders||{h2:false},
+        updated_at:new Date().toISOString(),
+        deleted_at:a.status==='deleted'?new Date().toISOString():null
+      }));
+      await sb.from('appointments').upsert(rows);
+    }
 
     // ---- NOTIFICATIONS ----
     if(syncNotifications){
@@ -5113,7 +5251,9 @@ const { data, error } = await query;
           documents:a.documents||[], status:a.status, internal:!!a.internal,
           clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
           prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
+          emergencyId: a.emergency_id || null,
           clinicRating:a.clinic_rating||0,
+          emergencyId: a.emergency_id || null,
           rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
           reminders:a.reminders||{h2:false},
           createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
@@ -5330,6 +5470,8 @@ function subscribeRealtime(){
         if(patientNotifs.length){
           applyPatientNotifications(patientNotifs);
         }
+        // 🔔 Détection de nouveaux RDV pour le médecin (son — notification déjà dans la section 📩)
+        if(state.role === 'doctor') checkDoctorNewAppointments();
 
         const r = state.booking;
         if(r){
@@ -7451,6 +7593,11 @@ async function doAccountLogin(){
     state.doctor = doc;
     state.admin = null;
     state.clinic = null;
+    _prevDoctorApptsSnap = new Set(
+      DB.appointments
+        .filter(a => String(a.doctorId) === String(doc.id) && a.status === 'pending' && !a.internal)
+        .map(a => a.id)
+    );
     state.role = 'doctor';
     state.view = 'ddash';
     state.recetteUnlocked = false;
@@ -7478,6 +7625,7 @@ function logoutAccount(){
   state.admin = null;
   state.doctor = null;
   state.clinic = null;
+  _prevDoctorApptsSnap = null;
   state.role = 'patient';
   state.view = 'home';
   state.recetteUnlocked = false;
@@ -9552,10 +9700,12 @@ function patientApptHTML(a){
   const lockIcon = a.patientPassword ? ' 🔒' : '';
   const docN = (a.documents||[]).length;
   const isClinicAppt = !!a.clinicId;
+  /* 🆕 Détection urgence pour badge visuel */
+  const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
-    <div class="appt patient-appt ${a.internal?'internal':''} ${isClinicAppt?'clinic-appt':''}" onclick="openPatientApptDetail('${a.id}')" title="${t('appt_detail')}">
+    <div class="appt patient-appt ${a.internal?'internal':''} ${isClinicAppt?'clinic-appt':''} ${isEmergency?'emergency-appt':''}" onclick="openPatientApptDetail('${a.id}')" title="${t('appt_detail')}">
       <div class="pa-head">
-        <div class="appt-time">
+        <div class="appt-time" ${isEmergency?'style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.06));color:var(--danger)"':''}>
           <div class="h">${a.time}</div>
           <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
         </div>
@@ -9566,6 +9716,7 @@ function patientApptHTML(a){
             ${!doc && !c ? `<span style="font-weight:400;color:var(--text-muted);font-size:11px">· ${esc(doc?.specialty||'')}</span>` : ''}
           </div>
           <div class="appt-meta">
+            ${isEmergency ? `<span class="tag danger" style="font-weight:800;animation:emergencyFabPulse 2s infinite">🚨 URGENCE</span>` : ''}
             <span>${statusTag(a.status)}</span>
             ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
             ${c?`<span class="tag clinic">🏥 ${t('clinic')}</span>`:''}
@@ -9635,6 +9786,14 @@ function doCancel(id){
   a.status='cancelled';
   a.cancelReason = reason || '(non précisé)';
   a.cancelledAt = nowISO();
+  /* 🆕 Si RDV urgence : annuler aussi l'urgence */
+  if(a.emergencyId){
+    const emg = DB.emergencies.find(e => e.id === a.emergencyId);
+    if(emg && emg.status === 'pending'){
+      emg.status = 'cancelled';
+      emg.updatedAt = nowISO();
+    }
+  }
   if(a.doctorId) pushNotif('doctor', t('status_cancelled'), `${a.patientName} — ${a.time}`, a.doctorId, a.id);
   if(a.clinicId) pushClinicNotif(t('status_cancelled'), `RDV ${a.id} annulé par ${a.patientName}`, a.clinicId, a.id);
   pushNotif('patient', t('status_cancelled'), `RDV ${a.id}`, null, a.id);
@@ -9925,7 +10084,11 @@ function resetStarHover(widget){
 function openNotifDetail(notifId){
   const n = DB.notifications.find(x=>x.id===notifId); if(!n) return;
   n.read = true; saveDB();
-  if(!n.apptId){ render(); return; }
+  if(!n.apptId){
+    openModal(n.title, n.message, '',
+      `<button class="pill-btn" onclick="closeModal();render()">${t('close')}</button>`);
+    return;
+  }
   const a = DB.appointments.find(x=>x.id===n.apptId);
   if(!a){ DB.notifications = DB.notifications.filter(x=>x.id!==notifId); saveDB(); render(); return; }
   const doc = docById(a.doctorId);
@@ -10457,17 +10620,21 @@ function doctorApptHTML(a){
   const hasDossier = !!mfGet(a.doctorId, a.patientPhone);
   const c = a.clinicId ? clinicById(a.clinicId) : null;
   const prestation = a.prestationId ? clinicPrestationById(a.prestationId) : null;
+  /* 🆕 Détection urgence → badge + style rouge */
+  const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
-    <div class="appt ${a.internal?'internal':''} ${c?'clinic-appt':''} ${isSelected?'selected-row':''}">
+    <div class="appt ${a.internal?'internal':''} ${c?'clinic-appt':''} ${isEmergency?'emergency-appt':''} ${isSelected?'selected-row':''}">
       <div class="appt-checkbox-wrap">
         <input type="checkbox" class="msg-checkbox" ${isSelected?'checked':''} onchange="toggleApptSelect('${a.id}')">
       </div>
-      <div class="appt-time"><div class="h">${a.time}</div>
+      <div class="appt-time" ${isEmergency?'style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.06));color:var(--danger)"':''}>
+        <div class="h">${a.time}</div>
         <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
       </div>
       <div class="appt-body">
         <div class="appt-patient">${esc(a.patientName)}${a.patientAge?` <span style="font-weight:400;color:var(--text-muted);font-size:11px">(${a.patientAge})</span>`:''}</div>
         <div class="appt-meta">
+          ${isEmergency ? `<span class="tag danger" style="font-weight:800;animation:emergencyFabPulse 2s infinite">🚨 URGENCE</span>` : ''}
           <span>${statusTag(a.status)}</span>
           ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
           ${c?`<span class="tag clinic">🏥 ${esc(c.name)}</span>`:''}
@@ -10479,6 +10646,7 @@ function doctorApptHTML(a){
           ${docN?`<span class="doc-chip" onclick="event.stopPropagation();openApptDocuments('${a.id}')" title="Voir la documentation">📎 ${docN} doc</span>`:''}
           ${hasDossier?`<span class="doc-chip" title="${t('dossier')}">📁 ${t('dossier')}</span>`:''}
           ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
+          ${isEmergency ? `<span class="doc-chip" onclick="event.stopPropagation();showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--danger);font-weight:700">🚨 Fiche urgence</span>` : ''}
         </div>
         ${cancelled?`
           <div style="margin-top:5px;padding:5px 8px;background:var(--danger-bg);border-radius:6px;font-size:11px;color:var(--danger);border-left:3px solid var(--danger)">
@@ -10486,6 +10654,7 @@ function doctorApptHTML(a){
           </div>`:''}
       </div>
       <div class="appt-actions">
+        ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
         <button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁 ${t('dossier_open')}</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')" title="Documentation médicale">📎</button>`:''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
@@ -10515,10 +10684,11 @@ function confirmApptWithNotify(id){
 }
 function doConfirmApptWithNotify(id){
   const a = DB.appointments.find(x=>x.id===id); if(!a) return;
-  const doc = docById(a.doctorId); if(!doc) return;
+  const doc = docById(a.doctorId);
+  const docName = doc ? doc.name : (clinicById(a.clinicId)?.name || 'l\'établissement');
   a.status='confirmed';
-  pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${doc.name} est confirmé`, null, a.id);
-  if(a.clinicId) pushClinicNotif('RDV confirmé', `RDV ${a.id} avec ${doc.name}`, a.clinicId, a.id);
+  pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${docName} est confirmé`, null, a.id);
+  if(a.clinicId) pushClinicNotif('RDV confirmé', `RDV ${a.id} avec ${docName}`, a.clinicId, a.id);
   clearApptNotifications(a.id);
   saveDB(); closeModal(); render();
   toast('Rendez-vous confirmé','success');
@@ -10547,7 +10717,8 @@ function confirmDoctorAction(id, action){
 }
 function docAction(id, action){
   const a = DB.appointments.find(x=>x.id===id); if(!a) return;
-  const doc = docById(a.doctorId); if(!doc) return;
+  const doc = docById(a.doctorId);
+  const docName = doc ? doc.name : (clinicById(a.clinicId)?.name || 'l\'établissement');
   if(action === 'done' && !canValidateAppt(a)){
     toast(validationBlockedMsg(a), 'error');
     closeModal();
@@ -10555,11 +10726,11 @@ function docAction(id, action){
   }
   if(action==='cancel'){
     a.status='cancelled';
-    pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé par le médecin`, null, a.id);
+    pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé par ${docName}`, null, a.id);
     toast('Rendez-vous annulé','info');
   } else if(action==='done'){
     a.status='done';
-    pushNotif('patient','Consultation terminée', `Merci d'avoir consulté ${doc.name}`, null, a.id);
+    pushNotif('patient','Consultation terminée', `Merci d'avoir consulté ${docName}`, null, a.id);
     toast('Rendez-vous validé - commission comptabilisée','success');
   }
   clearApptNotifications(a.id); saveDB();
@@ -17343,8 +17514,10 @@ function adminApptRow(a){
   const cancelled = a.status === 'cancelled' && a.cancelReason;
   const eligibleValidate = canValidateAppt(a);
   const docN = (a.documents||[]).length;
+  /* 🆕 FIX : la variable isEmergency n'était jamais déclarée */
+  const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
-    <div class="appt ${isDeleted?'deleted':''} ${a.internal?'internal':''} ${c?'clinic-appt':''} ${isSelected?'selected-row':''}">
+    <div class="appt ${isDeleted?'deleted':''} ${a.internal?'internal':''} ${c?'clinic-appt':''} ${isEmergency?'emergency-appt':''} ${isSelected?'selected-row':''}">
       <div class="appt-checkbox-wrap">
         <input type="checkbox" class="msg-checkbox" ${isSelected?'checked':''} onchange="toggleApptSelect('${a.id}')">
       </div>
@@ -17360,6 +17533,7 @@ function adminApptRow(a){
           ${!doc && prest?` <span style="font-weight:400;color:#be185d;font-size:11px">→ 💉 ${esc(prest.name)}</span>`:''}
         </div>
         <div class="appt-meta">
+          ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
           <span>${statusTag(a.status)}</span>
           ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
           ${c?`<span class="tag clinic">🏥 ${t('clinic')}</span>`:''}
@@ -18033,6 +18207,14 @@ function genAdmissionId(){
   while (DB.admissions.some(a => a.id === id) && tries < 50);
   return id;
 }
+function openEmergencyFromDashboard(emergencyId){
+  const e = DB.emergencies.find(x => x.id === emergencyId);
+  if(!e){ toast('Urgence introuvable', 'error'); return; }
+  if(e.status !== 'pending'){ showEmergencyDetails(emergencyId); return; }
+  state.emergencyAlertId = e.id;
+  showEmergencyAlertModal(e);
+}
+
 function viewClinicDash(){
   const c = state.clinic;
   const myDoctorIds = clinicLinkedDoctorIds(c.id);
@@ -18115,8 +18297,17 @@ function viewClinicDash(){
     `;
   }
   
+  /* 🆕 Compteurs urgences */
+  const _allEmergencyAppts = clinicAppts.filter(a => a.apptType === 'clinic_emergency' || !!a.emergencyId);
+  const _pendingEmergenciesCount = DB.emergencies.filter(e => 
+    String(e.assignedClinicId) === String(c.id) && e.status === 'pending'
+  ).length;
+  const _acceptedEmergenciesCount = DB.emergencies.filter(e => 
+    String(e.assignedClinicId) === String(c.id) && e.status === 'accepted'
+  ).length;
+  
   return `
-    <!-- 📊 6 KPIs sur une seule ligne -->
+    <!-- 📊 KPIs -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
       <div class="stat">
         <div class="stat-ico">🧑‍⚕️</div>
@@ -18142,7 +18333,75 @@ function viewClinicDash(){
         <div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div>
         <div><div class="stat-val">${confirmed.length}</div><div class="stat-lbl">${t('confirmed_c')}</div></div>
       </div>
+      <div class="stat" style="cursor:pointer;background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(239,68,68,.02));border-color:rgba(239,68,68,.3)" onclick="go('cappts')">
+        <div class="stat-ico" style="background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.08));color:var(--danger)">🚨</div>
+        <div>
+          <div class="stat-val" style="color:var(--danger)">${_allEmergencyAppts.length}</div>
+          <div class="stat-lbl">Urgences totales${_pendingEmergenciesCount>0?` · <span style="color:var(--danger);font-weight:800">${_pendingEmergenciesCount} en attente</span>`:''}</div>
+        </div>
+      </div>
     </div>
+    
+    <!-- 📩 NOTIFICATIONS ENTRANTES — AVANT les services -->
+    ${(() => {
+      const pendingApptNotifs = DB.notifications
+        .filter(n => n.role === 'clinic' && String(n.toDoctorId) === String(c.id) && n.apptId)
+        .map(n => ({ notif: n, appt: DB.appointments.find(a => a.id === n.apptId) }))
+        .filter(x => x.appt && x.appt.status === 'pending' && x.appt.apptType !== 'clinic_emergency');
+      const pendingEmergencies = DB.emergencies
+        .filter(e => String(e.assignedClinicId) === String(c.id) && e.status === 'pending');
+      const items = [
+        ...pendingApptNotifs.map(x => ({ kind: 'appt', notif: x.notif, appt: x.appt, sortDate: x.notif.date || x.appt.createdAt || '' })),
+        ...pendingEmergencies.map(e => ({ kind: 'emergency', emergency: e, sortDate: e.createdAt || '' }))
+      ].sort((a,b) => String(b.sortDate).localeCompare(String(a.sortDate)));
+      if(!items.length) return '';
+      return `
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04));border-color:rgba(139,92,246,.35)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="card-title" style="font-size:16px;margin:0">
+          📩 Notifications entrantes
+          <span class="tag danger" style="margin-left:6px">${items.length}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-muted)">Cliquez sur une carte pour traiter</div>
+      </div>
+      <div class="clinic-notif-grid">
+        ${items.map(item => {
+          if(item.kind === 'emergency'){
+            const e = item.emergency;
+            return `
+              <button type="button" class="clinic-notif-mini emergency" onclick="openEmergencyFromDashboard('${e.id}')" title="Urgence — ${esc(e.patientName)}">
+                <div class="cnm-icon">🚨</div>
+                <div class="cnm-badge">URGENCE</div>
+                <div class="cnm-name">${esc(e.patientName)}</div>
+                <div class="cnm-meta">
+                  <span>${esc(emergencyTypeLabel(e.emergencyType))}</span>
+                  <span>📅 ${new Date(e.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})} · ${new Date(e.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+                </div>
+                <div class="cnm-status"><span class="tag warn" style="font-size:9.5px;padding:1px 7px">⏳ ${t('status_pending')}</span></div>
+              </button>
+            `;
+          }
+          const a = item.appt;
+          const doc = a.doctorId ? docById(a.doctorId) : null;
+          const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
+          return `
+            <button type="button" class="clinic-notif-mini" onclick="openNotifDetail('${item.notif.id}')" title="Nouveau RDV — ${esc(a.patientName)}">
+              <div class="cnm-icon">📥</div>
+              <div class="cnm-badge">RDV</div>
+              <div class="cnm-name">${esc(a.patientName)}</div>
+              <div class="cnm-meta">
+                <span>🕒 ${a.time} · 📅 ${fmtDateFR(a.date)}</span>
+                ${doc ? `<span>🧑‍⚕️ ${esc(doc.name)}</span>` : ''}
+                ${prest ? `<span>💉 ${esc(prest.name)}</span>` : ''}
+              </div>
+              <div class="cnm-status"><span class="tag warn" style="font-size:9.5px;padding:1px 7px">⏳ ${t('status_pending')}</span></div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+    `;
+    })()}
     
     <!-- 🏗️ Services de la clinique — EN HAUT, agrandie, avec RDV en cours/prochain -->
     <div class="card" style="margin-bottom:14px">
@@ -18212,8 +18471,7 @@ function viewClinicDash(){
           </div>
         ` : ''}
       </div>
-    </div>
-    
+    </div> 
     <!-- 📅 RDV du jour — EN BAS -->
     <div class="card">
       <div class="card-title">📅 ${t('today_appts')} <span class="tag accent">${today.length}</span></div>
@@ -18575,6 +18833,90 @@ function quickAdmitToBed(roomId, serviceId, bedNumber){
     interventions: [], pricePerDay: 0, notes: ''
   };
   openAdmissionForm();
+}
+function openAdmissionFromAppt(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  if(!a){ toast('RDV introuvable', 'error'); return; }
+  if(a.status === 'cancelled' || a.status === 'deleted'){
+    toast('Impossible : RDV annulé ou supprimé', 'error'); return;
+  }
+  const c = state.clinic;
+  const services = clinicServicesFor(c.id);
+  if(!services.length){ toast('Créez d\'abord des services', 'error'); return; }
+  if(!roomsForClinic(c.id).length){ toast('Créez d\'abord des chambres dans votre profil', 'error'); return; }
+  state.admissionForm = {
+    patientName: a.patientName || '',
+    patientPhone: a.patientPhone || '',
+    patientAge: a.patientAge || '',
+    patientWilaya: a.patientWilaya || '',
+    serviceId: a.clinicServiceId || services[0]?.id || null,
+    roomId: null, bedNumber: 1,
+    doctorId: a.doctorId || null,
+    fromApptId: a.id,
+    motif: a.motif || '',
+    admissionDate: todayISO(),
+    interventions: [], pricePerDay: 0, notes: ''
+  };
+  const title = a.apptType === 'clinic_emergency' ? '🚨 Admission depuis urgence' : '📥 Admission depuis RDV';
+  openModal(title, `${a.patientName} — 🆔 ${a.id}`,
+    `<div id="admissionFormBody"></div>`,
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn primary" onclick="saveAdmission(null)">💾 Enregistrer</button>`,
+    true);
+  setTimeout(() => renderAdmissionFormBody(null), 20);
+}
+/* ═══════════════════════════════════════════════════════════
+   🚨→🛏️ PONT URGENCE → ADMISSION
+   Permet d'admettre un patient depuis une urgence acceptée
+   ═══════════════════════════════════════════════════════════ */
+function openAdmissionFromEmergency(emergencyId){
+  const e = DB.emergencies.find(x => x.id === emergencyId);
+  if(!e){ toast('Urgence introuvable', 'error'); return; }
+  if(e.status !== 'accepted'){
+    toast('L\'urgence doit être acceptée avant l\'admission', 'error');
+    return;
+  }
+  /* Trouver le RDV lié, ou en créer un si absent (fallback) */
+  let appt = DB.appointments.find(a => a.emergencyId === emergencyId);
+  if(!appt){
+    const _emgCreated = new Date(e.createdAt || Date.now());
+    appt = {
+      id: genApptId(),
+      doctorId: null,
+      patientName: e.patientName,
+      patientAge: e.patientAge,
+      patientPhone: e.patientPhone,
+      patientEmail: '',
+      patientWilaya: e.patientWilaya,
+      patientPassword: '',
+      date: localISO(_emgCreated),
+      time: String(_emgCreated.getHours()).padStart(2,'0') + ':' + String(_emgCreated.getMinutes()).padStart(2,'0'),
+      motif: `🚨 URGENCE — ${e.emergencyType || 'Autre'}${e.description ? ' — ' + e.description : ''}`,
+      services: [],
+      servicesTotal: 0,
+      documents: [],
+      status: 'confirmed',
+      internal: false,
+      createdAt: e.createdAt || nowISO(),
+      reminders: { h2: false },
+      notes: '',
+      rating: 0,
+      clinicId: e.assignedClinicId,
+      clinicServiceId: null,
+      prestationId: null,
+      apptType: 'clinic_emergency',
+      clinicRating: 0,
+      emergencyId: emergencyId
+    };
+    DB.appointments.push(appt);
+    saveDB();
+  }
+  if(appt.status === 'cancelled' || appt.status === 'deleted'){
+    toast('Impossible : RDV annulé ou supprimé', 'error');
+    return;
+  }
+  /* Ouvrir le formulaire d'admission pré-rempli */
+  openAdmissionFromAppt(appt.id);
 }
 function openAdmissionForm(admissionId){
   const c = state.clinic;
@@ -19749,8 +20091,9 @@ function clinicApptRow(a){
   const cancelled = a.status === 'cancelled' && a.cancelReason;
   const eligibleValidate = canValidateAppt(a);
   const docN = (a.documents||[]).length;
+  const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
-    <div class="appt clinic-appt ${isSelected?'selected-row':''}">
+    <div class="appt clinic-appt ${isSelected?'selected-row':''} ${isEmergency?'emergency-appt':''}">
       <div class="appt-checkbox-wrap">
         <input type="checkbox" class="msg-checkbox" ${isSelected?'checked':''} onchange="toggleApptSelect('${a.id}')">
       </div>
@@ -19765,6 +20108,7 @@ function clinicApptRow(a){
           ${!doc && prest?` <span style="font-weight:400;color:#ec4899;font-size:11px">· 💉 ${esc(prest.name)}</span>`:''}
         </div>
         <div class="appt-meta">
+          ${isEmergency ? `<span class="tag danger" style="animation:emergencyFabPulse 2s infinite">🚨 URGENCE</span>` : ''}
           <span>${statusTag(a.status)}</span>
           ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
           ${svc?`<span class="tag accent">🏗️ ${esc(svc.icon||'')} ${esc(svc.name)}</span>`:''}
@@ -19780,8 +20124,10 @@ function clinicApptRow(a){
           </div>`:''}
       </div>
       <div class="appt-actions">
+        ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
         <button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
+        ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn green" onclick="openAdmissionFromAppt('${a.id}')" title="Admettre à l'hospitalisation">📥</button>`:''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="clinicConfirmAppt('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
           eligibleValidate
@@ -19831,6 +20177,17 @@ function clinicDoCancel(id){
   const reason = $('#clCancelReason')?.value || '';
   a.status = 'cancelled';
   a.cancelReason = reason || '(annulé par la clinique)';
+  /* 🆕 Si RDV urgence : décliner l'urgence */
+  if(a.emergencyId){
+    const emg = DB.emergencies.find(e => e.id === a.emergencyId);
+    if(emg && emg.status === 'pending'){
+      emg.status = 'declined';
+      emg.respondedAt = nowISO();
+      emg.updatedAt = nowISO();
+      emg.clinicResponse = 'Refusée (annulation RDV)';
+      markEmergencyProcessed(a.emergencyId);
+    }
+  }
   if(a.doctorId) pushNotif('doctor','RDV annulé', `RDV ${a.id} annulé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé`, null, a.id);
   clearApptNotifications(a.id);
@@ -21551,7 +21908,7 @@ function openEmergencyForm(){
 }
 let _submittingEmergency = false;
 function submitEmergency(){
-  if(_submittingEmergency) return;  // 🆕 anti double-clic
+  if(_submittingEmergency) return;
   const name = ($('#emgName')?.value||'').trim();
   const phone = ($('#emgPhone')?.value||'').trim();
   const wilaya = ($('#emgWilaya')?.value||'').trim();
@@ -21590,40 +21947,62 @@ function submitEmergency(){
     updatedAt: now
   };
   DB.emergencies.push(emergency);
+
+  /* 🆕 Créer un RDV lié pour bénéficier de toutes les fonctions (admissions, docs, etc.) */
+  const _emgCreated = new Date(now);
+  const _emgApptId = genApptId();
+  DB.appointments.push({
+    id: _emgApptId,
+    doctorId: null,
+    patientName: name,
+    patientAge: isNaN(age) ? null : age,
+    patientPhone: phone,
+    patientEmail: '',
+    patientWilaya: wilaya,
+    patientPassword: '',
+    date: localISO(_emgCreated),
+    time: String(_emgCreated.getHours()).padStart(2,'0') + ':' + String(_emgCreated.getMinutes()).padStart(2,'0'),
+    motif: `🚨 URGENCE — ${type || 'Autre'}${desc ? ' — ' + desc : ''}`,
+    services: [],
+    servicesTotal: 0,
+    documents: [],
+    status: 'pending',
+    internal: false,
+    createdAt: now,
+    reminders: { h2: false },
+    notes: '',
+    rating: 0,
+    clinicId: String(clinic.id),
+    clinicServiceId: null,
+    prestationId: null,
+    apptType: 'clinic_emergency',
+    clinicRating: 0,
+    emergencyId: emgId
+  });
+
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
   state.emergencyForm = {patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:''};
-  pushClinicNotif('🚨 URGENCE ENTRANTE', `${name} — ${type || 'Autre'}`, clinic.id, null);
-  saveDB({immediate: true});   // 🆕 push instantané
+  pushClinicNotif('🚨 URGENCE ENTRANTE', `${name} — ${type || 'Autre'}`, clinic.id, _emgApptId);
+  saveDB({immediate: true});
+
   closeModal();
   openModal('✅ ' + t('emergency_sent_title'), '',
     `<div style="text-align:center; padding:10px 0">
-      
-      <!-- Icône de succès avec halo -->
-      <div style="width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg, rgba(16,185,129,.15), rgba(16,185,129,.05)); border:2px solid rgba(16,185,129,.3); display:grid; place-items:center; font-size:36px; margin:0 auto 16px; box-shadow:0 8px 24px rgba(16,185,129,.15)">
-        🚑
-      </div>
-
-      <!-- Titre et Clinique -->
+      <div style="width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg, rgba(16,185,129,.15), rgba(16,185,129,.05)); border:2px solid rgba(16,185,129,.3); display:grid; place-items:center; font-size:36px; margin:0 auto 16px; box-shadow:0 8px 24px rgba(16,185,129,.15)">🚑</div>
       <div style="font-size:13px; text-transform:uppercase; letter-spacing:1px; font-weight:800; color:var(--text-muted); margin-bottom:6px">${esc(t('emergency_sent_to'))}</div>
       <div style="font-size:22px; font-weight:800; color:var(--danger); letter-spacing:-.5px; margin-bottom:6px; line-height:1.2">${esc(clinic.name)}</div>
       <div style="font-size:13px; color:var(--text-muted); margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:6px">
         <span>📍</span> ${esc(clinic.wilaya)}${clinic.commune?' · '+esc(clinic.commune):''}
       </div>
-
-      <!-- Ticket ID (Style Billet) -->
       <div style="background:var(--glass-bg-3); border:1.5px dashed var(--glass-border); border-radius:14px; padding:14px; margin-bottom:20px; position:relative">
         <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:4px">🆔 ${t('emergency_id')}</div>
         <div style="font-family:var(--font-numbers); font-size:20px; font-weight:800; color:var(--accent-primary); letter-spacing:1.5px">${emgId}</div>
       </div>
-
-      <!-- Statut d'attente -->
       <div style="display:inline-flex; align-items:center; justify-content:center; gap:8px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); padding:10px 16px; border-radius:var(--radius-pill); color:#b45309; font-size:12.5px; font-weight:600; width:100%">
         <span style="animation: emergencyFabPulse 2s infinite; font-size:16px">⏳</span> 
         <span>${t('emergency_status_pending')} — La clinique va répondre sous peu.</span>
       </div>
-
     </div>`,
-    // Les boutons réorganisés : Mes urgences (principal) & Annuler (secondaire)
     `<div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap:wrap-reverse">
       <button class="pill-btn danger" onclick="cancelEmergency('${emgId}')" style="flex:1; justify-content:center; padding:12px; font-weight:600">
         ✕ ${t('emergency_cancel_btn')}
@@ -21696,13 +22075,81 @@ function acceptEmergency(emergencyId){
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Acceptée';
   markEmergencyProcessed(emergencyId);
-  pushNotif('patient', '✅ Urgence acceptée', `${e.assignedClinicName} a accepté votre urgence ${e.id}`, null, null);
+  
+  /* 🔗 Sync RDV lié → confirmed + création fallback si absent */
+  let _emgLink1 = DB.appointments.find(a => a.emergencyId === emergencyId);
+  if(!_emgLink1){
+    /* Fallback : créer le RDV si absent (urgence ancienne ou erreur) */
+    const _emgCreated = new Date(e.createdAt || Date.now());
+    _emgLink1 = {
+      id: genApptId(),
+      doctorId: null,
+      patientName: e.patientName,
+      patientAge: e.patientAge,
+      patientPhone: e.patientPhone,
+      patientEmail: '',
+      patientWilaya: e.patientWilaya,
+      patientPassword: '',
+      date: localISO(_emgCreated),
+      time: String(_emgCreated.getHours()).padStart(2,'0') + ':' + String(_emgCreated.getMinutes()).padStart(2,'0'),
+      motif: `🚨 URGENCE — ${e.emergencyType || 'Autre'}${e.description ? ' — ' + e.description : ''}`,
+      services: [],
+      servicesTotal: 0,
+      documents: [],
+      status: 'confirmed',
+      internal: false,
+      createdAt: e.createdAt || nowISO(),
+      reminders: { h2: false },
+      notes: '',
+      rating: 0,
+      clinicId: e.assignedClinicId,
+      clinicServiceId: null,
+      prestationId: null,
+      apptType: 'clinic_emergency',
+      clinicRating: 0,
+      emergencyId: emergencyId
+    };
+    DB.appointments.push(_emgLink1);
+  } else if(_emgLink1.status === 'pending'){
+    _emgLink1.status = 'confirmed';
+    _emgLink1.updatedAt = nowISO();
+  }
+  
+  pushNotif('patient', '✅ Urgence acceptée', `${e.assignedClinicName} a accepté votre urgence ${e.id}`, null, _emgLink1.id);
   saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
-  closeModal(); // Ferme notre popup de confirmation
+  closeModal();
   render();
   toast('✅ ' + t('emergency_status_accepted'), 'success');
+  
+  /* 🆕 MODALE POST-ACCEPTATION : actions immédiates */
+  setTimeout(() => {
+    if(state.role === 'clinic' && state.clinic){
+      openModal('✅ Urgence acceptée', `${e.patientName} — ${emergencyTypeLabel(e.emergencyType)}`,
+        `<div style="text-align:center;padding:8px 0">
+          <div style="font-size:44px;margin-bottom:10px">🚑</div>
+          <div style="font-size:14px;line-height:1.6;color:var(--text-main);margin-bottom:14px">
+            <strong>${esc(e.patientName)}</strong> a été notifié.<br>
+            Vous pouvez maintenant :<br>
+            <span style="color:var(--text-muted);font-size:12px">— Valider la consultation une fois terminée<br>— Ou admettre le patient à l'hospitalisation</span>
+          </div>
+          <div class="info-compact one-col" style="text-align:left;margin-bottom:14px">
+            <div class="ic-item">
+              <div class="ic-lbl">🆔 RDV lié</div>
+              <div class="ic-val" style="font-family:var(--font-numbers);font-weight:700;color:var(--accent-primary)">${esc(_emgLink1.id)}</div>
+            </div>
+            <div class="ic-item">
+              <div class="ic-lbl">📅 ${t('when')}</div>
+              <div class="ic-val">${fmtDateFR(_emgLink1.date)} — <strong>${_emgLink1.time}</strong></div>
+            </div>
+          </div>
+        </div>`,
+        `<button class="pill-btn" onclick="closeModal();go('cappts')">📅 Voir tous les RDV</button>
+         <button class="pill-btn" onclick="closeModal();openPatientApptDetail('${_emgLink1.id}')">📄 Voir le RDV</button>
+         <button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${emergencyId}')">📥 Admettre</button>`);
+    }
+  }, 400);
 }
 
 function declineEmergency(emergencyId){
@@ -21713,11 +22160,18 @@ function declineEmergency(emergencyId){
   e.updatedAt = new Date().toISOString();
   e.clinicResponse = 'Refusée';
   markEmergencyProcessed(emergencyId);
-  pushNotif('patient', '❌ Urgence refusée', `${e.assignedClinicName} n'a pas pu prendre en charge votre urgence ${e.id}`, null, null);
+  /* 🆕 Sync RDV lié → cancelled */
+  const _emgLink2 = DB.appointments.find(a => a.emergencyId === emergencyId);
+  if(_emgLink2 && (_emgLink2.status === 'pending' || _emgLink2.status === 'confirmed')){
+    _emgLink2.status = 'cancelled';
+    _emgLink2.cancelReason = 'Urgence refusée par la clinique';
+    _emgLink2.updatedAt = nowISO();
+  }
+  pushNotif('patient', '❌ Urgence refusée', `${e.assignedClinicName} n'a pas pu prendre en charge votre urgence ${e.id}`, null, _emgLink2 ? _emgLink2.id : null);
   saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
-  closeModal(); // Ferme notre popup de confirmation
+  closeModal();
   render();
   toast(t('emergency_status_declined'), 'info');
 }
@@ -21755,6 +22209,13 @@ function cancelEmergency(emergencyId){
   if(!window.confirm(t('emergency_confirm_cancel'))) return;
   e.status = 'cancelled';
   e.updatedAt = new Date().toISOString();
+  /* 🆕 Synchroniser le RDV lié */
+  const linkedAppt = DB.appointments.find(a => a.emergencyId === emergencyId);
+  if(linkedAppt && (linkedAppt.status === 'pending' || linkedAppt.status === 'confirmed')){
+    linkedAppt.status = 'cancelled';
+    linkedAppt.cancelReason = 'Urgence annulée par le patient';
+    linkedAppt.updatedAt = nowISO();
+  }
   saveDB();
   closeModal();
   render();
@@ -21766,6 +22227,14 @@ function showEmergencyDetails(emergencyId){
   const clinic = e.assignedClinicId ? clinicById(e.assignedClinicId) : null;
   const statusCls = e.status === 'pending' ? 'warn' : e.status === 'accepted' ? 'success' : e.status === 'declined' ? 'danger' : 'muted';
   const statusLbl = e.status === 'pending' ? t('emergency_status_pending') : e.status === 'accepted' ? t('emergency_status_accepted') : e.status === 'declined' ? t('emergency_status_declined') : t('emergency_status_cancelled');
+  
+  /* 🆕 CONTEXTE : RDV lié + rôle clinic */
+  const linkedAppt = DB.appointments.find(a => a.emergencyId === emergencyId);
+  const isClinicUser = state.role === 'clinic' && state.clinic;
+  const canAdmit = isClinicUser && e.status === 'accepted' && linkedAppt && 
+                   linkedAppt.status !== 'cancelled' && linkedAppt.status !== 'deleted';
+  const canOpenAppt = isClinicUser && linkedAppt;
+  
   openModal('🚨 ' + t('emergency_details'), `${e.id} · ${emergencyTypeLabel(e.emergencyType)}`, `
     <div class="info-compact one-col" style="margin-bottom:10px">
       <div class="ic-item">
@@ -21789,6 +22258,11 @@ function showEmergencyDetails(emergencyId){
         <div class="ic-lbl">📅 ${t('billing_date')}</div>
         <div class="ic-val">${new Date(e.createdAt).toLocaleString('fr-FR')}</div>
       </div>
+      ${linkedAppt ? `
+      <div class="ic-item" style="background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(236,72,153,.05));border-color:rgba(139,92,246,.35)">
+        <div class="ic-lbl">🆔 RDV lié</div>
+        <div class="ic-val" style="font-family:var(--font-numbers);font-weight:700;color:var(--accent-primary)">${esc(linkedAppt.id)} · ${statusTag(linkedAppt.status)}</div>
+      </div>` : ''}
     </div>
     ${clinic ? `
       <div class="info-compact one-col" style="margin-top:8px">
@@ -21802,7 +22276,9 @@ function showEmergencyDetails(emergencyId){
     ` : ''}
   `,
   `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
-   ${clinic && e.status === 'accepted' ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((clinic.address||'')+' '+clinic.wilaya)}" target="_blank" rel="noopener" class="pill-btn primary">🗺️ ${t('emergency_go_to')}</a>` : ''}`);
+   ${canOpenAppt ? `<button class="pill-btn" onclick="closeModal();openPatientApptDetail('${linkedAppt.id}')">📄 Voir le RDV</button>` : ''}
+   ${canAdmit ? `<button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${e.id}')">📥 Admettre à l'hôpital</button>` : ''}
+   ${clinic && e.status === 'accepted' && !isClinicUser ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((clinic.address||'')+' '+clinic.wilaya)}" target="_blank" rel="noopener" class="pill-btn primary">🗺️ ${t('emergency_go_to')}</a>` : ''}`);
 }
 function viewMyEmergencies(){
   const phone = state.myPhone || '';
@@ -21912,14 +22388,26 @@ function startCriticalPolling(){
       }catch(e){}
     }
 
-    // 📅 RDV : poll toutes les 3 s pour pro (médecin/clinique/admin)
+    // 📅 RDV : poll toutes les 2 s pour le médecin (instantané), 4 s pour autres pros
     _criticalPollTick = (_criticalPollTick || 0) + 1;
-    if(_criticalPollTick % 2 === 0 && (isClinic || isDoctor || isAdmin)){
+    const shouldPollAppts = isDoctor ? true : (_criticalPollTick % 2 === 0);
+    if(shouldPollAppts && (isClinic || isDoctor || isAdmin)){
       try{
         const before = snapshotApptsBrief();
+        /* 🔔 Médecin + Clinique : capturer l'état des notifications avant rechargement */
+        const notifsBefore = (isDoctor || isClinic)
+          ? DB.notifications.map(n => n.id + ':' + (n.read ? 1 : 0)).join('|')
+          : '';
         await loadTable('appointments');
+        /* 🔔 Recharger aussi les notifications pour peupler la section 📩 */
+        if(isDoctor || isClinic){
+          await loadTable('notifications');
+          const notifsAfter = DB.notifications.map(n => n.id + ':' + (n.read ? 1 : 0)).join('|');
+          if(notifsBefore !== notifsAfter) needRender = true;
+        }
         const after = snapshotApptsBrief();
         if(!arraysEqualBrief(before, after)) needRender = true;
+        if(isDoctor) checkDoctorNewAppointments();
       }catch(e){}
     }
 
@@ -21941,6 +22429,9 @@ let _criticalPollTick = 0;
 
 // Snapshot précédent (global)
 let _prevPatientSnap = null;
+
+// 🔔 Snapshot des RDV en attente du médecin (détection nouveaux RDV)
+let _prevDoctorApptsSnap = null;
 
 // Snapshot actuel des statuts du patient
 function snapshotPatientStatuses(){
@@ -22153,6 +22644,92 @@ async function playPatientEmergencyAlert(isAccepted){
 }
 
 // Modale plein écran : urgence acceptée / refusée
+/* ============================================================
+   🔔 NOTIFICATION NOUVEAU RDV — CÔTÉ MÉDECIN
+   ============================================================ */
+async function playDoctorNewApptSound(){
+  try{
+    const ok = await tryInitAudio();
+    if(!ok) return;
+    const ctx = _emergencyAudioCtx;
+    if(!ctx || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    const beep = (freq, start, dur, vol) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(vol, start + 0.02);
+      gain.gain.linearRampToValueAtTime(0, start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur);
+    };
+    // 3 notes ascendantes — signal clair "nouveau RDV"
+    beep(880, now, 0.15, 0.55);
+    beep(1100, now + 0.18, 0.15, 0.55);
+    beep(1320, now + 0.36, 0.28, 0.55);
+  }catch(e){}
+}
+
+function showDoctorNewApptNotification(appt){
+  const el = document.createElement('div');
+  el.className = 'toast success';
+  el.innerHTML = `
+    <span style="font-size:24px;flex-shrink:0">🔔</span>
+    <div style="min-width:0">
+      <div style="font-weight:700;font-size:13px;margin-bottom:2px">📥 Nouvelle demande de RDV</div>
+      <div style="font-size:12px;line-height:1.4;opacity:.9">
+        <strong>${esc(appt.patientName)}</strong> — ${fmtDateFR(appt.date)} à ${appt.time}
+        ${appt.motif ? `<br>📝 ${esc(appt.motif)}` : ''}
+      </div>
+    </div>`;
+  el.style.minWidth = '340px';
+  el.style.maxWidth = '460px';
+  el.style.padding = '14px 18px';
+  el.style.cursor = 'pointer';
+  el.title = 'Cliquez pour ouvrir la liste des RDV';
+  el.onclick = () => {
+    el.remove();
+    if(state.role === 'doctor') go('dappts');
+  };
+  $('#toasts').appendChild(el);
+  setTimeout(() => {
+    if(!el.parentElement) return;
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-24px)';
+    el.style.transition = 'all .35s ease';
+    setTimeout(() => el.remove(), 360);
+  }, 10000);
+}
+
+function checkDoctorNewAppointments(){
+  if(state.role !== 'doctor' || !state.doctor){
+    _prevDoctorApptsSnap = null;
+    return;
+  }
+  const current = new Set(
+    DB.appointments
+      .filter(a => String(a.doctorId) === String(state.doctor.id) && a.status === 'pending' && !a.internal)
+      .map(a => a.id)
+  );
+  if(_prevDoctorApptsSnap === null){
+    _prevDoctorApptsSnap = current;
+    return;
+  }
+  let hasNew = false;
+  current.forEach(id => {
+    if(!_prevDoctorApptsSnap.has(id)) hasNew = true;
+  });
+  _prevDoctorApptsSnap = current;
+  if(hasNew){
+    /* 🔔 Son uniquement — la notification s'affiche dans la section 📩 du tableau de bord */
+    playDoctorNewApptSound();
+  }
+}
+
 function showPatientEmergencyResultModal(n, result){
   playPatientEmergencyAlert(result === 'accepted');
   closeModal(); // 🆕 Ferme la fenêtre "Urgence envoyée" si elle est encore ouverte
@@ -22434,6 +23011,8 @@ getClinicAdmRevFilter,
   acceptEmergency, declineEmergency, cancelEmergency, showEmergencyDetails,
   viewMyEmergencies, playEmergencySound, startEmergencyLoop, stopEmergencyLoop,
   tryInitAudio, enableEmergencyAudio, emergencyTypeLabel,
+  /* 🆕 Pont urgence → admission */
+  openAdmissionFromEmergency,
   /* 🆕 Surveillance patient temps réel */
   snapshotPatientStatuses, detectPatientChangesAndUpdate, applyPatientNotifications,
   showPatientStatusToast, playPatientBeep, playPatientEmergencyAlert,
