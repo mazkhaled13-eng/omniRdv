@@ -98,6 +98,124 @@ body[dir="rtl"]{direction:rtl}
 .nav-item .badge{margin-left:5px;background:var(--danger);color:#fff;font-size:10px;
   padding:1px 6px;border-radius:var(--radius-pill);font-weight:700}
 body[dir="rtl"] .nav-item .badge{margin-left:0;margin-right:5px}
+/* ============================================================
+   🏷️ NAVIGATION EN ÉTIQUETTES MOYENNES (Médecin / Admin / Clinique)
+   ============================================================ */
+.nav-tag-grid{
+  display:grid;
+  gap:10px;
+  width:100%;
+  flex:1;
+  padding:2px 0;
+}
+.nav-item-tag{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:11px 13px;
+  background:var(--glass-bg-3);
+  border:1.5px solid var(--glass-border);
+  border-radius:14px;
+  cursor:pointer;
+  transition:var(--transition);
+  font-family:inherit;
+  color:var(--text-main);
+  text-align:left;
+  min-width:0;
+  position:relative;
+  overflow:hidden;
+}
+.nav-item-tag::after{
+  content:'';
+  position:absolute;
+  top:0; left:0; bottom:0;
+  width:3px;
+  background:transparent;
+  transition:var(--transition);
+}
+.nav-item-tag:hover{
+  background:var(--accent-light);
+  border-color:var(--accent-primary);
+  transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(139,92,246,.15);
+}
+.nav-item-tag:hover::after{ background:var(--accent-primary); }
+.nav-item-tag.active{
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 8px 20px rgba(139,92,246,.35);
+}
+.nav-item-tag.active::after{ background:rgba(255,255,255,.7); }
+.nav-item-tag .nit-ico{
+  width:38px; height:38px;
+  border-radius:11px;
+  display:grid; place-items:center;
+  font-size:18px;
+  background:var(--accent-light);
+  color:var(--accent-primary);
+  flex-shrink:0;
+  transition:var(--transition);
+}
+.nav-item-tag:hover .nit-ico{
+  background:var(--accent-primary);
+  color:#fff;
+}
+.nav-item-tag.active .nit-ico{
+  background:rgba(255,255,255,.22);
+  color:#fff;
+}
+.nav-item-tag .nit-body{
+  flex:1; min-width:0;
+  display:flex; flex-direction:column;
+  gap:3px; line-height:1.2;
+}
+.nav-item-tag .nit-label{
+  font-weight:700;
+  font-size:12.5px;
+  color:inherit;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  letter-spacing:-.1px;
+}
+.nav-item-tag .nit-info{
+  font-size:10.5px;
+  color:var(--text-muted);
+  font-weight:500;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.nav-item-tag.active .nit-info{ color:rgba(255,255,255,.88); }
+.nav-item-tag .nit-badge{
+  position:absolute;
+  top:7px; right:7px;
+  background:var(--danger);
+  color:#fff;
+  font-size:9.5px;
+  font-weight:800;
+  padding:2px 7px;
+  border-radius:9999px;
+  min-width:18px;
+  text-align:center;
+  line-height:1.3;
+  box-shadow:0 2px 6px rgba(239,68,68,.4);
+}
+.nav-item-tag.active .nit-badge{
+  background:rgba(255,255,255,.92);
+  color:var(--danger);
+}
+@media(max-width:1100px){
+  .nav-tag-grid{ grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) !important; }
+}
+@media(max-width:640px){
+  .nav-tag-grid{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:7px; }
+  .nav-item-tag{ padding:9px 10px; gap:8px; border-radius:12px; }
+  .nav-item-tag .nit-ico{ width:32px; height:32px; font-size:15px; border-radius:9px; }
+  .nav-item-tag .nit-label{ font-size:11.5px; }
+  .nav-item-tag .nit-info{ font-size:9.5px; }
+}
 .nav-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .role-menu{display:flex;gap:3px;background:var(--glass-bg-3);
   border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:3px}
@@ -531,6 +649,304 @@ body.dark .invoice-kpi.money .k-val{color:#6ee7b7}
 .home-search-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:520px){.home-search-row{grid-template-columns:1fr}}
 .month-picker{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+/* ============================================================
+   🏠 HOME PATIENT — REFONTE v2
+   ============================================================ */
+
+/* HERO */
+.home-hero-v2{
+  position:relative;
+  background:linear-gradient(135deg,#8b5cf6 0%,#a855f7 40%,#ec4899 100%);
+  border-radius:22px;
+  padding:22px 20px;
+  margin-bottom:16px;
+  overflow:hidden;
+  box-shadow:0 14px 32px rgba(139,92,246,.22);
+}
+.home-hero-v2::before{
+  content:''; position:absolute; top:-60px; right:-50px;
+  width:200px; height:200px; border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 70%);
+  pointer-events:none;
+}
+.home-hero-v2::after{
+  content:''; position:absolute; bottom:-70px; left:-50px;
+  width:180px; height:180px; border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%);
+  pointer-events:none;
+}
+.home-hero-content{ position:relative; z-index:1; }
+.home-hero-greet{
+  display:flex; align-items:center; gap:12px; margin-bottom:16px;
+}
+.home-hero-emoji{
+  width:48px; height:48px; border-radius:14px;
+  background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.3);
+  display:grid; place-items:center; font-size:24px; flex-shrink:0;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+.home-hero-title{
+  font-size:20px; font-weight:800; color:#fff;
+  letter-spacing:-.4px; line-height:1.1;
+  font-family:'Playfair Display',Georgia,serif;
+}
+.home-hero-sub{
+  font-size:12.5px; color:rgba(255,255,255,.9);
+  font-weight:500; margin-top:3px;
+}
+.home-hero-search-wrap{ position:relative; margin-bottom:12px; }
+.home-hero-search-ico{
+  position:absolute; left:16px; top:50%;
+  transform:translateY(-50%); font-size:17px; pointer-events:none; z-index:1;
+}
+.home-hero-search{
+  width:100%; padding:14px 18px 14px 44px;
+  border-radius:9999px; border:2px solid rgba(255,255,255,.4);
+  background:rgba(255,255,255,.95);
+  font-family:inherit; font-size:14px; color:#1f2937;
+  outline:none; transition:var(--transition);
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+.home-hero-search::placeholder{ color:#9ca3af; }
+.home-hero-search:focus{
+  border-color:#fff; background:#fff;
+  box-shadow:0 6px 20px rgba(0,0,0,.14),0 0 0 4px rgba(255,255,255,.25);
+}
+.home-mode-toggle{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px;
+  background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25);
+  border-radius:9999px; padding:4px;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+.home-mode-toggle button{
+  padding:9px 8px; border-radius:9999px; border:none;
+  background:transparent; color:#fff; font-family:inherit;
+  font-size:12px; font-weight:600; cursor:pointer;
+  transition:var(--transition); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.home-mode-toggle button:hover{ background:rgba(255,255,255,.15); }
+.home-mode-toggle button.active{
+  background:#fff; color:#8b5cf6;
+  box-shadow:0 3px 10px rgba(0,0,0,.15);
+}
+
+/* Actions rapides */
+.home-actions-grid{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;
+}
+.home-action-card{
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  padding:14px; border-radius:16px;
+  background:var(--glass-bg); border:1.5px solid var(--glass-border);
+  cursor:pointer; transition:var(--transition);
+  min-height:100px; position:relative; overflow:hidden;
+}
+.home-action-card:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-sm); border-color:var(--accent-primary);
+}
+.home-action-card.primary{
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  border-color:transparent; color:#fff;
+  box-shadow:0 6px 18px rgba(139,92,246,.28);
+}
+.home-action-card.primary:hover{ box-shadow:0 10px 24px rgba(139,92,246,.4); }
+.home-action-card.danger{
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  border-color:transparent; color:#fff;
+  box-shadow:0 6px 18px rgba(239,68,68,.28);
+}
+.home-action-card.danger:hover{ box-shadow:0 10px 24px rgba(239,68,68,.4); }
+.home-action-card .hac-ico{
+  width:42px; height:42px; border-radius:12px;
+  display:grid; place-items:center; font-size:22px;
+  background:var(--accent-light); color:var(--accent-primary); flex-shrink:0;
+}
+.home-action-card.primary .hac-ico,
+.home-action-card.danger .hac-ico{
+  background:rgba(255,255,255,.22); color:#fff;
+}
+.home-action-card .hac-body{ min-width:0; }
+.home-action-card .hac-title{
+  font-size:13.5px; font-weight:800; letter-spacing:-.2px;
+  line-height:1.2; margin-bottom:2px;
+}
+.home-action-card .hac-sub{
+  font-size:11px; color:var(--text-muted); font-weight:500; line-height:1.3;
+}
+.home-action-card.primary .hac-sub,
+.home-action-card.danger .hac-sub{ color:rgba(255,255,255,.85); }
+
+/* Filtres repliables */
+.home-filters-wrap{ margin-bottom:14px; }
+.home-filters-toggle{
+  width:100%; display:flex; align-items:center; gap:8px;
+  padding:11px 14px; border-radius:14px;
+  background:var(--glass-bg-3); border:1.5px solid var(--glass-border);
+  color:var(--text-main); font-family:inherit;
+  font-size:13px; font-weight:700; cursor:pointer; transition:var(--transition);
+}
+.home-filters-toggle:hover{
+  background:var(--accent-light); border-color:var(--accent-primary);
+  color:var(--accent-primary);
+}
+.home-filters-badge{
+  background:var(--accent-primary); color:#fff;
+  font-size:10px; font-weight:800;
+  padding:2px 8px; border-radius:9999px; min-width:20px; text-align:center;
+}
+.home-filters-arrow{ margin-left:auto; font-size:11px; opacity:.7; }
+.home-filters-panel{
+  margin-top:10px; padding:14px;
+  background:var(--glass-bg); border:1.5px solid var(--glass-border);
+  border-radius:14px; animation:fade .2s ease;
+}
+
+/* Sections récents */
+.home-section{ margin-bottom:18px; }
+.home-section-head{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:10px; margin-bottom:10px;
+}
+.home-section-title{
+  display:flex; align-items:center; gap:8px;
+  font-size:14.5px; font-weight:800; color:var(--text-main);
+  letter-spacing:-.2px;
+}
+.home-see-all{
+  padding:6px 12px; border-radius:9999px;
+  border:1px solid var(--glass-border); background:transparent;
+  color:var(--accent-primary); font-family:inherit;
+  font-size:11.5px; font-weight:700; cursor:pointer;
+  transition:var(--transition); white-space:nowrap;
+}
+.home-see-all:hover{
+  background:var(--accent-primary); color:#fff; border-color:var(--accent-primary);
+}
+.home-recent-scroll{
+  display:flex; gap:10px; overflow-x:auto;
+  padding:4px 2px 10px; scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+}
+.home-recent-scroll::-webkit-scrollbar{ height:5px; }
+.home-recent-scroll::-webkit-scrollbar-thumb{
+  background:var(--glass-border); border-radius:3px;
+}
+.home-recent-card{
+  flex:0 0 200px; scroll-snap-align:start;
+  background:var(--glass-bg); border:1.5px solid var(--glass-border);
+  border-radius:16px; padding:14px 12px; cursor:pointer;
+  transition:var(--transition); display:flex; flex-direction:column;
+  gap:6px; min-width:0;
+}
+.home-recent-card:hover{
+  transform:translateY(-2px); box-shadow:var(--shadow-sm);
+  border-color:var(--accent-primary);
+}
+.home-recent-card.closed{
+  background:linear-gradient(135deg,rgba(239,68,68,.05),rgba(239,68,68,.02));
+  border-color:rgba(239,68,68,.3);
+}
+.home-recent-card .hrc-avatar{
+  width:48px; height:48px; border-radius:12px;
+  display:grid; place-items:center; font-size:24px;
+  background:linear-gradient(135deg,var(--accent-light),#e0e7ff);
+  border:1px solid var(--glass-border);
+  margin-bottom:4px; flex-shrink:0;
+}
+.home-recent-card .hrc-name{
+  font-size:13px; font-weight:700; color:var(--text-main);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  letter-spacing:-.2px;
+}
+.home-recent-card .hrc-spec{
+  font-size:11.5px; color:var(--accent-primary); font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.home-recent-card .hrc-loc{
+  font-size:10.5px; color:var(--text-muted); font-weight:500;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.home-recent-card .hrc-badges{
+  display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;
+}
+.home-recent-card .hrc-price{
+  font-family:var(--font-numbers); font-weight:700; font-size:13px;
+  color:#059669; margin-top:auto; padding-top:4px;
+}
+
+/* Stats banner */
+.home-stats-banner{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  margin-top:18px; padding:14px 12px;
+  background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(236,72,153,.05));
+  border:1.5px solid rgba(139,92,246,.25); border-radius:16px;
+}
+.home-stats-banner .hsb-item{ text-align:center; min-width:0; }
+.home-stats-banner .hsb-val{
+  font-family:var(--font-numbers); font-weight:800; font-size:20px;
+  color:var(--accent-primary); letter-spacing:-.4px; line-height:1;
+}
+.home-stats-banner .hsb-lbl{
+  font-size:9.5px; color:var(--text-muted); font-weight:700;
+  text-transform:uppercase; letter-spacing:.4px; margin-top:5px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* FAB urgence — mobile uniquement */
+.home-emergency-fab{
+  display:none; position:fixed;
+  bottom:20px; right:20px;
+  width:60px; height:60px; border-radius:50%;
+  background:linear-gradient(135deg,#ef4444,#dc2626);
+  color:#fff; border:3px solid #fff;
+  cursor:pointer; z-index:80; font-size:26px;
+  box-shadow:0 8px 24px rgba(239,68,68,.5);
+  animation:emergencyFabPulse 2.5s infinite;
+  align-items:center; justify-content:center; padding:0;
+}
+.home-emergency-fab:active{ transform:scale(.95); }
+
+/* 📱 TABLETTE */
+@media (max-width:1000px) and (min-width:641px){
+  .home-actions-grid{ grid-template-columns:repeat(4,1fr); }
+  .home-action-card{ min-height:110px; }
+  .home-recent-scroll{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    overflow-x:visible; padding-bottom:4px;
+  }
+  .home-recent-card{ flex:none; width:auto; }
+}
+
+/* 📱 MOBILE */
+@media (max-width:640px){
+  .home-hero-v2{ border-radius:18px; padding:18px 16px; margin-bottom:14px; }
+  .home-hero-emoji{ width:42px; height:42px; font-size:21px; border-radius:12px; }
+  .home-hero-title{ font-size:18px; }
+  .home-hero-sub{ font-size:12px; }
+  .home-hero-search{ padding:13px 16px 13px 40px; font-size:14px; }
+  .home-mode-toggle button{ padding:8px 6px; font-size:11px; }
+  .home-actions-grid{ gap:8px; margin-bottom:14px; }
+  .home-action-card{ padding:12px; min-height:95px; border-radius:14px; }
+  .home-action-card .hac-ico{ width:38px; height:38px; font-size:20px; border-radius:11px; }
+  .home-action-card .hac-title{ font-size:12.5px; }
+  .home-action-card .hac-sub{ font-size:10.5px; }
+  .home-recent-card{ flex:0 0 175px; padding:12px 10px; }
+  .home-stats-banner{ grid-template-columns:repeat(2,1fr); gap:10px; padding:12px 10px; }
+  .home-stats-banner .hsb-val{ font-size:17px; }
+  .home-stats-banner .hsb-lbl{ font-size:9px; }
+  .home-emergency-fab{
+    display:flex; bottom:16px; right:16px;
+    width:56px; height:56px; font-size:24px;
+  }
+}
+@media (max-width:400px){
+  .home-actions-grid{ gap:6px; }
+  .home-action-card{ padding:10px; min-height:88px; }
+  .home-action-card .hac-title{ font-size:12px; }
+  .home-action-card .hac-sub{ font-size:10px; }
+}
 .service-checkbox{display:flex;align-items:center;gap:10px;padding:10px 12px;
   background:var(--glass-bg-3);border:1px solid var(--glass-border);
   border-radius:var(--radius-md);cursor:pointer;transition:var(--transition);font-size:12.5px;margin-bottom:6px}
@@ -4445,6 +4861,7 @@ function seedData(){
     messages: [],
     medicalFiles: [],
     medications:[],
+    visits: { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
     emergencies: [],
     rooms: [],
     admissions: []
@@ -4455,6 +4872,7 @@ let DB;
 let _remoteLoadOK = false;
 let _syncTimer = null;
 let _isApplyingRemote = false;
+let _criticalGuardUntil = 0;   // 🆕 protège les actions critiques (valider/annuler) contre les resync
 
 const LS_PENDING_DELETES = 'omnimed_pending_deletes';
 const _pendingDeletes = (() => {
@@ -4584,6 +5002,9 @@ async function loadDB(){
       },
       medications: Array.isArray(s.medications) ? s.medications : [],
       searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
+      visits: (s.visits && typeof s.visits === 'object')
+        ? s.visits
+        : { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
 
       doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
         id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
@@ -4754,6 +5175,9 @@ async function loadDB(){
     if(!DB.emergencies) DB.emergencies = [];
     if(!DB.rooms) DB.rooms = [];
     if(!DB.admissions) DB.admissions = [];
+    if(!DB.visits || typeof DB.visits !== 'object'){
+      DB.visits = { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
+    }
 
     remoteOK = true;
 
@@ -4779,7 +5203,14 @@ async function loadDB(){
 function saveDB(opts){
   opts = opts || {};
   try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
-  if(_isApplyingRemote) return;
+  if(opts.critical){
+    opts.immediate = true;
+    _criticalGuardUntil = Date.now() + 3000;   // 🆕 verrou anti-resync pendant 3 s
+  }
+  if(_isApplyingRemote){
+    _needRepush = true;   // 🆕 au lieu de perdre le push, on le rejoue après
+    return;
+  }
 
   if(!_remoteLoadOK){
     console.warn('🔒 Push bloqué — chargement distant non validé. Données locales préservées.');
@@ -4824,6 +5255,7 @@ async function pushToSupabase(){
     };
 
     const syncSettings              = needsSync('settings');
+    const syncVisits                = needsSync('visits');
     const syncDoctors               = needsSync('doctors', 'doctors');
     const syncAppointments          = needsSync('appointments', 'appointments');
     const syncServices              = needsSync('services', 'services');
@@ -4844,7 +5276,7 @@ async function pushToSupabase(){
     const syncRooms                 = needsSync('rooms');
     const syncAdmissions            = needsSync('admissions');
 
-    const anyChange = syncSettings || syncDoctors || syncAppointments || syncServices ||
+    const anyChange = syncSettings || syncVisits || syncDoctors || syncAppointments || syncServices ||
       syncNotifications || syncMessages || syncSpecialties || syncWilayas || syncCommunes ||
       syncInvoiceRegistry || syncSubInvoiceRegistry || syncClinicInvoiceRegistry ||
       syncMedicalFiles || syncClinics || syncClinicServices || syncClinicPrestations ||
@@ -4853,8 +5285,8 @@ async function pushToSupabase(){
     if(!anyChange) return; // rien n'a changé → 0 requête réseau
 
     // ---- SETTINGS ----
-    if(syncSettings){
-      await sb.from('settings').upsert({
+    if(syncSettings || syncVisits){
+      const _settingsPayload = {
         id: 1,
         commission: DB.settings.commission,
         sub_monthly: DB.settings.subMonthly,
@@ -4864,8 +5296,16 @@ async function pushToSupabase(){
         admin_password: DB.admin.password,
         medications: DB.medications || [],
         search_logs: DB.searchLogs || [],
+        visits: DB.visits || {},
         updated_at: new Date().toISOString()
-      });
+      };
+      const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
+      // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
+      if(_upsertRes && _upsertRes.error && String(_upsertRes.error.message||'').toLowerCase().includes('visits')){
+        console.warn('⚠️ Colonne "visits" absente de la table settings — ajoutez-la via SQL pour activer le compteur de visites.');
+        delete _settingsPayload.visits;
+        await sb.from('settings').upsert(_settingsPayload);
+      }
     }
 
     // ---- PENDING DELETES (uniquement pour tables concernées) ----
@@ -5151,6 +5591,14 @@ async function pushToSupabase(){
   }
 }
 
+function _releaseRemoteLock(){
+  _isApplyingRemote = false;
+  if(_needRepush && _remoteLoadOK){
+    _needRepush = false;
+    setTimeout(() => { pushToSupabase().catch(()=>{}); }, 80);
+  }
+}
+
 let _syncBadgeTimer = null;
 let _lastSyncBadgeState = null;
 
@@ -5188,6 +5636,7 @@ function snapshotDB(){
     clinicInvoiceRegistry: JSON.stringify(DB.clinicInvoiceRegistry),
     medicalFiles:       JSON.stringify(DB.medicalFiles),
     medications:        JSON.stringify(DB.medications || []),
+    visits:             JSON.stringify(DB.visits || {}),
     emergencies:        JSON.stringify(DB.emergencies || []),
     rooms:              JSON.stringify(DB.rooms || []),
     admissions:         JSON.stringify(DB.admissions || [])
@@ -5232,6 +5681,7 @@ let _realtimeStatusStableTimer = null;
 const INCREMENTAL_TABLES = ['appointments','notifications','emergencies','messages','doctors','clinics','rooms','admissions'];
 
 async function loadTable(tableName){
+  const _guardAtStart = _criticalGuardUntil;   // 🆕 capture l'état du verrou
   try {
     switch(tableName){
       case 'appointments': {
@@ -5241,8 +5691,10 @@ if(state.role === 'doctor' && state.doctor) {
 } else if(state.role === 'clinic' && state.clinic) {
   query = query.eq('clinic_id', state.clinic.id);
 }
-const { data, error } = await query;
+        const { data, error } = await query;
         if(error) return false;
+        // 🆕 Si une action critique (valider/annuler) est survenue pendant le chargement, on jette la réponse
+        if(_criticalGuardUntil > _guardAtStart) return true;
         DB.appointments = (data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
           id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
           patientAge:a.patient_age, patientPhone:a.patient_phone,
@@ -5273,6 +5725,8 @@ const { data, error } = await query;
       case 'emergencies': {
         const { data, error } = await sb.from('emergencies').select('*').order('created_at',{ascending:false});
         if(error) return false;
+        // 🆕 Protège une urgence acceptée/refusée contre un écrasement par resync
+        if(_criticalGuardUntil > _guardAtStart) return true;
         DB.emergencies = (data||[]).filter(e=>!_pendingDeletes.emergencies.includes(String(e.id))).map(e=>({
           id: e.id, patientName: e.patient_name, patientPhone: e.patient_phone,
           patientWilaya: e.patient_wilaya,
@@ -5387,8 +5841,8 @@ function subscribeRealtime(){
   const handler = async (payload) => {
     if(_isApplyingRemote) return;
 
-    // ⚡ On DIFFÈRE (au lieu de sauter) si on est en train de pusher ou juste après
-    if(_isPushing || (Date.now() - _lastPushTime) < PUSH_GRACE_MS){
+    // ⚡ On DIFFÈRE (au lieu de sauter) si on est en train de pusher, juste après, ou pendant un verrou critique
+    if(_isPushing || (Date.now() - _lastPushTime) < PUSH_GRACE_MS || Date.now() < _criticalGuardUntil){
       if(_realtimeRetryTimer) clearTimeout(_realtimeRetryTimer);
       _realtimeRetryTimer = setTimeout(() => handler(payload), 150);
       return;
@@ -5506,7 +5960,7 @@ function subscribeRealtime(){
         }, 20);
 
       } finally {
-        _isApplyingRemote = false;
+        _releaseRemoteLock();
       }
     }, 50); // ⚡ réduit de 250 → 50ms
   };
@@ -5568,7 +6022,7 @@ function setupVisibilityResync(){
         if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
         render();
       } finally {
-        _isApplyingRemote = false;
+        _releaseRemoteLock();
       }
     })();
   };
@@ -7681,52 +8135,124 @@ function docNav(){
   const v = state.view;
   const unread = getUnreadMsgCount();
   const pendingInvites = state.doctor ? doctorPendingInvites(state.doctor.id).length : 0;
+  const myAppts = state.doctor
+    ? DB.appointments.filter(a => String(a.doctorId) === String(state.doctor.id) && a.status !== 'deleted')
+    : [];
+  const todayCount = myAppts.filter(a => a.date === todayISO() && a.status !== 'cancelled').length;
+  const pendingCount = myAppts.filter(a => a.status === 'pending').length;
+  const internalCount = myAppts.filter(a => a.internal).length;
+  const dossierCount = state.doctor ? mfGetActiveForDoctor(state.doctor.id).length : 0;
+
   const items = [
-    ['ddash','📊',t('ddash')],
-    ['dappts','📅',t('dappts')],
-    ['dinternal','🗂️',t('dinternal')],
-    ['dclinics','🏥', t('doctor_my_clinics') + (pendingInvites?`<span class="badge">${pendingInvites}</span>`:'')],
-    ['ddossier','📁',t('ddossier')],
-    ['dstats','📈',t('dstats')],
-    ['drecette','💲',t('drecette')],
-    ['dmessages','✉️',t('dmessages') + (unread?`<span class="badge">${unread}</span>`:'')],
-    ['dprof','🧑‍⚕️',t('dprof')]
+    ['ddash','📊',t('ddash'), todayCount + ' RDV aujourd\'hui'],
+    ['dappts','📅',t('dappts'), pendingCount + ' en attente'],
+    ['dinternal','🗂️',t('dinternal'), internalCount + ' RDV interne' + (internalCount>1?'s':'')],
+    ['dclinics','🏥', t('doctor_my_clinics'), pendingInvites > 0 ? pendingInvites + ' invitation' + (pendingInvites>1?'s':'') : 'Aucune invitation', pendingInvites],
+    ['ddossier','📁',t('ddossier'), dossierCount + ' dossier' + (dossierCount>1?'s':'')],
+    ['dstats','📈',t('dstats'), 'Vue d\'ensemble'],
+    ['drecette','💲',t('drecette'), 'Recette cabinet'],
+    ['dmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
+    ['dprof','🧑‍⚕️',t('dprof'), 'Mon profil']
   ];
-  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+  const cols = Math.ceil(items.length / 2);
+  return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
+    ${items.map(([id,ico,lbl,info,badge])=>`
+      <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
+        ${badge ? `<span class="nit-badge">${badge}</span>` : ''}
+        <div class="nit-ico">${ico}</div>
+        <div class="nit-body">
+          <div class="nit-label">${lbl}</div>
+          <div class="nit-info">${info}</div>
+        </div>
+      </button>
+    `).join('')}
+  </div>`;
 }
 function clinicNav(){
   const v = state.view;
   const unread = getUnreadMsgCount();
+  const c = state.clinic;
+  const linkedDoctorCount = c ? clinicLinkedDoctorIds(c.id).length : 0;
+  const servicesCount = c ? clinicServicesFor(c.id).length : 0;
+  const prestationsCount = c ? clinicPrestationsFor(c.id).length : 0;
+  const activeAdmissions = c ? activeAdmissionsForClinic(c.id).length : 0;
+  const totalBeds = c ? roomsForClinic(c.id).reduce((s,r)=>s+(r.beds||0),0) : 0;
+  const occupiedBeds = c ? roomsForClinic(c.id).reduce((s,r)=>s+occupiedBedCount(r.id),0) : 0;
+  const clinicAppts = c ? DB.appointments.filter(a => String(a.clinicId)===String(c.id) && a.status!=='deleted') : [];
+  const todayCount = clinicAppts.filter(a => a.date === todayISO() && a.status !== 'cancelled').length;
+  const pendingCount = clinicAppts.filter(a => a.status === 'pending').length;
+  const internalCount = clinicAppts.filter(a => a.internal).length;
+  const dossiersCount = c ? mfAllDossiersForClinic(c.id).length : 0;
+
+  // 🆕 Compteur factures (RDV terminés + hospitalisations non annulées)
+  const doneApptsCount = clinicAppts.filter(a => a.status === 'done').length;
+  const admissionsCount = c ? DB.admissions.filter(a => String(a.clinicId)===String(c.id) && a.status !== 'cancelled').length : 0;
+  const facturesCount = doneApptsCount + admissionsCount;
+
   const items = [
-    ['cdash','📊',t('clinic_dashboard')],
-    ['cdoctors','🧑‍⚕️',t('clinic_doctors')],
-    ['cservices','🏗️',t('clinic_services')],
-    ['cprestations','💉',t('clinic_prestations')],
-    ['cadmissions','📥',t('clinic_admissions')],
-    ['chospitalization','🛏️',t('clinic_hospitalization')],
-    ['cappts','📅',t('dappts')],
-    ['cinternal','🗂️',t('dinternal')],
-    ['cdossier','📁',t('ddossier')],
-    ['cstats','📈',t('dstats')],
-    ['crecette','💲',t('drecette')],
-    ['cmessages','✉️',t('dmessages') + (unread?`<span class="badge">${unread}</span>`:'')],
-    ['cprof','⚙️',t('profile')]
+    ['cdash','📊',t('clinic_dashboard'), todayCount + ' RDV aujourd\'hui'],
+    ['cdoctors','🧑‍⚕️',t('clinic_doctors'), linkedDoctorCount + ' rattaché' + (linkedDoctorCount>1?'s':'')],
+    ['cservices','🏗️',t('clinic_services'), servicesCount + ' service' + (servicesCount>1?'s':'')],
+    ['cprestations','💉',t('clinic_prestations'), prestationsCount + ' prestation' + (prestationsCount>1?'s':'')],
+    ['cadmissions','📥',t('clinic_admissions'), activeAdmissions + ' active' + (activeAdmissions>1?'s':'')],
+    ['chospitalization','🛏️',t('clinic_hospitalization'), occupiedBeds + '/' + totalBeds + ' lits occupés'],
+    ['cappts','📅',t('dappts'), pendingCount + ' en attente'],
+    ['cinternal','🗂️',t('dinternal'), internalCount + ' RDV interne' + (internalCount>1?'s':'')],
+    ['cdossier','📁',t('ddossier'), dossiersCount + ' dossier' + (dossiersCount>1?'s':'')],
+    ['cstats','📈',t('dstats'), 'Vue d\'ensemble'],
+    ['crecette','💲',t('drecette'), 'Recette clinique'],
+    ['cfacturation','🧾','Facturation', facturesCount + ' facture' + (facturesCount>1?'s':'')],  /* 🆕 */
+    ['cmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
+    ['cprof','⚙️',t('profile'), 'Paramètres clinique']
   ];
-  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+  const cols = Math.ceil(items.length / 2);
+  return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
+    ${items.map(([id,ico,lbl,info,badge])=>`
+      <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
+        ${badge ? `<span class="nit-badge">${badge}</span>` : ''}
+        <div class="nit-ico">${ico}</div>
+        <div class="nit-body">
+          <div class="nit-label">${lbl}</div>
+          <div class="nit-info">${info}</div>
+        </div>
+      </button>
+    `).join('')}
+  </div>`;
 }
 function adminNav(){
   const v = state.view;
   const unread = getUnreadMsgCount();
+  const totalDocs = DB.doctors.length;
+  const totalClinics = DB.clinics.length;
+  const activeAppts = DB.appointments.filter(a => a.status !== 'deleted');
+  const pendingCount = activeAppts.filter(a => a.status === 'pending').length;
+  const dossiersCount = DB.medicalFiles.length;
+
   const items = [
-    ['adash','📊',t('adash')],['adoctors','🧑‍⚕️',t('adoctors')],
-    ['aclinics','🏥', t('aclinics')],
-    ['astats','📈',t('astats')],
-    ['arevenue','💲',t('arevenue')],['aappts','📅',t('aappts')],
-    ['adossiers','📁',t('adossiers')],
-    ['amessages','✉️',t('amessages') + (unread?`<span class="badge">${unread}</span>`:'')],
-    ['alistes','📚',t('alistes')],['asettings','⚙️',t('asettings')]
+    ['adash','📊',t('adash'), 'Vue d\'ensemble'],
+    ['adoctors','🧑‍⚕️',t('adoctors'), totalDocs + ' médecin' + (totalDocs>1?'s':'')],
+    ['aclinics','🏥',t('aclinics'), totalClinics + ' clinique' + (totalClinics>1?'s':'')],
+    ['astats','📈',t('astats'), 'Vue d\'ensemble'],
+    ['arevenue','💲',t('arevenue'), 'Finances & commissions'],
+    ['aappts','📅',t('aappts'), pendingCount + ' en attente'],
+    ['adossiers','📁',t('adossiers'), dossiersCount + ' dossier' + (dossiersCount>1?'s':'')],
+    ['amessages','✉️',t('amessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
+    ['alistes','📚',t('alistes'), 'Spécialités, wilayas…'],
+    ['asettings','⚙️',t('asettings'), 'Système & sauvegardes']
   ];
-  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+  const cols = Math.ceil(items.length / 2);
+  return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
+    ${items.map(([id,ico,lbl,info,badge])=>`
+      <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
+        ${badge ? `<span class="nit-badge">${badge}</span>` : ''}
+        <div class="nit-ico">${ico}</div>
+        <div class="nit-body">
+          <div class="nit-label">${lbl}</div>
+          <div class="nit-info">${info}</div>
+        </div>
+      </button>
+    `).join('')}
+  </div>`;
 }
 function go(view){
   if(state.doctor && isSubscriptionType(state.doctor) && !isSubscriptionActive(state.doctor)){
@@ -7743,7 +8269,7 @@ function go(view){
   }
   const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','dprof','dmessages','ddossier',
     'adash','adoctors','aclinics','astats','arevenue','aappts','alistes','asettings','amessages','adossiers',
-    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cmessages','cprof',
+    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cfacturation','cmessages','cprof',
     'clinicView','clinicBook','clinicProfile'];
   if(accountViews.includes(view) && !state.doctor && !state.admin && !state.clinic){
     openAccountLogin(); return;
@@ -7830,7 +8356,8 @@ function viewHome(){
   const wilaya = state.search.wilaya || '';
   const commune = state.search.commune || '';
   const mode = state.search.mode || 'all';
-  const searching = q.trim().length > 0 || spec.length > 0 || wilaya.length > 0 || commune.length > 0;
+  const searching = q.trim().length > 0 || spec.length > 0 || wilaya.length > 0 || commune.length > 0
+    || mode === 'doctors' || mode === 'clinics';
   const doctorResults = searching ? filterDoctorsForSearch() : [];
   const clinicResults = searching ? filterClinicsForSearch() : [];
   const communesForWilaya = wilaya ? (DB.communes[wilaya]||[]) : [];
@@ -7839,163 +8366,220 @@ function viewHome(){
   const allRecentDocs = DB.doctors.filter(d=>!isDoctorHiddenFromPatients(d)).sort((a,b)=>{
     const da = a.createdAt || ''; const db = b.createdAt || '';
     return String(db).localeCompare(String(da));
-  });
+  }).slice(0, 10);
   const allRecentClinics = DB.clinics.filter(c=>!isClinicHiddenFromPatients(c)).sort((a,b)=>{
     const da = a.createdAt || ''; const db = b.createdAt || '';
     return String(db).localeCompare(String(da));
-  });
-  const totalPages = Math.max(1, Math.ceil(allRecentDocs.length / RECENT_PER_PAGE));
-  const page = Math.min(state.recentPage || 1, totalPages);
-  const recentDocs = allRecentDocs.slice((page-1)*RECENT_PER_PAGE, page*RECENT_PER_PAGE);
-  const recentClinics = allRecentClinics.slice(0, RECENT_PER_PAGE);
-  
+  }).slice(0, 10);
+  const filtersOpen = state.homeFiltersOpen === true;
+  const activeFiltersCount = (spec?1:0) + (wilaya?1:0) + (commune?1:0);
+
   return `
-    <!-- 🌟 NOUVEAU HERO : ACTIONS RAPIDES -->
-    <div style="background:linear-gradient(135deg, rgba(139,92,246,.12), rgba(236,72,153,.08)); border:1px solid rgba(139,92,246,.3); border-radius:var(--radius-lg); padding:20px; margin-bottom:16px; box-shadow:0 8px 24px rgba(139,92,246,0.08)">
-      
-      <div style="text-align:center; margin-bottom:18px">
-        <div style="font-size:32px; margin-bottom:8px; filter:drop-shadow(0 4px 10px rgba(139,92,246,0.3))">👋</div>
-        <div style="font-size:18px; font-weight:800; color:var(--text-main); letter-spacing:-0.5px; margin-bottom:4px">Bonjour, comment allez-vous ?</div>
-        <div style="font-size:12.5px; color:var(--text-muted)">Que souhaitez-vous faire aujourd'hui ?</div>
-      </div>
-
-      <!-- Grille de 3 Actions -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        
-        <!-- Action 1 : Prendre RDV (Pleine largeur, style Premium) -->
-        <div onclick="go('book')" style="grid-column:1 / -1; background:linear-gradient(135deg, var(--accent-primary), #ec4899); color:#fff; border-radius:16px; padding:16px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:transform 0.2s; box-shadow:0 6px 16px rgba(139,92,246,0.3)" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-          <div style="width:48px; height:48px; border-radius:12px; background:rgba(255,255,255,0.2); display:grid; place-items:center; font-size:24px; backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.3)">📅</div>
-          <div style="flex:1">
-            <div style="font-size:15px; font-weight:800; letter-spacing:-0.2px">${t('book_now')}</div>
-            <div style="font-size:11.5px; opacity:0.9; margin-top:2px">Trouvez un médecin ou une clinique</div>
-          </div>
-          <div style="font-size:24px; opacity:0.7; flex-shrink:0">›</div>
-        </div>
-
-        <!-- Action 2 : Mes RDV -->
-        <div onclick="go('my')" style="background:var(--glass-bg); border:1.5px solid var(--glass-border); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px; cursor:pointer; transition:transform 0.2s; align-items:center; justify-content:center; text-align:center" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-          <div style="width:40px; height:40px; border-radius:50%; background:var(--accent-light); color:var(--accent-primary); display:grid; place-items:center; font-size:20px">📋</div>
+    <!-- 🌟 HERO -->
+    <div class="home-hero-v2">
+      <div class="home-hero-content">
+        <div class="home-hero-greet">
+          <div class="home-hero-emoji">👋</div>
           <div>
-            <div style="font-size:13px; font-weight:700; color:var(--text-main)">${t('my')}</div>
-            <div style="font-size:10.5px; color:var(--text-muted); margin-top:2px">Consulter mes RDV</div>
+            <div class="home-hero-title">Bonjour</div>
+            <div class="home-hero-sub">Comment allez-vous aujourd'hui ?</div>
           </div>
         </div>
-
-        <!-- Action 3 : URGENCE (Rouge vif) -->
-        <div onclick="openEmergencyForm()" style="background:linear-gradient(135deg, #ef4444, #dc2626); border:1.5px solid #b91c1c; border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px; cursor:pointer; transition:transform 0.2s; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 12px rgba(239,68,68,0.25)" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-          <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.2); color:#fff; display:grid; place-items:center; font-size:20px; animation:emergencyFabPulse 2s infinite">🚨</div>
-          <div>
-            <div style="font-size:13px; font-weight:800; color:#fff; letter-spacing:0.5px">${t('emergency_btn')}</div>
-            <div style="font-size:10.5px; color:rgba(255,255,255,0.8); margin-top:2px">Aide immédiate</div>
-          </div>
+        <div class="home-hero-search-wrap">
+          <span class="home-hero-search-ico">🔎</span>
+          <input class="home-hero-search" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
         </div>
-
+        <div class="home-mode-toggle">
+          <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()">📋 Tout</button>
+          <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()">🧑‍⚕️ Médecins</button>
+          <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()">🏥 Cliniques</button>
+        </div>
       </div>
     </div>
 
-    <!-- 🔍 RECHERCHE -->
-    <div class="card" style="margin-bottom:16px; padding:16px">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-        <div style="font-size:14px; font-weight:700; color:var(--text-main)">🔍 Recherche rapide</div>
-        ${searching ? `<button class="mini-btn ghost" onclick="state.search={q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'};render()">✕ Réinitialiser</button>` : ''}
+    <!-- ⚡ ACTIONS RAPIDES -->
+    <div class="home-actions-grid">
+      <div class="home-action-card primary" onclick="go('book')">
+        <div class="hac-ico">📅</div>
+        <div class="hac-body">
+          <div class="hac-title">${t('book_now')}</div>
+          <div class="hac-sub">Trouver un médecin</div>
+        </div>
       </div>
-      
-      <div style="position:relative; margin-bottom:10px">
-        <div style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:16px; color:var(--text-muted)">🔎</div>
-        <input class="input" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)" style="padding-left:40px; font-size:14px; border-radius:var(--radius-pill); background:var(--glass-bg-3)">
+      <div class="home-action-card" onclick="go('my')">
+        <div class="hac-ico">📋</div>
+        <div class="hac-body">
+          <div class="hac-title">${t('my')}</div>
+          <div class="hac-sub">Consulter mes RDV</div>
+        </div>
       </div>
+      <div class="home-action-card" onclick="showAllClinics()">
+        <div class="hac-ico">🏥</div>
+        <div class="hac-body">
+          <div class="hac-title">${t('clinics')}</div>
+          <div class="hac-sub">${DB.clinics.length} clinique${DB.clinics.length>1?'s':''}</div>
+        </div>
+      </div>
+      <div class="home-action-card danger" onclick="openEmergencyForm()">
+        <div class="hac-ico">🚨</div>
+        <div class="hac-body">
+          <div class="hac-title">${t('emergency_btn')}</div>
+          <div class="hac-sub">Aide immédiate</div>
+        </div>
+      </div>
+    </div>
 
-      <div class="toggle-group" style="margin-bottom:12px; display:flex; width:100%; box-sizing:border-box; background:var(--glass-bg-3); border-radius:var(--radius-pill); padding:3px">
-        <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()" style="flex:1; justify-content:center; border-radius:var(--radius-pill); font-size:12px; padding:6px">Tout</button>
-        <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()" style="flex:1; justify-content:center; border-radius:var(--radius-pill); font-size:12px; padding:6px">🧑‍⚕️ Médecins</button>
-        <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()" style="flex:1; justify-content:center; border-radius:var(--radius-pill); font-size:12px; padding:6px">🏥 Cliniques</button>
-      </div>
-
-      <div class="home-search-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+    <!-- 🔎 FILTRES REPLIABLES -->
+    <div class="home-filters-wrap">
+      <button class="home-filters-toggle" onclick="state.homeFiltersOpen=!state.homeFiltersOpen;render()">
+        <span>🔎 Filtres avancés</span>
+        ${activeFiltersCount > 0 ? `<span class="home-filters-badge">${activeFiltersCount}</span>` : ''}
+        <span class="home-filters-arrow">${filtersOpen ? '▲' : '▼'}</span>
+      </button>
+      ${filtersOpen ? `
+      <div class="home-filters-panel">
         ${showDoctors ? `
-        <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()" style="background:var(--glass-bg-3); border-radius:10px">
-          <option value="">${t('all_spec')}</option>
-          ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
-        </select>` : `<div></div>`}
-        <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()" style="background:var(--glass-bg-3); border-radius:10px">
-          <option value="">${t('all_wilaya')}</option>
-          ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
-        </select>
-      </div>
-      
-      ${wilaya ? `
-      <div class="home-search-row" style="margin-top:10px">
-        <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()" style="background:var(--glass-bg-3); border-radius:10px">
-          <option value="">${t('commune')} — ${t('filter_all')}</option>
-          ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
-        </select>
+        <div class="field" style="margin-bottom:10px">
+          <label>🩺 ${t('specialty')}</label>
+          <select class="select" onchange="state.search.specialty=this.value;logSearch('specialty',this.value,false);render()">
+            <option value="">${t('all_spec')}</option>
+            ${DB.specialties.map(s=>`<option ${spec===s?'selected':''}>${esc(s)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        <div class="field" style="margin-bottom:10px">
+          <label>🗺️ ${t('wilaya')}</label>
+          <select class="select" onchange="state.search.wilaya=this.value;state.search.commune='';logSearch('wilaya',this.value,false);render()">
+            <option value="">${t('all_wilaya')}</option>
+            ${DB.wilayas.map(w=>`<option ${wilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+          </select>
+        </div>
+        ${wilaya ? `
+        <div class="field" style="margin-bottom:10px">
+          <label>🏙️ ${t('commune')}</label>
+          <select class="select" onchange="state.search.commune=this.value;logSearch('commune',this.value,false);render()">
+            <option value="">${t('commune')} — ${t('filter_all')}</option>
+            ${communesForWilaya.map(c=>`<option ${commune===c?'selected':''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        ${(q || spec || wilaya || commune) ? `
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <button class="mini-btn ghost" onclick="state.search={q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'};render()">✕ Réinitialiser</button>
+        </div>` : ''}
       </div>` : ''}
     </div>
 
-    <!-- RÉSULTATS DE RECHERCHE -->
+    <!-- 📋 RÉSULTATS DE RECHERCHE OU RÉCENTS -->
     ${searching ? `
       ${showClinics && clinicResults.length ? `
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">🏥 ${t('clinics')} <span class="tag accent">${clinicResults.length}</span></div>
-        <div class="grid grid-2" style="margin-top:10px">
-          ${clinicResults.map(c=>clinicCardHTML(c)).join('')}
-        </div>
-      </div>` : ''}
-      
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🏥 ${t('clinics')} <span class="tag accent">${clinicResults.length}</span></div>
+          <div class="grid grid-2" style="margin-top:10px">
+            ${clinicResults.map(c=>clinicCardHTML(c)).join('')}
+          </div>
+        </div>` : ''}
       ${showDoctors && doctorResults.length ? `
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-title">🩺 ${t('doctors_found')} <span class="tag accent">${doctorResults.length}</span></div>
-        <div class="search-results-grid" style="margin-top:10px">
-          ${doctorResults.map(d=>searchResultLabelHTML(d)).join('')}
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">🩺 ${t('doctors_found')} <span class="tag accent">${doctorResults.length}</span></div>
+          <div class="search-results-grid" style="margin-top:10px">
+            ${doctorResults.map(d=>searchResultLabelHTML(d)).join('')}
+          </div>
+        </div>` : ''}
+      ${(!showDoctors || doctorResults.length===0) && (!showClinics || clinicResults.length===0) ? `
+        <div class="card" style="margin-bottom:14px">
+          <div class="empty" style="padding:24px"><div class="empty-ico">🔍</div>${t('no_search_results')}</div>
+        </div>` : ''}
+    ` : `
+      ${allRecentDocs.length ? `
+      <div class="home-section">
+        <div class="home-section-head">
+          <div class="home-section-title"><span style="background:var(--accent-light);color:var(--accent-primary);width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:14px">🩺</span>${t('recently_added')}</div>
+          <button class="home-see-all" onclick="showAllDoctors()">Voir tous →</button>
+        </div>
+        <div class="home-recent-scroll">
+          ${allRecentDocs.map(d=>homeDoctorCard(d)).join('')}
         </div>
       </div>` : ''}
-      
-      ${(showDoctors && doctorResults.length===0 && showClinics && clinicResults.length===0) || 
-        (!showDoctors && clinicResults.length===0) || 
-        (!showClinics && doctorResults.length===0) ? `
-      <div class="card" style="margin-bottom:14px">
-        <div class="empty" style="padding:24px"><div class="empty-ico">🔍</div>${t('no_search_results')}</div>
-      </div>` : ''}
-    ` : ''}
 
-    <!-- SECTION DÉCOUVERTE (Si pas de recherche) -->
-    ${!searching ? `
-    <div class="recent-dual-grid">
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:15px; display:flex; align-items:center; gap:6px">
-          <span style="background:var(--accent-light); color:var(--accent-primary); width:28px; height:28px; display:grid; place-items:center; border-radius:8px; font-size:14px">🩺</span>
-          ${t('recently_added')}
+      ${allRecentClinics.length ? `
+      <div class="home-section">
+        <div class="home-section-head">
+          <div class="home-section-title"><span style="background:rgba(236,72,153,.15);color:#be185d;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:14px">🏥</span>${t('recently_added_clinics')}</div>
+          <button class="home-see-all" onclick="showAllClinics()">Voir toutes →</button>
         </div>
-        <div class="card-sub" style="margin-bottom:12px">Les derniers médecins de la plateforme</div>
-        
-        ${recentDocs.length ? `
-          <div class="doctor-list">
-            ${recentDocs.slice(0, 6).map(d=>recentDoctorRowHTML(d)).join('')}
-          </div>
-          ${allRecentDocs.length > 6 ? `
-            <div style="text-align:center; margin-top:10px">
-              <button class="pill-btn ghost" onclick="state.recentPage = (state.recentPage || 1) + 1; render()" style="font-size:11px; padding:6px 14px">Voir plus de médecins</button>
-            </div>
-          ` : ''}
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🩺</div>${t('no_doctors_yet')}</div>`}
-      </div>
-      
-      <div class="recent-section-card">
-        <div class="card-title" style="font-size:15px; display:flex; align-items:center; gap:6px">
-          <span style="background:rgba(236,72,153,.15); color:#be185d; width:28px; height:28px; display:grid; place-items:center; border-radius:8px; font-size:14px">🏥</span>
-          ${t('recently_added_clinics')}
+        <div class="home-recent-scroll">
+          ${allRecentClinics.map(c=>homeClinicCard(c)).join('')}
         </div>
-        <div class="card-sub" style="margin-bottom:12px">Les dernières cliniques de la plateforme</div>
-        
-        ${recentClinics.length ? `
-          <div style="display:flex; flex-direction:column; gap:8px">
-            ${recentClinics.slice(0, 6).map(c=>recentClinicRowHTML(c)).join('')}
-          </div>
-        ` : `<div class="empty" style="padding:20px"><div class="empty-ico">🏥</div>${t('no_clinics_yet')}</div>`}
+      </div>` : ''}
+
+      <div class="home-stats-banner">
+        <div class="hsb-item"><div class="hsb-val">${DB.doctors.length}</div><div class="hsb-lbl">🧑‍⚕️ Médecins</div></div>
+        <div class="hsb-item"><div class="hsb-val">${DB.clinics.length}</div><div class="hsb-lbl">🏥 Cliniques</div></div>
+        <div class="hsb-item"><div class="hsb-val">${DB.specialties.length}</div><div class="hsb-lbl">🩺 Spécialités</div></div>
+        <div class="hsb-item"><div class="hsb-val">${DB.wilayas.length}</div><div class="hsb-lbl">📍 Wilayas</div></div>
       </div>
-    </div>
-    ` : ''}
+    `}
+
+    <button class="home-emergency-fab" onclick="openEmergencyForm()" title="${t('emergency_btn')}">
+      <span>🚨</span>
+    </button>
   `;
+}
+/* 🆕 Carte médecin — scroll horizontal accueil */
+function homeDoctorCard(d){
+  const rating = getDoctorRating(d.id);
+  const closed = !!d.sessionClosed;
+  const todayWork = isWorkDay(d, todayISO());
+  const canToday = todayWork && dateHasAvail(d.id, todayISO(), '');
+  return `
+    <div class="home-recent-card ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
+      <div class="hrc-avatar">${specialtyAvatar(d.specialty)}</div>
+      <div class="hrc-name">${esc(d.name)}</div>
+      <div class="hrc-spec">${esc(d.specialty)}</div>
+      <div class="hrc-loc">📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
+      <div class="hrc-badges">
+        ${closed ? `<span class="tag danger" style="font-size:9.5px">🔴 Fermé</span>` : ''}
+        ${rating.count>0?`<span class="tag rating" style="font-size:9.5px">⭐ ${rating.avg}</span>`:`<span class="tag rating-empty" style="font-size:9.5px">⭐ —</span>`}
+        ${canToday?`<span class="tag success" style="font-size:9.5px">✓ Auj.</span>`:''}
+      </div>
+      <div class="hrc-price">${n2(d.fee)} DA</div>
+    </div>
+  `;
+}
+
+/* 🆕 Carte clinique — scroll horizontal accueil */
+function homeClinicCard(c){
+  const rating = getClinicRating(c.id);
+  const closed = !!c.sessionClosed;
+  const svcCount = clinicServicesFor(c.id).length;
+  return `
+    <div class="home-recent-card ${closed?'closed':''}" onclick="openClinicPublic('${jsStr(c.id)}')">
+      <div class="hrc-avatar" style="background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1))">${c.avatar||'🏥'}</div>
+      <div class="hrc-name">${esc(c.name)}</div>
+      <div class="hrc-spec">🏥 Clinique</div>
+      <div class="hrc-loc">📍 ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}</div>
+      <div class="hrc-badges">
+        ${closed ? `<span class="tag danger" style="font-size:9.5px">🔴 Fermée</span>` : `<span class="tag success" style="font-size:9.5px">✓ Ouverte</span>`}
+        ${rating.count>0?`<span class="tag rating" style="font-size:9.5px">⭐ ${rating.avg}</span>`:''}
+      </div>
+      <div class="hrc-price" style="color:#be185d">${svcCount} service${svcCount>1?'s':''}</div>
+    </div>
+  `;
+}
+
+/* 🆕 Voir toutes les cliniques */
+function showAllClinics(){
+  state.search = {q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'clinics'};
+  state.view = 'home';
+  render();
+  setTimeout(()=>{ window.scrollTo({top:0,behavior:'smooth'}); }, 50);
+}
+
+/* 🆕 Voir tous les médecins */
+function showAllDoctors(){
+  state.search = {q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'doctors'};
+  state.view = 'home';
+  render();
+  setTimeout(()=>{ window.scrollTo({top:0,behavior:'smooth'}); }, 50);
 }
 function recentClinicRowHTML(c){
   const closed = !!c.sessionClosed;
@@ -9719,7 +10303,7 @@ function patientApptHTML(a){
             ${!doc && !c ? `<span style="font-weight:400;color:var(--text-muted);font-size:11px">· ${esc(doc?.specialty||'')}</span>` : ''}
           </div>
           <div class="appt-meta">
-            ${isEmergency ? `<span class="tag danger" style="font-weight:800;animation:emergencyFabPulse 2s infinite">🚨 URGENCE</span>` : ''}
+            ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
             <span>${statusTag(a.status)}</span>
             ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
             ${c?`<span class="tag clinic">🏥 ${t('clinic')}</span>`:''}
@@ -9807,7 +10391,7 @@ function doCancel(id){
   if(a.doctorId) pushNotif('doctor', t('status_cancelled'), `${a.patientName} — ${a.time}`, a.doctorId, a.id);
   if(a.clinicId) pushClinicNotif(t('status_cancelled'), `RDV ${a.id} annulé par ${a.patientName}`, a.clinicId, a.id);
   pushNotif('patient', t('status_cancelled'), `RDV ${a.id}`, null, a.id);
-  saveDB();
+  saveDB({critical:true});
   closeModal(); render(); toast('Rendez-vous annulé','info');
 }
 function openPatientApptDetail(id){
@@ -10121,21 +10705,38 @@ function openNotifDetail(notifId){
     </div>
   `;
   const eligibleValidate = canValidateAppt(a);
+  
+  // 🆕 Boutons spéciaux pour les urgences côté clinique
+  let emergencyActions = '';
+  if(a.emergencyId && state.role === 'clinic') {
+    emergencyActions = `
+      <button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${a.emergencyId}')">📥 Admettre</button>
+      <button class="pill-btn primary" onclick="closeModal();openTransferEmergencyModal('${a.emergencyId}')">🏥 Transférer</button>
+    `;
+  }
+
   let actionsHTML = '';
+  const invoiceBtn = (a.status === 'confirmed' || a.status === 'done') ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${a.id}'),50)">🧾 Facture</button>` : '';
+  
   if(a.status==='pending'){
     actionsHTML = `
       <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${emergencyActions}
+      ${invoiceBtn}
       <button class="pill-btn danger" onclick="confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
       <button class="pill-btn success" onclick="closeModal();confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`;
   } else if(a.status==='confirmed'){
     actionsHTML = `
       <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${invoiceBtn}
       <button class="pill-btn danger" onclick="confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
       ${eligibleValidate
         ? `<button class="pill-btn primary" onclick="confirmDoctorAction('${a.id}','done')">✓ ${t('validate')}</button>`
         : `<button class="pill-btn" disabled title="${esc(validationBlockedMsg(a))}">⏳ ${t('validate')}</button>`}`;
   } else {
-    actionsHTML = `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`;
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${invoiceBtn}`;
   }
   openModal(n.title, n.message, body, actionsHTML);
 }
@@ -10644,7 +11245,7 @@ function doctorApptHTML(a){
       <div class="appt-body">
         <div class="appt-patient">${esc(a.patientName)}${a.patientAge?` <span style="font-weight:400;color:var(--text-muted);font-size:11px">(${a.patientAge})</span>`:''}</div>
         <div class="appt-meta">
-          ${isEmergency ? `<span class="tag danger" style="font-weight:800;animation:emergencyFabPulse 2s infinite">🚨 URGENCE</span>` : ''}
+          ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
           <span>${statusTag(a.status)}</span>
           ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
           ${c?`<span class="tag clinic">🏥 ${esc(c.name)}</span>`:''}
@@ -10700,7 +11301,7 @@ function doConfirmApptWithNotify(id){
   pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${docName} est confirmé`, null, a.id);
   if(a.clinicId) pushClinicNotif('RDV confirmé', `RDV ${a.id} avec ${docName}`, a.clinicId, a.id);
   clearApptNotifications(a.id);
-  saveDB(); closeModal(); render();
+  saveDB({critical:true}); closeModal(); render();
   toast('Rendez-vous confirmé','success');
 }
 function confirmDoctorAction(id, action){
@@ -10743,7 +11344,7 @@ function docAction(id, action){
     pushNotif('patient','Consultation terminée', `Merci d'avoir consulté ${docName}`, null, a.id);
     toast('Rendez-vous validé - commission comptabilisée','success');
   }
-  clearApptNotifications(a.id); saveDB();
+  clearApptNotifications(a.id); saveDB({critical:true});
   closeModal(); render();
 }
 function confirmDeleteAppt(id){
@@ -12875,18 +13476,35 @@ function mfPrintPrescription(id){
   `).join('');
   printHTML(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>${t('prescription')}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A5 portrait;margin:8mm}
   html,body{width:100%;height:100%}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;padding:0;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{padding:10mm}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:10px}
-  .header .left{font-size:13px;font-weight:800;letter-spacing:-.2px}
-  .header .right{text-align:right;font-size:10.5px;line-height:1.4;color:#374151}
-  .header .right .date{font-weight:700;font-family:'Rubik',sans-serif;color:#111827}
-  .header .right .age{color:#6b7280;font-family:'Rubik',sans-serif;margin-top:3px}
+  /* 4 cm d'espace vide en haut */
+  .top-space{height:40mm}
+  /* Ligne patient : Nom Prénom + Âge à gauche, Date à droite */
+  .patient-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;font-size:12px;margin-bottom:8px}
+  .patient-row .p-left{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .patient-row .p-name{font-weight:800;font-size:13.5px;color:#111827;letter-spacing:-.2px}
+  .patient-row .p-age{color:#6b7280;font-family:'Rubik',sans-serif;font-size:11px;font-weight:600}
+  .patient-row .p-date{font-weight:700;font-family:'Rubik',sans-serif;color:#111827;font-size:10.5px;white-space:nowrap}
+  /* Titre ORDONNANCE — agrandi et mis en évidence */
+  .ord-title{
+    text-align:center;
+    font-size:26px;
+    font-weight:900;
+    letter-spacing:8px;
+    color:#8b5cf6;
+    margin:18px 0 14px;
+    text-transform:uppercase;
+    text-shadow:0 2px 6px rgba(139,92,246,.25);
+    border-top:2px solid #8b5cf6;
+    border-bottom:2px solid #8b5cf6;
+    padding:10px 0;
+  }
   .sep{height:1.5px;background:#8b5cf6;margin-bottom:14px}
   .med{margin-bottom:14px;page-break-inside:avoid}
   .med-header{display:flex;gap:8px;align-items:baseline;font-size:12.5px;font-weight:700;line-height:1.3}
@@ -12899,14 +13517,19 @@ function mfPrintPrescription(id){
 </style></head>
 <body>
   <div class="page">
-    <div class="header">
-      <div class="left">${esc(patientName)}</div>
-      <div class="right">
-        <div class="date">${dateFR}</div>
-        ${age?`<div class="age">${age}</div>`:''}
+    <div class="top-space"></div>
+
+    <div class="patient-row">
+      <div class="p-left">
+        <span class="p-name">${esc(patientName)}</span>
+        ${age?`<span class="p-age">(${age})</span>`:''}
       </div>
+      <div class="p-date">${dateFR}</div>
     </div>
+
+    <div class="ord-title">ORDONNANCE</div>
     <div class="sep"></div>
+
     ${rows}
   </div>
 </body></html>`);
@@ -17880,7 +18503,40 @@ function viewAdminSettings(){
     appts: DB.appointments.length,
     msgs: DB.messages.length
   };
+
+  // 🆕 Compteur de visites — données compactes (tags uniquement)
+  const _v = DB.visits || { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
+  const _todayIso = todayISO();
+  const _visitsToday = _v.byDay?.[_todayIso] || 0;
+  const _visitsMonth = _v.byMonth?.[_todayIso.slice(0,7)] || 0;
+  const _visitsYear  = _v.byYear?.[String(new Date().getFullYear())] || 0;
+  const _visitsFirstDate = _v.firstVisit ? new Date(_v.firstVisit).toLocaleDateString('fr-FR') : '—';
+  const _peakHourEntry = Object.entries(_v.byHour || {}).sort((a,b)=>b[1]-a[1])[0];
+  const _peakHourLabel = _peakHourEntry ? `${String(_peakHourEntry[0]).padStart(2,'0')}h (${_peakHourEntry[1]})` : '—';
+  const _peakMinEntry = Object.entries(_v.byMinute || {}).sort((a,b)=>b[1]-a[1])[0];
+  const _peakMinLabel = _peakMinEntry ? `:${String(_peakMinEntry[0]).padStart(2,'0')} (${_peakMinEntry[1]})` : '—';
+
   return `
+    <!-- 🆕 COMPTEUR DE VISITES — format compact -->
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(59,130,246,.03));border-color:rgba(16,185,129,.3)">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#10b981,#059669);display:grid;place-items:center;color:#fff;font-size:26px;flex-shrink:0">👁️</div>
+        <div style="min-width:0;flex:1">
+          <div class="card-title" style="font-size:17px;margin-bottom:3px">Compteur de visites</div>
+          <div class="card-sub" style="margin-bottom:0">Trafic depuis le lancement de la plateforme</div>
+        </div>
+      </div>
+      <div class="stats-tags" style="margin-top:14px">
+        ${statTag('Depuis le lancement', (_v.total||0).toLocaleString('fr-FR'), 'success', true)}
+        ${statTag('Première visite', _visitsFirstDate, 'accent', true)}
+        ${statTag("Aujourd'hui", _visitsToday, 'accent', true)}
+        ${statTag('Ce mois', _visitsMonth, 'accent', true)}
+        ${statTag('Cette année', _visitsYear, 'accent', true)}
+        ${statTag('Heure de pointe', _peakHourLabel, 'warn', true)}
+        ${statTag('Minute de pointe', _peakMinLabel, 'warn', true)}
+      </div>
+    </div>
+    <!-- ═══════════ Commission card (inchangé) ═══════════ -->
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
@@ -18157,6 +18813,7 @@ function renderClinicView(){
     case 'dossier': return viewDossierSingle();
     case 'cstats': return viewClinicStats();
     case 'crecette': return state.clinicRecetteUnlocked ? viewClinicRevenue() : viewClinicRecetteLocked();
+    case 'cfacturation': return viewClinicFacturation();   /* 🆕 */
     case 'cmessages': return renderMessagesView();
     case 'cprof': return viewClinicProfile();
     default: return viewClinicDash();
@@ -20156,6 +20813,9 @@ function clinicApptRow(a){
         <button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn green" onclick="openAdmissionFromAppt('${a.id}')" title="Admettre à l'hospitalisation">📥</button>`:''}
+        ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🏥</button>` : ''}
+        ${(a.status === 'confirmed' || a.status === 'done') ? `<button class="mini-btn primary" onclick="event.stopPropagation();openApptInvoiceModal('${a.id}')" title="Voir la facture">🧾</button>` : ''}
+        ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🏥</button>` : ''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="clinicConfirmAppt('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
           eligibleValidate
@@ -20175,7 +20835,7 @@ function clinicConfirmAppt(id){
   if(a.doctorId) pushNotif('doctor','RDV confirmé', `RDV ${a.id} confirmé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} est confirmé`, null, a.id);
   clearApptNotifications(a.id);
-  saveDB();
+  saveDB({critical:true});
   render();
   toast('Rendez-vous confirmé','success');
 }
@@ -20187,7 +20847,7 @@ function clinicValidateAppt(id){
   if(a.doctorId) pushNotif('doctor','Consultation terminée', `RDV ${a.id} validé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','Consultation terminée', `Merci d'avoir consulté`, null, a.id);
   clearApptNotifications(a.id);
-  saveDB();
+  saveDB({critical:true});
   render();
   toast('Rendez-vous validé','success');
 }
@@ -20219,7 +20879,7 @@ function clinicDoCancel(id){
   if(a.doctorId) pushNotif('doctor','RDV annulé', `RDV ${a.id} annulé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé`, null, a.id);
   clearApptNotifications(a.id);
-  saveDB();
+  saveDB({critical:true});
   closeModal();
   render();
   toast('Rendez-vous annulé','info');
@@ -21046,6 +21706,7 @@ function viewClinicRevenue(){
                   <th style="text-align:right">${t('recette_fees')}</th>
                   <th style="text-align:right">${t('recette_services_col')}</th>
                   <th style="text-align:right">${t('recette_total_fees')}</th>
+                  <th style="text-align:right">${t('recette_commission_col')}</th>
                 </tr></thead>
                 <tbody>
                   ${result.list.map((a,i)=>{
@@ -21053,6 +21714,7 @@ function viewClinicRevenue(){
                     const fee = a.internal ? 0 : (doc ? (doc.fee||0) : 0);
                     const srv = a.servicesTotal||0;
                     const gross = fee + srv;
+                    const comm = apptClinicCommission(a);
                     const svc = a.clinicServiceId ? clinicServiceById(a.clinicServiceId) : null;
                     const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
                     return `<tr>
@@ -21065,6 +21727,7 @@ function viewClinicRevenue(){
                       <td class="num">${n2(fee)} DA</td>
                       <td class="num">${srv>0?'+'+n2(srv)+' DA':'—'}</td>
                       <td class="num" style="color:#059669;font-weight:700">${n2(gross)} DA</td>
+                      <td class="num" style="color:var(--accent-primary);font-weight:600">-${n2(comm)} DA</td>
                     </tr>`;
                   }).join('')}
                 </tbody>
@@ -21073,6 +21736,7 @@ function viewClinicRevenue(){
                   <td class="num">${n2(result.totalFees)} DA</td>
                   <td class="num">${result.totalServices>0?'+'+n2(result.totalServices)+' DA':'—'}</td>
                   <td class="num" style="color:#059669">${n2(result.totalGross)} DA</td>
+                  <td class="num" style="color:var(--accent-primary)">-${n2(result.totalCommission)} DA</td>
                 </tr></tfoot>
               </table>
             </div>
@@ -21080,6 +21744,199 @@ function viewClinicRevenue(){
         ` : `<div class="empty" style="padding:20px">${t('recette_no_data')}</div>`}
       ` : `<div class="empty" style="padding:20px">${isDay ? t('billing_choose_day') : t('billing_choose_dates')}</div>`}
     </div>
+  `;
+}
+/* ============================================================
+   🧾 FACTURATION CLINIQUE — Toutes les factures imprimables
+   ============================================================ */
+function viewClinicFacturation(){
+  const c = state.clinic;
+  if(!c) return '';
+  if(!state.clinicFacturationFilter) state.clinicFacturationFilter = {search:'', type:'all', dateFrom:'', dateTo:''};
+  if(!state.facturationPage) state.facturationPage = 1;
+  const f = state.clinicFacturationFilter;
+
+  // 🩺 RDV facturables (terminés)
+  const allDoneAppts = DB.appointments.filter(a =>
+    String(a.clinicId) === String(c.id) && a.status === 'done'
+  );
+
+  // 🛏️ Hospitalisations facturables (non annulées)
+  const allAdmissions = DB.admissions.filter(a =>
+    String(a.clinicId) === String(c.id) && a.status !== 'cancelled'
+  );
+
+  // 🔎 Filtre texte
+  const q = (f.search||'').trim().toLowerCase();
+  const qn = normPhone(q);
+  let appts = allDoneAppts;
+  let adms = allAdmissions;
+  if(q){
+    appts = appts.filter(a =>
+      (a.patientName||'').toLowerCase().includes(q) ||
+      (qn && normPhone(a.patientPhone).includes(qn)) ||
+      (a.id||'').toLowerCase().includes(q)
+    );
+    adms = adms.filter(a =>
+      (a.patientName||'').toLowerCase().includes(q) ||
+      (qn && normPhone(a.patientPhone).includes(qn)) ||
+      (a.id||'').toLowerCase().includes(q)
+    );
+  }
+  if(f.dateFrom){
+    appts = appts.filter(a => a.date >= f.dateFrom);
+    adms = adms.filter(a => (a.admissionDate||'') >= f.dateFrom);
+  }
+  if(f.dateTo){
+    appts = appts.filter(a => a.date <= f.dateTo);
+    adms = adms.filter(a => (a.admissionDate||'') <= f.dateTo);
+  }
+
+  // Tri desc par date
+  appts.sort((a,b) => String(b.date+b.time).localeCompare(String(a.date+a.time)));
+  adms.sort((a,b) => String(b.admissionDate||'').localeCompare(String(a.admissionDate||'')));
+
+  // 🔀 Fusion selon le filtre de type
+  const combined = [];
+  if(f.type === 'all' || f.type === 'rdv'){
+    appts.forEach(a => {
+      const doc = docById(a.doctorId);
+      const fee = a.internal ? 0 : ((doc?.fee)||0);
+      const total = fee + (a.servicesTotal||0);
+      combined.push({ kind:'rdv', item:a, sortKey: a.date+' '+a.time, total });
+    });
+  }
+  if(f.type === 'all' || f.type === 'admission'){
+    adms.forEach(a => {
+      const tot = computeAdmissionTotals(a);
+      combined.push({ kind:'admission', item:a, sortKey: (a.admissionDate||'')+' '+(a.status === 'active' ? '99:99' : '00:00'), total: tot.total });
+    });
+  }
+  combined.sort((a,b) => String(b.sortKey).localeCompare(String(a.sortKey)));
+
+  // 📄 Pagination
+  const perPage = 30;
+  const totalPages = Math.max(1, Math.ceil(combined.length / perPage));
+  if(state.facturationPage > totalPages) state.facturationPage = totalPages;
+  const page = state.facturationPage;
+  const slice = combined.slice((page-1)*perPage, page*perPage);
+  const hasFilters = f.search || f.dateFrom || f.dateTo || f.type !== 'all';
+
+  return `
+    <!-- 📊 En-tête -->
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(236,72,153,.05));border-color:rgba(139,92,246,.3)">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent-primary),#ec4899);display:grid;place-items:center;color:#fff;font-size:26px;flex-shrink:0">🧾</div>
+        <div style="min-width:0;flex:1">
+          <div class="card-title" style="font-size:17px;margin-bottom:3px">Facturation</div>
+          <div class="card-sub" style="margin-bottom:0">Retrouvez et imprimez n'importe quelle facture patient — sans passer par la liste des RDV</div>
+        </div>
+      </div>
+      <div class="stats-tags" style="margin-top:14px">
+        ${statTag('Total factures', combined.length, 'accent', true)}
+        ${statTag('🩺 RDV', appts.length, 'accent', true)}
+        ${statTag('🛏️ Hospitalisations', adms.length, 'accent', true)}
+      </div>
+    </div>
+
+    <!-- 🔎 Filtres -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="field" style="margin-bottom:10px">
+        <input class="input" id="factSearch" placeholder="🔎 Rechercher par nom, téléphone, n° facture (RDV / admission)…" value="${esc(f.search||'')}" oninput="state.clinicFacturationFilter.search=this.value;state.facturationPage=1;render()">
+      </div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0"><label>Du</label>
+          <input class="input" type="date" value="${f.dateFrom||''}" onchange="state.clinicFacturationFilter.dateFrom=this.value;state.facturationPage=1;render()"></div>
+        <div class="field" style="margin-bottom:0"><label>Au</label>
+          <input class="input" type="date" value="${f.dateTo||''}" onchange="state.clinicFacturationFilter.dateTo=this.value;state.facturationPage=1;render()"></div>
+      </div>
+      <div class="chips" style="margin-top:12px;margin-bottom:0">
+        <button class="chip ${f.type==='all'?'active':''}" onclick="state.clinicFacturationFilter.type='all';state.facturationPage=1;render()">📋 Tout</button>
+        <button class="chip ${f.type==='rdv'?'active':''}" onclick="state.clinicFacturationFilter.type='rdv';state.facturationPage=1;render()">🩺 RDV</button>
+        <button class="chip ${f.type==='admission'?'active':''}" onclick="state.clinicFacturationFilter.type='admission';state.facturationPage=1;render()">🛏️ Hospitalisations</button>
+      </div>
+      ${hasFilters ? `
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button class="mini-btn ghost" onclick="state.clinicFacturationFilter={search:'',type:'all',dateFrom:'',dateTo:''};state.facturationPage=1;render()">✕ Réinitialiser les filtres</button>
+        </div>` : ''}
+    </div>
+
+    <!-- 📋 Liste -->
+    ${slice.length ? slice.map(r => {
+      if(r.kind === 'rdv'){
+        const a = r.item;
+        const doc = docById(a.doctorId);
+        const svc = a.clinicServiceId ? clinicServiceById(a.clinicServiceId) : null;
+        const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
+        const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
+        return `
+          <div class="appt" style="margin-bottom:8px">
+            <div class="appt-time">
+              <div class="h">${a.time}</div>
+              <div class="d">${new Date(a.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}</div>
+            </div>
+            <div class="appt-body">
+              <div class="appt-patient">${esc(a.patientName)}${a.patientAge?` <span style="font-weight:400;color:var(--text-muted);font-size:11px">(${a.patientAge} ans)</span>`:''}</div>
+              <div class="appt-meta">
+                ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
+                <span class="tag accent">🩺 RDV</span>
+                ${doc?`<span>🧑‍⚕️ ${esc(doc.name)}</span>`:''}
+                ${svc?`<span class="tag accent">🏗️ ${esc(svc.name)}</span>`:''}
+                ${prest?`<span class="tag accent">💉 ${esc(prest.name)}</span>`:''}
+                <span>📞 ${esc(a.patientPhone)}</span>
+                <span>🆔 ${esc(a.id)}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;margin-left:auto">
+              <strong style="font-family:var(--font-numbers);font-size:16px;color:#059669">${n2(r.total)} DA</strong>
+              <div style="display:flex;gap:4px">
+                <button class="mini-btn purple" onclick="openApptInvoiceModal('${a.id}')" title="Voir la facture">👁️</button>
+                <button class="mini-btn primary" onclick="printApptInvoice('${a.id}')" title="Imprimer">🖨️</button>
+              </div>
+            </div>
+          </div>`;
+      } else {
+        const a = r.item;
+        const room = a.roomId ? roomById(a.roomId) : null;
+        const tot = computeAdmissionTotals(a);
+        const statusBadge = a.status === 'active'
+          ? `<span class="tag warn" style="font-size:9.5px">🟢 En cours</span>`
+          : `<span class="tag muted" style="font-size:9.5px">✅ Sorti</span>`;
+        return `
+          <div class="appt" style="margin-bottom:8px">
+            <div class="appt-time" style="background:rgba(245,158,11,.15);color:#d97706">
+              <div class="h">${tot.days}j</div>
+              <div class="d">séjour</div>
+            </div>
+            <div class="appt-body">
+              <div class="appt-patient">${esc(a.patientName)}${a.patientAge?` <span style="font-weight:400;color:var(--text-muted);font-size:11px">(${a.patientAge} ans)</span>`:''}</div>
+              <div class="appt-meta">
+                <span class="tag accent">🛏️ Hospitalisation</span>
+                ${statusBadge}
+                ${room?`<span>🛏️ ${esc(room.name)} · Lit ${a.bedNumber}</span>`:''}
+                <span>📞 ${esc(a.patientPhone)}</span>
+                <span>📅 ${a.admissionDate?fmtDateFR(a.admissionDate):'—'}${a.dischargeDate?' → '+fmtDateFR(a.dischargeDate):''}</span>
+                <span>🆔 ${esc(a.id)}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;margin-left:auto">
+              <strong style="font-family:var(--font-numbers);font-size:16px;color:#059669">${n2(r.total)} DA</strong>
+              <div style="display:flex;gap:4px">
+                <button class="mini-btn purple" onclick="openAdmissionInvoiceModal('${a.id}')" title="Voir la facture">👁️</button>
+                <button class="mini-btn primary" onclick="printAdmissionInvoice('${a.id}')" title="Imprimer">🖨️</button>
+              </div>
+            </div>
+          </div>`;
+      }
+    }).join('') : `<div class="empty" style="padding:40px"><div class="empty-ico">🧾</div>Aucune facture trouvée${hasFilters?' avec ces filtres':''}</div>`}
+
+    ${totalPages > 1 ? `
+      <div class="pagination">
+        <button class="page-btn" ${page===1?'disabled':''} onclick="state.facturationPage=${page-1};render()">‹</button>
+        <span class="page-info">${page} / ${totalPages} · ${combined.length} facture(s)</span>
+        <button class="page-btn" ${page===totalPages?'disabled':''} onclick="state.facturationPage=${page+1};render()">›</button>
+      </div>
+    ` : ''}
   `;
 }
 /* ═══════════════════════════════════════════════════════════
@@ -21308,7 +22165,7 @@ function computeClinicRevenue(){
 function printClinicRevenue(){
   const result = computeClinicRevenue();
   if(!result){ toast(t('recette_no_data'),'error'); return; }
-  const {list, totalFees, totalServices, totalGross, periodLabel, clinic:c} = result;
+  const {list, totalFees, totalServices, totalGross, totalCommission, periodLabel, clinic:c} = result;
   const now = new Date().toLocaleString('fr-FR');
   const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const refNo = 'CLN-REC-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
@@ -21318,6 +22175,7 @@ function printClinicRevenue(){
     const fee = a.internal ? 0 : (doc ? (doc.fee||0) : 0);
     const srv = a.servicesTotal||0;
     const gross = fee + srv;
+    const comm = apptClinicCommission(a);
     const svc = a.clinicServiceId ? clinicServiceById(a.clinicServiceId) : null;
     const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
     return `<tr>
@@ -21329,6 +22187,7 @@ function printClinicRevenue(){
       <td class="r">${n2(fee)}</td>
       <td class="r">${srv>0?n2(srv):'—'}</td>
       <td class="r gross">${n2(gross)}</td>
+      <td class="r comm">-${n2(comm)}</td>
     </tr>`;
   }).join('');
   printHTML(`<!DOCTYPE html>
@@ -21371,10 +22230,12 @@ function printClinicRevenue(){
   tbody td.date, tbody td.time{white-space:nowrap}
   tbody td.time{font-weight:600;color:#7c3aed}
   tbody td.gross{color:#059669;font-weight:700}
+  tbody td.comm{color:#7c3aed;font-weight:700}
   tbody tr:nth-child(even){background:#fafafa}
   tfoot td{padding:7px 4px;font-weight:700;background:#f3f4f6;border-top:2px solid #8b5cf6;font-size:9px;font-family:'Rubik',sans-serif}
   tfoot td.r{text-align:right}
   tfoot td.gross{color:#059669}
+  tfoot td.comm{color:#7c3aed}
   .footer{margin-top:26px;padding-top:12px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;font-size:9px;color:#6b7280}
   .footer .stamp{display:inline-flex;align-items:center;gap:5px;background:#f3f4f6;padding:5px 10px;border-radius:8px;font-family:'Rubik',sans-serif;font-size:8.5px;color:#4b5563;font-weight:600}
 </style></head>
@@ -21413,6 +22274,7 @@ function printClinicRevenue(){
       <th class="r">Frais</th>
       <th class="r">Serv.</th>
       <th class="r">Total</th>
+      <th class="r">Comm.</th>
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr>
@@ -21420,6 +22282,7 @@ function printClinicRevenue(){
       <td class="r">${n2(totalFees)}</td>
       <td class="r">${totalServices>0?n2(totalServices):'—'}</td>
       <td class="r gross">${n2(totalGross)}</td>
+      <td class="r comm">-${n2(totalCommission)}</td>
     </tr></tfoot>
   </table>
   <div class="footer">
@@ -21427,7 +22290,151 @@ function printClinicRevenue(){
   </div>
 </body></html>`);
 }
+/* ============================================================ */
+/* 🧾 FACTURE INDIVIDUELLE (RDV & URGENCE) — CLINIQUE           */
+/* ============================================================ */
+function buildSingleApptInvoiceHTML(appt, isPrint = false) {
+  const c = clinicById(appt.clinicId);
+  const doc = docById(appt.doctorId);
+  const svc = appt.clinicServiceId ? clinicServiceById(appt.clinicServiceId) : null;
+  const prest = appt.prestationId ? clinicPrestationById(appt.prestationId) : null;
+  const fee = appt.internal ? 0 : (doc ? (doc.fee || 0) : 0);
+  const servicesTotal = appt.servicesTotal || 0;
+  const total = fee + servicesTotal;
+  const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
+  
+  const statusStr = appt.status === 'done' ? 'Terminé' : appt.status === 'confirmed' ? 'Confirmé' : 'En attente';
+  const dateStr = fmtDateFR(appt.date) + ' à ' + appt.time;
 
+  const servicesLines = (appt.services || []).map(s => `
+    <tr>
+      <td style="padding:6px;border-bottom:1px solid #eee;">💉 ${esc(s.name)}</td>
+      <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${n2(s.price)} DA</td>
+    </tr>
+  `).join('');
+
+  const content = `
+    <div class="invoice-header">
+      <div class="inv-brand">
+        <div class="inv-logo">${c ? (c.avatar||'🏥') : '🏥'}</div>
+        <div>
+          <div class="inv-title">OmniMed · FACTURE</div>
+          <div class="inv-sub">${c ? esc(c.name) : '—'}</div>
+        </div>
+      </div>
+      <div class="invoice-meta">
+        <div>Réf. <strong>FACT-${esc(appt.id)}</strong></div>
+        <div>Date : <strong>${dateStr}</strong></div>
+      </div>
+    </div>
+    
+    <div class="info-compact" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+      <div class="ic-item"><div class="ic-lbl">👤 Patient</div><div class="ic-val">${esc(appt.patientName)} ${appt.patientAge ? '('+appt.patientAge+' ans)' : ''}</div></div>
+      <div class="ic-item"><div class="ic-lbl">📞 Téléphone</div><div class="ic-val">${esc(appt.patientPhone)}</div></div>
+      ${doc ? `<div class="ic-item"><div class="ic-lbl">🧑‍⚕️ Médecin</div><div class="ic-val">${esc(doc.name)}</div></div>` : ''}
+      ${svc ? `<div class="ic-item"><div class="ic-lbl">🏗️ Service</div><div class="ic-val">${esc(svc.name)}</div></div>` : ''}
+      <div class="ic-item"><div class="ic-lbl">📝 Motif</div><div class="ic-val">${esc(appt.motif || '—')}</div></div>
+      <div class="ic-item"><div class="ic-lbl">🔔 Statut</div><div class="ic-val"><strong style="color:${appt.status === 'done' ? 'var(--success)' : 'var(--warn)'}">${statusStr}</strong></div></div>
+    </div>
+
+    <div class="invoice-scroll" style="max-height:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th style="text-align:right;width:120px;">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${!appt.internal ? `
+          <tr>
+            <td style="padding:6px;border-bottom:1px solid #eee;">🩺 Consultation (Frais médecin)</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${n2(fee)} DA</td>
+          </tr>` : ''}
+          ${servicesLines}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td style="text-align:right;font-weight:800;font-size:14px;">TOTAL À PAYER :</td>
+            <td style="text-align:right;color:#059669;font-size:16px;font-weight:800;">${n2(total)} DA</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    
+    <div class="letter-amount" style="margin-top:12px;">
+      <strong>Arrêtée la présente facture à la somme de :</strong> ${esc(totalWords)}
+    </div>
+  `;
+
+  if (isPrint) {
+    const now = new Date().toLocaleString('fr-FR');
+    const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>OmniMed — Facture ${esc(appt.id)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4 portrait;margin:10mm}
+  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:11px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:14px}
+  .brand{display:flex;gap:10px;align-items:flex-start}
+  .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0}
+  .brand-txt h1{font-family:'Playfair Display',Georgia,serif;font-size:24px;color:#8b5cf6;margin-bottom:2px;line-height:1.05}
+  .brand-txt .sub{color:#6b7280;font-size:10px}
+  .meta{text-align:right;font-size:10px;color:#6b7280;line-height:1.6}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:14px;font-size:10.5px}
+  .info-grid .k{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;margin-bottom:2px}
+  .info-grid .v{color:#111827;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:8px}
+  thead th{background:#f3f4f6;color:#374151;padding:8px 6px;text-align:left;font-size:8.5px;text-transform:uppercase;border-bottom:1.5px solid #e5e7eb}
+  tbody td{padding:8px 6px;border-bottom:1px solid #f3f4f6}
+  tfoot td{padding:10px 6px;font-weight:700;background:#f3f4f6;border-top:2px solid #8b5cf6;font-size:12px}
+  .letter-amount{background:#f8fafc;border:1px dashed #d1d5db;border-radius:10px;padding:12px;margin-top:14px;font-size:11px;font-style:italic}
+  .letter-amount strong{color:#8b5cf6;font-style:normal}
+</style></head>
+<body>
+  <div class="head">
+    <div class="brand"><div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div><div class="brand-txt"><h1>OmniMed</h1><div class="sub">${c ? esc(c.name) : '—'}</div></div></div>
+    <div class="meta"><div style="font-weight:700;color:#7c3aed">OmniMed une solution OmniSoft</div><div>Facture N° FACT-${esc(appt.id)}</div><div>Émise le ${printDate}</div></div>
+  </div>
+  <div class="info-grid">
+    <div><div class="k">Patient</div><div class="v">${esc(appt.patientName)} ${appt.patientAge ? '('+appt.patientAge+' ans)' : ''}</div></div>
+    <div><div class="k">Téléphone</div><div class="v">${esc(appt.patientPhone)}</div></div>
+    ${doc ? `<div><div class="k">Médecin</div><div class="v">${esc(doc.name)}</div></div>` : ''}
+    ${svc ? `<div><div class="k">Service</div><div class="v">${esc(svc.name)}</div></div>` : ''}
+    <div><div class="k">Date</div><div class="v">${dateStr}</div></div>
+    <div><div class="k">Statut</div><div class="v">${statusStr}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Désignation</th><th style="text-align:right">Montant</th></tr></thead>
+    <tbody>
+      ${!appt.internal ? `<tr><td>🩺 Consultation</td><td style="text-align:right">${n2(fee)} DA</td></tr>` : ''}
+      ${(appt.services||[]).map(s => `<tr><td>💉 ${esc(s.name)}</td><td style="text-align:right">${n2(s.price)} DA</td></tr>`).join('')}
+    </tbody>
+    <tfoot><tr><td style="text-align:right">TOTAL :</td><td style="text-align:right;color:#059669;font-size:14px">${n2(total)} DA</td></tr></tfoot>
+  </table>
+  <div class="letter-amount"><strong>Arrêtée la présente facture à la somme de :</strong> ${esc(totalWords)}</div>
+</body></html>`;
+  }
+
+  return content;
+}
+
+function openApptInvoiceModal(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a) { toast(t('appt_not_found'), 'error'); return; }
+  openModal('🧾 Facture du RDV', `${a.patientName} — ${a.id}`, buildSingleApptInvoiceHTML(a, false),
+    `<button class="pill-btn" onclick="closeModal()">Fermer</button>
+     <button class="pill-btn primary" onclick="printApptInvoice('${a.id}')">🖨️ Imprimer</button>`, true);
+}
+
+function printApptInvoice(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a) return;
+  printHTML(buildSingleApptInvoiceHTML(a, true));
+  closeModal();
+}
 /* ============================================================
    CLINIQUE — PROFIL
    ============================================================ */
@@ -22159,8 +23166,8 @@ function acceptEmergency(emergencyId){
           <div style="font-size:44px;margin-bottom:10px">🚑</div>
           <div style="font-size:14px;line-height:1.6;color:var(--text-main);margin-bottom:14px">
             <strong>${esc(e.patientName)}</strong> a été notifié.<br>
-            Vous pouvez maintenant :<br>
-            <span style="color:var(--text-muted);font-size:12px">— Valider la consultation une fois terminée<br>— Ou admettre le patient à l'hospitalisation</span>
+            Que souhaitez-vous faire ?<br>
+            <span style="color:var(--text-muted);font-size:12px">— Transférer vers un service pour facturer<br>— Ou admettre le patient à l'hospitalisation</span>
           </div>
           <div class="info-compact one-col" style="text-align:left;margin-bottom:14px">
             <div class="ic-item">
@@ -22173,9 +23180,9 @@ function acceptEmergency(emergencyId){
             </div>
           </div>
         </div>`,
-        `<button class="pill-btn" onclick="closeModal();go('cappts')">📅 Voir tous les RDV</button>
-         <button class="pill-btn" onclick="closeModal();openPatientApptDetail('${_emgLink1.id}')">📄 Voir le RDV</button>
-         <button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${emergencyId}')">📥 Admettre</button>`);
+        `<button class="pill-btn" onclick="closeModal()">Fermer</button>
+         <button class="pill-btn" onclick="closeModal();openAdmissionFromEmergency('${emergencyId}')">📥 Admettre</button>
+         <button class="pill-btn primary" onclick="closeModal();openTransferEmergencyModal('${emergencyId}')">🏥 Transférer vers service</button>`);
     }
   }, 400);
 }
@@ -22202,6 +23209,147 @@ function declineEmergency(emergencyId){
   closeModal();
   render();
   toast(t('emergency_status_declined'), 'info');
+}
+/* ============================================================ */
+/* 🏥 TRANSFÉRER UNE URGENCE VERS UN SERVICE (FACTURATION)      */
+/* ============================================================ */
+function openTransferEmergencyModal(emergencyId) {
+  const c = state.clinic;
+  const e = DB.emergencies.find(x => x.id === emergencyId);
+  if(!c || !e) return;
+  
+  const services = clinicServicesFor(c.id);
+  if(!services.length){
+    toast('Veuillez créer au moins un service dans votre clinique.', 'error');
+    return;
+  }
+
+  const body = `
+    <div class="letter-amount" style="font-style:normal;margin-bottom:12px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
+      🚑 <strong>Patient :</strong> ${esc(e.patientName)}<br>
+      <strong>Motif urgence :</strong> ${esc(emergencyTypeLabel(e.emergencyType))} — ${esc(e.description || 'Aucune description')}
+    </div>
+    <div class="field" id="transferServiceContainer">
+      <label>🏗️ Service *</label>
+      <select class="select" id="emgTransferService" onchange="onEmergencyTransferServiceChange(this.value)">
+        <option value="">— Sélectionner un service —</option>
+        ${services.map(sv => `<option value="${sv.id}">${sv.icon || '🩺'} ${esc(sv.name)}</option>`).join('')}
+      </select>
+    </div>
+    
+    <div class="field" id="transferDoctorContainer" style="display:none">
+      <label>🧑‍⚕️ Médecin (Optionnel)</label>
+      <select class="select" id="emgTransferDoctor">
+        <option value="">— Aucun médecin spécifique —</option>
+      </select>
+    </div>
+
+    <div id="transferPrestationsContainer" style="display:none; margin-top:12px;">
+      <div class="section-title">💉 Prestations (Facturation)</div>
+      <div id="emgTransferPrestationsList"></div>
+      <div class="total-box" style="margin-top:10px">
+        <div>
+          <div class="tb-lbl" style="font-weight:700;color:var(--text-main)">Total à facturer</div>
+        </div>
+        <div class="tb-val" id="emgTransferTotal">0 DA</div>
+      </div>
+    </div>
+  `;
+
+  openModal('🏥 Transférer l\'urgence', 'Sélectionnez le service et les prestations associées pour facturer le patient.', body, 
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn primary" id="btnSaveEmergencyTransfer" onclick="saveEmergencyTransfer('${emergencyId}')" style="display:none;">💾 Transférer et Facturer</button>`,
+    true);
+}
+
+function onEmergencyTransferServiceChange(serviceId) {
+  const c = state.clinic;
+  const docContainer = document.getElementById('transferDoctorContainer');
+  const docSelect = document.getElementById('emgTransferDoctor');
+  const prestContainer = document.getElementById('transferPrestationsContainer');
+  const prestList = document.getElementById('emgTransferPrestationsList');
+  const btnSave = document.getElementById('btnSaveEmergencyTransfer');
+
+  if(!serviceId) {
+    docContainer.style.display = 'none';
+    prestContainer.style.display = 'none';
+    btnSave.style.display = 'none';
+    return;
+  }
+
+  // Médecins du service
+  const serviceDoctors = clinicLinkedDoctors(c.id).filter(d => getDoctorServiceInClinic(d.id, c.id) === serviceId);
+  docSelect.innerHTML = `<option value="">— Aucun médecin spécifique —</option>` + 
+    serviceDoctors.map(d => `<option value="${d.id}">${specialtyAvatar(d.specialty)} ${esc(d.name)}</option>`).join('');
+  docContainer.style.display = 'block';
+
+  // Prestations du service
+  const prestations = clinicPrestationsForService(serviceId);
+  if(prestations.length) {
+    prestList.innerHTML = prestations.map(p => `
+      <label class="service-checkbox">
+        <input type="checkbox" class="emg-transfer-prestation" value="${p.id}" data-price="${p.price}" onchange="updateEmergencyTransferTotal()">
+        <div class="sc-info">
+          <div class="sc-name">${esc(p.name)}</div>
+        </div>
+        <div class="sc-price">+${n2(p.price)} DA</div>
+      </label>
+    `).join('');
+  } else {
+    prestList.innerHTML = `<div class="empty" style="padding:10px;font-size:12px">Aucune prestation configurée pour ce service.</div>`;
+  }
+  prestContainer.style.display = 'block';
+  btnSave.style.display = 'inline-flex';
+  updateEmergencyTransferTotal();
+}
+
+function updateEmergencyTransferTotal() {
+  let total = 0;
+  document.querySelectorAll('.emg-transfer-prestation:checked').forEach(cb => {
+    total += parseFloat(cb.getAttribute('data-price') || 0);
+  });
+  document.getElementById('emgTransferTotal').textContent = fmtDA(total);
+}
+
+function saveEmergencyTransfer(emergencyId) {
+  const c = state.clinic;
+  const serviceId = document.getElementById('emgTransferService').value;
+  const doctorId = document.getElementById('emgTransferDoctor').value || null;
+  
+  if(!serviceId) { toast('Sélectionnez un service', 'error'); return; }
+
+  // Récupérer les prestations cochées
+  const selectedPrestations = [];
+  document.querySelectorAll('.emg-transfer-prestation:checked').forEach(cb => {
+    const prestId = cb.value;
+    const p = clinicPrestationById(prestId);
+    if(p) selectedPrestations.push({ id: p.id, name: p.name, price: p.price });
+  });
+
+  const total = selectedPrestations.reduce((s, p) => s + p.price, 0);
+
+  // Mettre à jour le RDV lié
+  const appt = DB.appointments.find(a => a.emergencyId === emergencyId);
+  if(!appt) { toast('RDV lié introuvable', 'error'); return; }
+
+  appt.clinicServiceId = serviceId;
+  appt.doctorId = doctorId;
+  appt.prestationId = selectedPrestations.length === 1 ? selectedPrestations[0].id : null;
+  appt.services = selectedPrestations;
+  appt.servicesTotal = total;
+  appt.motif = `🚨 URGENCE — ${emergencyTypeLabel(DB.emergencies.find(x=>x.id===emergencyId)?.emergencyType)} — Transféré en ${clinicServiceById(serviceId)?.name}`;
+  appt.status = 'confirmed'; // Prêt à être validé par la clinique
+  appt.updatedAt = nowISO();
+
+  // Notification au médecin si assigné
+  if(doctorId) {
+    pushNotif('doctor', 'Urgence transférée', `Le patient ${appt.patientName} a été transféré au service.`, doctorId, appt.id);
+  }
+
+  saveDB();
+  closeModal();
+  render();
+  toast('✅ Urgence transférée et prête pour facturation', 'success');
 }
 function askEmergencyAction(emergencyId, action){
   const isAccept = action === 'accepted';
@@ -22306,6 +23454,8 @@ function showEmergencyDetails(emergencyId){
   `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
    ${canOpenAppt ? `<button class="pill-btn" onclick="closeModal();openPatientApptDetail('${linkedAppt.id}')">📄 Voir le RDV</button>` : ''}
    ${canAdmit ? `<button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${e.id}')">📥 Admettre à l'hôpital</button>` : ''}
+   ${isClinicUser && e.status === 'accepted' ? `<button class="pill-btn primary" onclick="closeModal();openTransferEmergencyModal('${e.id}')">🏥 Transférer</button>` : ''}
+   ${isClinicUser && linkedAppt && (linkedAppt.status === 'confirmed' || linkedAppt.status === 'done') ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${linkedAppt.id}'),50)">🧾 Facture</button>` : ''}
    ${clinic && e.status === 'accepted' && !isClinicUser ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((clinic.address||'')+' '+clinic.wilaya)}" target="_blank" rel="noopener" class="pill-btn primary">🗺️ ${t('emergency_go_to')}</a>` : ''}`);
 }
 function viewMyEmergencies(){
@@ -22395,6 +23545,7 @@ function startCriticalPolling(){
   _criticalPollTimer = setInterval(async () => {
     if(document.visibilityState !== 'visible') return;
     if(_isApplyingRemote || _isPushing) return;
+    if(Date.now() < _criticalGuardUntil) return;   // 🆕 ne pas poller pendant le verrou critique
     if(Date.now() - _lastPushTime < 1200) return;
 
     const isClinic = state.role === 'clinic' && state.clinic;
@@ -22406,6 +23557,9 @@ function startCriticalPolling(){
 
     let needRender = false;
     let patientNotifs = [];
+
+    _isApplyingRemote = true;   // 🆕 verrouille pendant toute la durée du polling
+    try {
 
     // 🚨 Clinique : urgences (toutes les 2 s)
     if(isClinic){
@@ -22447,6 +23601,10 @@ function startCriticalPolling(){
         if(!arraysEqualBrief(before, after)) needRender = true;
         if(isDoctor) checkDoctorNewAppointments();
       }catch(e){}
+    }
+
+    } finally {
+      _releaseRemoteLock();   // 🆕 libère le verrou + rejoue le push si besoin
     }
 
     // Rendu + notifications
@@ -22859,9 +24017,44 @@ async function pollPatientData(){
     }catch(e){}
   }
 } 
+/* ============================================================
+   👁️ COMPTEUR DE VISITES — enregistre 1 visite par session
+   ============================================================ */
+function logVisit(){
+  // 🆕 Déduplication : ignore si une visite a été loggée < 30 s (anti double-load)
+  try {
+    const lastLog = parseInt(sessionStorage.getItem('omnimed_visit_ts') || '0', 10);
+    if(Date.now() - lastLog < 30000) return;
+    sessionStorage.setItem('omnimed_visit_ts', String(Date.now()));
+  } catch(e){ /* ignore */ }
+
+  const now = new Date();
+  if(!DB.visits || typeof DB.visits !== 'object'){
+    DB.visits = { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
+  }
+  const v = DB.visits;
+  if(!v.firstVisit) v.firstVisit = now.toISOString();
+  v.total = (v.total || 0) + 1;
+
+  const dayKey    = localISO(now);                 // YYYY-MM-DD
+  const monthKey  = dayKey.slice(0, 7);            // YYYY-MM
+  const yearKey   = String(now.getFullYear());     // YYYY
+  const hourKey   = String(now.getHours());        // 0-23
+  const minuteKey = String(now.getMinutes());      // 0-59
+
+  v.byDay     = v.byDay     || {}; v.byDay[dayKey]       = (v.byDay[dayKey]       || 0) + 1;
+  v.byMonth   = v.byMonth   || {}; v.byMonth[monthKey]   = (v.byMonth[monthKey]   || 0) + 1;
+  v.byYear    = v.byYear    || {}; v.byYear[yearKey]     = (v.byYear[yearKey]     || 0) + 1;
+  v.byHour    = v.byHour    || {}; v.byHour[hourKey]     = (v.byHour[hourKey]     || 0) + 1;
+  v.byMinute  = v.byMinute  || {}; v.byMinute[minuteKey] = (v.byMinute[minuteKey] || 0) + 1;
+
+  saveDB();
+}
+
 async function init(){
   try{ await idb.open(); }catch(e){}
   await loadDB();
+  logVisit();
   state.filter.date = todayISO();
   if(!state.billing.month) state.billing.month = currentMonth();
   if(!state.billing.year) state.billing.year = currentYear();
@@ -22908,7 +24101,7 @@ async function init(){
       if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
       render();
     } finally {
-      _isApplyingRemote = false;
+      _releaseRemoteLock();
     }
   }, 60000);
   applyDir(); render();
@@ -22960,6 +24153,7 @@ getClinicAdmRevFilter,
   confirmDeleteMedication, doDeleteMedication,
   renderSearchStatsSection, logSearch, getSearchLogs, getDoctorSearchCounts,
   onHomeSearchInput, onBookSearchInput, refreshBookDoctorList,
+showAllClinics, showAllDoctors,   /* 🆕 */
   openPrintRDVModal, refreshPrintRDVTable, printRDVTable,
   onAdminDoctorsSearch, onAdminClinicsSearch,
   createInternalAppt, toggleInternalService,
@@ -23051,6 +24245,8 @@ getClinicAdmRevFilter,
   tryInitAudio, enableEmergencyAudio, emergencyTypeLabel,
   /* 🆕 Pont urgence → admission */
   openAdmissionFromEmergency,
+  /* 🆕 Transfert urgence vers service facturé */
+  openTransferEmergencyModal, onEmergencyTransferServiceChange, updateEmergencyTransferTotal, saveEmergencyTransfer,
   /* 🆕 Masquage local urgences côté patient */
   hidePatientEmergency, saveHiddenEmergencies,
   /* 🆕 Surveillance patient temps réel */
@@ -23088,6 +24284,8 @@ getClinicAdmRevFilter,
   genRoomId, genAdmissionId,
   /* 🧾 Factures hospitalisation */
   getClinicAdmissionCommission,
+  /* 🧾 Factures individuelles RDV/Urgence */
+  openApptInvoiceModal, printApptInvoice, buildSingleApptInvoiceHTML,
   buildAdmissionInvoiceModalContent,
   openAdmissionInvoiceModal,
   printAdmissionInvoice,
