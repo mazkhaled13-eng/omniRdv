@@ -2426,6 +2426,126 @@ body.dark .clinic-notif-mini.emergency .cnm-name{ color:#fca5a5; }
   background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.06));
   color:var(--danger);
 }
+/* ============================================================
+   🏠 NAV PATIENT — Petites étiquettes présentables
+   ============================================================ */
+.patient-nav-tags{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  width:100%;
+}
+.patient-nav-tag{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 18px;
+  border-radius:9999px;
+  background:var(--glass-bg-3);
+  border:1.5px solid var(--glass-border);
+  color:var(--text-main);
+  font-family:inherit;
+  font-size:12.5px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all .2s ease;
+  white-space:nowrap;
+  letter-spacing:-.1px;
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.patient-nav-tag:hover{
+  background:var(--accent-light);
+  color:var(--accent-primary);
+  border-color:var(--accent-primary);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(139,92,246,.15);
+}
+.patient-nav-tag.active{
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 4px 14px rgba(139,92,246,.35);
+}
+.patient-nav-tag .pnt-ico{
+  font-size:15px;
+  line-height:1;
+  flex-shrink:0;
+}
+.patient-nav-tag .pnt-lbl{
+  line-height:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.patient-nav-tag .pnt-badge{
+  background:var(--danger);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  padding:2px 7px;
+  border-radius:9999px;
+  min-width:18px;
+  text-align:center;
+  line-height:1.2;
+  flex-shrink:0;
+  margin-left:2px;
+}
+.patient-nav-tag.active .pnt-badge{
+  background:#fff;
+  color:var(--danger);
+}
+
+/* 📱 TABLETTE (641px → 900px) */
+@media(max-width:900px) and (min-width:641px){
+  .patient-nav-tags{
+    gap:7px;
+  }
+  .patient-nav-tag{
+    padding:7px 15px;
+    font-size:12px;
+  }
+  .patient-nav-tag .pnt-ico{font-size:14px;}
+}
+
+/* 📱 MOBILE (≤ 640px) — étiquettes égales, alignées */
+@media(max-width:640px){
+  .patient-nav-tags{
+    gap:6px;
+    justify-content:space-between;
+    flex-wrap:nowrap;
+  }
+  .patient-nav-tag{
+    flex:1 1 0;
+    min-width:0;
+    justify-content:center;
+    padding:9px 8px;
+    font-size:11.5px;
+    gap:5px;
+  }
+  .patient-nav-tag .pnt-ico{font-size:13px;}
+  .patient-nav-tag .pnt-lbl{
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .patient-nav-tag .pnt-badge{
+    padding:1px 6px;
+    font-size:9.5px;
+    min-width:16px;
+  }
+}
+
+/* 📱 TRÈS PETIT MOBILE (≤ 400px) */
+@media(max-width:400px){
+  .patient-nav-tags{gap:5px;}
+  .patient-nav-tag{
+    padding:8px 6px;
+    font-size:10.5px;
+    gap:4px;
+  }
+  .patient-nav-tag .pnt-ico{font-size:12px;}
+}
+/* ============================================================ */
 </style>
 </head>
 <body>
@@ -6120,7 +6240,46 @@ function toast(msg, type='info'){
   $('#toasts').appendChild(el);
   setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(-24px)'; el.style.transition='all .3s ease'; setTimeout(()=>el.remove(),320); }, 3200);
 }
+/* ═══════════════════════════════════════════════════════════
+   🔙 GESTION DU BOUTON RETOUR NAVIGATEUR — FERME LES MODALES
+   Empêche le retour de quitter l'app quand une modale est ouverte.
+   ═══════════════════════════════════════════════════════════ */
+let _modalHistoryPushed = false;
+let _isClosingFromPopstate = false;
+
+function _pushModalHistory(){
+  if(_modalHistoryPushed) return;
+  _modalHistoryPushed = true;
+  try { history.pushState({ omnimedModal: true }, '', location.href); }
+  catch(e){ _modalHistoryPushed = false; }
+}
+function _maybePopModalHistory(){
+  if(!_modalHistoryPushed) return;
+  const hasModal = !!document.querySelector('#modal-root .modal-back');
+  const hasSub   = !!(document.getElementById('subModalRoot')?.classList.contains('open'));
+  const hasEmg   = !!(document.getElementById('emergencyModalRoot')?.classList.contains('open'));
+  if(hasModal || hasSub || hasEmg) return;
+  _modalHistoryPushed = false;
+  if(!_isClosingFromPopstate){
+    try { history.back(); } catch(e){}
+  }
+}
+function _closeAllModalsForBack(){
+  try { closeModal(); } catch(e){}
+  try { hideSubscriptionExpiredModal(); } catch(e){}
+  try { hideEmergencyAlertModal(); } catch(e){}
+}
+window.addEventListener('popstate', function(){
+  if(!_modalHistoryPushed) return;
+  _modalHistoryPushed = false;
+  _isClosingFromPopstate = true;
+  try { _closeAllModalsForBack(); }
+  finally { _isClosingFromPopstate = false; }
+});
+/* ═══════════════════════════════════════════════════════════ */
+
 function openModal(title, sub, bodyHTML, actionsHTML, wide){
+  _pushModalHistory();
   $('#modal-root').innerHTML = `
     <div class="modal-back" onclick="if(event.target===this)closeModal()">
       <div class="modal ${wide?'wide':''}">
@@ -6131,11 +6290,15 @@ function openModal(title, sub, bodyHTML, actionsHTML, wide){
       </div>
     </div>`;
 }
-function closeModal(){ $('#modal-root').innerHTML=''; }
+function closeModal(){
+  $('#modal-root').innerHTML='';
+  _maybePopModalHistory();
+}
 
 function showSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
+  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6157,6 +6320,7 @@ function showSubscriptionExpiredModal(){
 function showClinicSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
+  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6178,6 +6342,7 @@ function showClinicSubscriptionExpiredModal(){
 function showDoctorLockedModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
+  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6203,6 +6368,7 @@ function showDoctorLockedModal(){
 function showClinicLockedModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
+  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6228,6 +6394,7 @@ function showClinicLockedModal(){
 function hideSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(root){ root.innerHTML = ''; root.classList.remove('open'); }
+  _maybePopModalHistory();
 }
 
 document.addEventListener('keydown', function(e){
@@ -8125,11 +8292,19 @@ function patientNav(){
     ? DB.emergencies.filter(e => normPhone(e.patientPhone) === normPhone(state.myPhone) && e.status === 'pending').length
     : 0;
   const items = [
-    ['home','🏠',t('home')],
-    ['my','📋',t('my')],
-    ['myEmergencies','🚨',t('emergency_my') + (pendingCount ? `<span class="badge">${pendingCount}</span>` : '')]
+    ['home','🏠',t('home'), null],
+    ['my','📋',t('my'), null],
+    ['myEmergencies','🚨',t('emergency_my'), pendingCount]
   ];
-  return items.map(([id,ico,lbl])=>`<button class="nav-item ${v===id?'active':''}" onclick="go('${id}')"><span class="ico">${ico}</span>${lbl}</button>`).join('');
+  return `<div class="patient-nav-tags">
+    ${items.map(([id,ico,lbl,badge])=>`
+      <button type="button" class="patient-nav-tag ${v===id?'active':''}" onclick="go('${id}')">
+        <span class="pnt-ico">${ico}</span>
+        <span class="pnt-lbl">${lbl}</span>
+        ${badge ? `<span class="pnt-badge">${badge}</span>` : ''}
+      </button>
+    `).join('')}
+  </div>`;
 }
 function docNav(){
   const v = state.view;
@@ -22877,6 +23052,7 @@ function hideEmergencyAlertModal(){
   stopEmergencyTimer();
   const root = document.getElementById('emergencyModalRoot');
   if(root){ root.innerHTML = ''; root.classList.remove('open'); }
+  _maybePopModalHistory();
 }
 function emergencyTypeLabel(ty){
   const map = {
@@ -23070,6 +23246,7 @@ function checkClinicEmergencies(){
 function showEmergencyAlertModal(e){
   const root = document.getElementById('emergencyModalRoot');
   if(!root) return;
+  _pushModalHistory();
   root.innerHTML = `
     <div class="emergency-back">
       <div class="emergency-modal">
