@@ -217,13 +217,75 @@ body[dir="rtl"] .nav-item .badge{margin-left:0;margin-right:5px}
   .nav-item-tag .nit-info{ font-size:9.5px; }
 }
 .nav-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.role-menu{display:flex;gap:3px;background:var(--glass-bg-3);
-  border:1px solid var(--glass-border);border-radius:var(--radius-md);padding:3px}
-.role-btn{padding:6px 12px;border-radius:var(--radius-sm);border:none;
-  background:transparent;cursor:pointer;font-family:inherit;
-  font-size:12.5px;font-weight:600;transition:var(--transition);color:var(--text-main)}
-.role-btn:hover{background:var(--glass-bg)}
-.role-btn.active{background:var(--accent-primary);color:#fff;box-shadow:0 4px 10px rgba(139,92,246,.3)}
+/* ============================================================
+   🎨 BOUTONS RÔLE — Espace patient / Compte (icon)
+   ============================================================ */
+.role-menu{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding:0;
+  background:transparent;
+  border:none;
+}
+.role-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:8px 16px;
+  border-radius:9999px;
+  border:1.5px solid var(--glass-border);
+  background:var(--glass-bg-3);
+  color:var(--text-main);
+  font-family:inherit;
+  font-size:12.5px;
+  font-weight:600;
+  line-height:1;
+  cursor:pointer;
+  transition:all .2s ease;
+  white-space:nowrap;
+  letter-spacing:-.1px;
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.role-btn:hover{
+  background:var(--accent-light);
+  color:var(--accent-primary);
+  border-color:var(--accent-primary);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(139,92,246,.18);
+}
+.role-btn.active{
+  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 4px 14px rgba(139,92,246,.35);
+}
+.role-btn.active:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(139,92,246,.45);
+}
+.role-btn .role-btn-ico{
+  font-size:15px;
+  line-height:1;
+  flex-shrink:0;
+}
+.role-btn .role-btn-lbl{
+  line-height:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* Variante icône seule (🖥️ Compte) */
+.role-btn.icon-only{
+  padding:8px 10px;
+  min-width:42px;
+  min-height:34px;
+}
+.role-btn.icon-only .role-btn-ico{
+  font-size:16px;
+}
+/* ============================================================ */
 .segmented{display:flex;gap:2px;background:var(--glass-bg-3);
   border:1px solid var(--glass-border);border-radius:var(--radius-pill);padding:3px}
 .segmented button{padding:5px 10px;border-radius:var(--radius-pill);border:none;
@@ -513,15 +575,67 @@ body.dark .stat.money .stat-val{color:#6ee7b7}
 .notif-rdv-label .nl-time{font-family:var(--font-numbers);font-weight:500;font-size:13px;color:var(--accent-primary)}
 .notif-rdv-label .nl-name{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .notif-rdv-label .nl-meta{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.modal-back{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(6px);
-  display:grid;place-items:center;padding:16px;z-index:100;animation:fade .2s ease;overflow-y:auto}
-.modal{background:var(--glass-bg);backdrop-filter:blur(20px);
-  border:1px solid var(--glass-border);border-radius:var(--radius-xl);
-  padding:18px 22px;width:100%;max-width:700px;box-shadow:var(--shadow);
-  max-height:96vh;overflow-y:auto;animation:pop .25s ease;margin:auto}
+.modal-back{
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 25% 15%, rgba(139,92,246,.28), transparent 55%),
+    radial-gradient(circle at 80% 90%, rgba(236,72,153,.22), transparent 55%),
+    radial-gradient(circle at 60% 50%, rgba(99,102,241,.15), transparent 60%),
+    rgba(15,23,42,.58);
+  backdrop-filter:blur(8px) saturate(120%);
+  -webkit-backdrop-filter:blur(8px) saturate(120%);
+  display:grid;place-items:center;padding:16px;z-index:100;
+  animation:fade .2s ease;overflow-y:auto;
+}
+.modal{
+  background:linear-gradient(160deg,
+    rgba(255,255,255,.94) 0%,
+    rgba(250,245,255,.95) 40%,
+    rgba(253,242,248,.93) 75%,
+    rgba(255,255,255,.95) 100%);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+  border:1.5px solid rgba(255,255,255,.9);
+  border-radius:var(--radius-xl);
+  padding:18px 22px;width:100%;max-width:700px;
+  box-shadow:
+    0 24px 60px rgba(139,92,246,.22),
+    0 10px 24px rgba(236,72,153,.12),
+    0 2px 6px rgba(0,0,0,.04),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -1px 0 rgba(139,92,246,.06);
+  max-height:96vh;overflow-y:auto;
+  animation:pop .25s ease;margin:auto;
+}
+body.dark .modal{
+  background:linear-gradient(160deg,
+    rgba(42,36,70,.96) 0%,
+    rgba(32,26,58,.97) 40%,
+    rgba(48,32,78,.96) 75%,
+    rgba(38,30,64,.97) 100%);
+  backdrop-filter:blur(24px) saturate(140%);
+  -webkit-backdrop-filter:blur(24px) saturate(140%);
+  border:1.5px solid rgba(139,92,246,.4);
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.6),
+    0 0 0 1px rgba(139,92,246,.18),
+    0 10px 30px rgba(139,92,246,.15),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 -1px 0 rgba(236,72,153,.08);
+}
 .modal.wide{max-width:1200px}
-.modal::-webkit-scrollbar{width:6px}
-.modal::-webkit-scrollbar-thumb{background:var(--glass-border);border-radius:3px}
+.modal::-webkit-scrollbar{width:7px}
+.modal::-webkit-scrollbar-track{background:transparent}
+.modal::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,rgba(139,92,246,.55),rgba(236,72,153,.45));
+  border-radius:4px;
+  border:1.5px solid transparent;
+  background-clip:padding-box;
+}
+.modal::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,rgba(139,92,246,.85),rgba(236,72,153,.75));
+  background-clip:padding-box;
+}
 .modal .field{margin-bottom:10px}
 .modal .card{padding:12px}
 .modal-actions{margin-top:12px}
@@ -1241,10 +1355,42 @@ body.dark .contact-info-card .ct-phone{color:#6ee7b7;border-color:rgba(16,185,12
 .contact-info-card .ct-phone .ct-ico{font-size:12px}
 #subModalRoot{position:fixed;inset:0;z-index:300;display:none}
 #subModalRoot.open{display:block}
-#subModalRoot .sub-back{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:grid;place-items:center;padding:16px;animation:fade .25s ease}
-#subModalRoot .sub-modal{background:var(--glass-bg);backdrop-filter:blur(20px);border:2px solid var(--danger);
-  border-radius:var(--radius-xl);padding:26px 28px;width:100%;max-width:480px;text-align:center;box-shadow:var(--shadow);
-  animation:pop .3s ease}
+#subModalRoot .sub-back{
+  position:fixed;inset:0;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(139,92,246,.28), transparent 55%),
+    radial-gradient(circle at 80% 90%, rgba(236,72,153,.22), transparent 55%),
+    rgba(15,23,42,.6);
+  backdrop-filter:blur(14px) saturate(120%);
+  -webkit-backdrop-filter:blur(14px) saturate(120%);
+  display:grid;place-items:center;padding:16px;animation:fade .25s ease;
+}
+#subModalRoot .sub-modal{
+  background:linear-gradient(160deg,
+    rgba(255,255,255,.96) 0%,
+    rgba(250,245,255,.96) 45%,
+    rgba(253,242,248,.94) 100%);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+  border:2px solid var(--danger);
+  border-radius:var(--radius-xl);padding:26px 28px;width:100%;max-width:480px;text-align:center;
+  box-shadow:
+    0 24px 60px rgba(239,68,68,.25),
+    0 10px 24px rgba(139,92,246,.15),
+    inset 0 1px 0 rgba(255,255,255,.95);
+  animation:pop .3s ease;
+}
+body.dark #subModalRoot .sub-modal{
+  background:linear-gradient(160deg,
+    rgba(45,32,48,.96) 0%,
+    rgba(38,26,52,.97) 45%,
+    rgba(52,30,58,.96) 100%);
+  border-color:rgba(239,68,68,.7);
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.6),
+    0 0 0 1px rgba(239,68,68,.25),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
 #subModalRoot .sub-ico{font-size:64px;line-height:1;margin-bottom:8px;filter:drop-shadow(0 6px 12px rgba(239,68,68,.3))}
 #subModalRoot .sub-title{font-size:19px;font-weight:800;color:var(--danger);margin-bottom:8px}
 #subModalRoot .sub-msg{font-size:13.5px;color:var(--text-main);line-height:1.7;margin-bottom:14px}
@@ -1428,8 +1574,11 @@ body.dark .doc-view-other{background:rgba(255,255,255,.05);color:var(--text-main
   .nav-item{padding:6px 10px;font-size:11.5px}
   .nav-item .ico{font-size:12px}
 
-  .role-menu{padding:2px}
-  .role-btn{padding:5px 9px;font-size:11px}
+  .role-menu{padding:0;gap:6px}
+  .role-btn{padding:7px 12px;font-size:11.5px;gap:5px}
+  .role-btn .role-btn-ico{font-size:13px}
+  .role-btn.icon-only{padding:7px 9px;min-width:36px;min-height:32px}
+  .role-btn.icon-only .role-btn-ico{font-size:14px}
 
   .segmented{padding:2px}
   .segmented button{padding:4px 8px;font-size:10.5px}
@@ -5145,6 +5294,7 @@ async function loadDB(){
 
       clinics: (clinicR.data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
         id: c.id, name: c.name, avatar: c.avatar||'🏥', description: c.description||'',
+        headerText: c.header_text||'', footerText: c.footer_text||'',
         wilaya: c.wilaya||'', commune: c.commune||'', address: c.address||'',
         phone: c.phone||'', email: c.email||'',
         password: c.password||DEFAULT_PWD,
@@ -5494,6 +5644,7 @@ async function pushToSupabase(){
     if(syncClinics && DB.clinics.length){
       await sb.from('clinics').upsert(DB.clinics.map(c=>({
         id: String(c.id), name:c.name, avatar:c.avatar||'🏥', description:c.description||'',
+        header_text: c.headerText||null, footer_text: c.footerText||null,
         wilaya:c.wilaya||'', commune:c.commune||'', address:c.address||'',
         phone:c.phone||'', email:c.email||'',
         password:c.password||DEFAULT_PWD,
@@ -6185,6 +6336,42 @@ function renderStars(value, size){
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* ═══════════════════════════════════════════════════════════
+   📄 EN-TÊTE / PIED DE PAGE CLINIQUE — Helpers impression
+   ═══════════════════════════════════════════════════════════ */
+function getClinicHeaderBlock(clinic){
+  if(!clinic) return '';
+  const raw = String(clinic.headerText||'').trim();
+  if(!raw) return '';
+  return `<div style="background:linear-gradient(135deg, rgba(139,92,246,.08), rgba(236,72,153,.05));border:1px solid rgba(139,92,246,.28);border-radius:10px;padding:10px 14px;margin-bottom:14px;white-space:pre-wrap;font-size:10.5px;line-height:1.65;color:#1f2937">${esc(raw)}</div>`;
+}
+function getClinicFooterBlock(clinic){
+  const stickyCSS = `<style>
+    body{display:flex !important;flex-direction:column !important;min-height:100vh !important;}
+    body > *:not(.omnimed-clinic-footer):not(style):not(script){flex-shrink:0;}
+    .omnimed-clinic-footer{
+      margin-top:auto !important;
+      width:100% !important;
+      padding-top:12px !important;
+      border-top:1.5px solid #9ca3af !important;
+      text-align:center !important;
+      font-size:10px !important;
+      color:#4b5563 !important;
+      line-height:1.65 !important;
+    }
+    .omnimed-clinic-footer .stamp{
+      display:inline-flex;align-items:center;gap:5px;
+      background:#f3f4f6;padding:5px 10px;border-radius:8px;
+      font-family:'Rubik',sans-serif;font-size:8.5px;color:#4b5563;font-weight:600;
+    }
+  </style>`;
+  const raw = clinic ? String(clinic.footerText||'').trim() : '';
+  if(raw){
+    return `${stickyCSS}<div class="omnimed-clinic-footer" style="white-space:pre-wrap">${esc(raw)}</div>`;
+  }
+  return `${stickyCSS}<div class="omnimed-clinic-footer"><div class="stamp">📄 ${t('generated_auto')}</div></div>`;
+}
+/* ═══════════════════════════════════════════════════════════ */
 const jsStr = s => String(s ?? '')
   .replace(/\\/g, '\\\\')
   .replace(/'/g, "\\'")
@@ -6240,46 +6427,7 @@ function toast(msg, type='info'){
   $('#toasts').appendChild(el);
   setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(-24px)'; el.style.transition='all .3s ease'; setTimeout(()=>el.remove(),320); }, 3200);
 }
-/* ═══════════════════════════════════════════════════════════
-   🔙 GESTION DU BOUTON RETOUR NAVIGATEUR — FERME LES MODALES
-   Empêche le retour de quitter l'app quand une modale est ouverte.
-   ═══════════════════════════════════════════════════════════ */
-let _modalHistoryPushed = false;
-let _isClosingFromPopstate = false;
-
-function _pushModalHistory(){
-  if(_modalHistoryPushed) return;
-  _modalHistoryPushed = true;
-  try { history.pushState({ omnimedModal: true }, '', location.href); }
-  catch(e){ _modalHistoryPushed = false; }
-}
-function _maybePopModalHistory(){
-  if(!_modalHistoryPushed) return;
-  const hasModal = !!document.querySelector('#modal-root .modal-back');
-  const hasSub   = !!(document.getElementById('subModalRoot')?.classList.contains('open'));
-  const hasEmg   = !!(document.getElementById('emergencyModalRoot')?.classList.contains('open'));
-  if(hasModal || hasSub || hasEmg) return;
-  _modalHistoryPushed = false;
-  if(!_isClosingFromPopstate){
-    try { history.back(); } catch(e){}
-  }
-}
-function _closeAllModalsForBack(){
-  try { closeModal(); } catch(e){}
-  try { hideSubscriptionExpiredModal(); } catch(e){}
-  try { hideEmergencyAlertModal(); } catch(e){}
-}
-window.addEventListener('popstate', function(){
-  if(!_modalHistoryPushed) return;
-  _modalHistoryPushed = false;
-  _isClosingFromPopstate = true;
-  try { _closeAllModalsForBack(); }
-  finally { _isClosingFromPopstate = false; }
-});
-/* ═══════════════════════════════════════════════════════════ */
-
 function openModal(title, sub, bodyHTML, actionsHTML, wide){
-  _pushModalHistory();
   $('#modal-root').innerHTML = `
     <div class="modal-back" onclick="if(event.target===this)closeModal()">
       <div class="modal ${wide?'wide':''}">
@@ -6290,15 +6438,11 @@ function openModal(title, sub, bodyHTML, actionsHTML, wide){
       </div>
     </div>`;
 }
-function closeModal(){
-  $('#modal-root').innerHTML='';
-  _maybePopModalHistory();
-}
+function closeModal(){ $('#modal-root').innerHTML=''; }
 
 function showSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
-  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6320,7 +6464,6 @@ function showSubscriptionExpiredModal(){
 function showClinicSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
-  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6342,7 +6485,6 @@ function showClinicSubscriptionExpiredModal(){
 function showDoctorLockedModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
-  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6368,7 +6510,6 @@ function showDoctorLockedModal(){
 function showClinicLockedModal(){
   const root = document.getElementById('subModalRoot');
   if(!root) return;
-  _pushModalHistory();
   root.innerHTML = `
     <div class="sub-back">
       <div class="sub-modal">
@@ -6394,7 +6535,6 @@ function showClinicLockedModal(){
 function hideSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
   if(root){ root.innerHTML = ''; root.classList.remove('open'); }
-  _maybePopModalHistory();
 }
 
 document.addEventListener('keydown', function(e){
@@ -8049,8 +8189,13 @@ function render(){
       <div class="nav-items">${nav}</div>
       <div class="nav-controls">
         <div class="role-menu">
-          <button class="role-btn ${isPatient?'active':''}" onclick="setRole('patient')">👤 ${t('nav_patient')}</button>
-          <button class="role-btn ${isAccount?'active':''}" onclick="openAccountLogin()">🔑 ${t('account')}</button>
+          <button class="role-btn ${isPatient?'active':''}" onclick="setRole('patient')" title="${esc(t('nav_patient'))}">
+            <span class="role-btn-ico">👤</span>
+            <span class="role-btn-lbl">${t('nav_patient')}</span>
+          </button>
+          <button class="role-btn icon-only ${isAccount?'active':''}" onclick="openAccountLogin()" title="${esc(t('account'))}" aria-label="${esc(t('account'))}">
+            <span class="role-btn-ico">🖥️</span>
+          </button>
         </div>
         ${isPatient ? `<div class="segmented">
           <button class="${state.lang==='fr'?'active':''}" onclick="setLang('fr')">FR</button>
@@ -11456,28 +11601,60 @@ function doctorApptHTML(a){
   `;
 }
 function confirmApptWithNotify(id){
-  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
-  const doc = docById(a.doctorId);
-  openModal('✓ '+t('confirm_confirm_rdv'), `${a.patientName} — ${fmtLongDate(a.date)} ${a.time}`,
-    `<div style="font-size:13px;line-height:1.9">
-       <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div>
-       <div><strong>${t('phone')} :</strong> ${esc(a.patientPhone)}</div>
-       ${a.patientEmail?`<div><strong>${t('email')} :</strong> ${esc(a.patientEmail)}</div>`:''}
-       <div><strong>${t('doctor')} :</strong> ${esc(doc?.name||'—')}</div>
-     </div>`,
-    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
-     <button class="pill-btn success" onclick="doConfirmApptWithNotify('${id}')">✓ ${t('confirm_rdv')}</button>`);
+  try {
+    const a = DB.appointments.find(x=>x.id===id);
+    if(!a){
+      toast('Rendez-vous introuvable','error');
+      return;
+    }
+    const doc = docById(a.doctorId);
+    openModal('✓ '+t('confirm_confirm_rdv'), `${a.patientName} — ${fmtLongDate(a.date)} ${a.time}`,
+      `<div style="font-size:13px;line-height:1.9">
+         <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div>
+         <div><strong>${t('phone')} :</strong> ${esc(a.patientPhone)}</div>
+         ${a.patientEmail?`<div><strong>${t('email')} :</strong> ${esc(a.patientEmail)}</div>`:''}
+         <div><strong>${t('doctor')} :</strong> ${esc(doc?.name||'—')}</div>
+       </div>`,
+      `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+       <button class="pill-btn success" onclick="doConfirmApptWithNotify('${jsStr(id)}')">✓ ${t('confirm_rdv')}</button>`);
+  } catch(err){
+    console.error('[confirmApptWithNotify] Erreur:', err);
+    toast('Erreur lors de l\'ouverture de la confirmation','error');
+  }
 }
 function doConfirmApptWithNotify(id){
-  const a = DB.appointments.find(x=>x.id===id); if(!a) return;
-  const doc = docById(a.doctorId);
-  const docName = doc ? doc.name : (clinicById(a.clinicId)?.name || 'l\'établissement');
-  a.status='confirmed';
-  pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${docName} est confirmé`, null, a.id);
-  if(a.clinicId) pushClinicNotif('RDV confirmé', `RDV ${a.id} avec ${docName}`, a.clinicId, a.id);
-  clearApptNotifications(a.id);
-  saveDB({critical:true}); closeModal(); render();
-  toast('Rendez-vous confirmé','success');
+  try {
+    const a = DB.appointments.find(x=>x.id===id);
+    if(!a){
+      toast('Rendez-vous introuvable ou supprimé','error');
+      closeModal();
+      return;
+    }
+    const doc = docById(a.doctorId);
+    const docName = doc ? doc.name : (clinicById(a.clinicId)?.name || 'l\'établissement');
+    a.status = 'confirmed';
+    a.updatedAt = nowISO();
+
+    try { pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${docName} est confirmé`, null, a.id); }
+    catch(e){ console.error('[pushNotif patient]', e); }
+
+    if(a.clinicId){
+      try { pushClinicNotif('RDV confirmé', `RDV ${a.id} avec ${docName}`, a.clinicId, a.id); }
+      catch(e){ console.error('[pushClinicNotif]', e); }
+    }
+    try { clearApptNotifications(a.id); }
+    catch(e){ console.error('[clearApptNotifications]', e); }
+
+    try { saveDB({critical:true}); }
+    catch(e){ console.error('[saveDB]', e); }
+
+    closeModal();
+    render();
+    toast('Rendez-vous confirmé ✓','success');
+  } catch(err){
+    console.error('[doConfirmApptWithNotify] Erreur:', err);
+    toast('Erreur lors de la confirmation','error');
+  }
 }
 function confirmDoctorAction(id, action){
   const a = DB.appointments.find(x=>x.id===id); if(!a) return;
@@ -15409,7 +15586,7 @@ function openClinicForm(id, isSelf){
   isSelf = !!isSelf;
   const isEdit = !!id;
   const c = isEdit ? clinicById(id) : {
-    name:'', avatar:'🏥', description:'', wilaya:'', commune:'', address:'', phone:'', email:'',
+    name:'', avatar:'🏥', description:'', headerText:'', footerText:'', wilaya:'', commune:'', address:'', phone:'', email:'',
     password: DEFAULT_PWD, recettePassword: DEFAULT_PWD, workDays:[], workStart:'00:00', workEnd:'23:59',
     open24_7: true,
     billingType:'none', commissionAmount: null, subStart: null, subTrialEnd: null
@@ -15499,7 +15676,16 @@ function openClinicForm(id, isSelf){
       <div class="field"><label>${t('phone')}</label><input class="input" id="cfPhone" type="tel" value="${esc(c.phone)}" placeholder="+2136…"></div>
       <div class="field"><label>${t('email')} *</label><input class="input" id="cfEmail" type="email" value="${esc(c.email)}" placeholder="clinique@exemple.com"></div>
     </div>
-    <div class="field"><label>${t('clinic_description')}</label><textarea class="textarea" id="cfDesc" style="min-height:60px">${esc(c.description||'')}</textarea></div>
+    <div class="field-row">
+      <div class="field">
+        <label>📄 En-tête documents</label>
+        <textarea class="textarea" id="cfHeaderText" style="min-height:80px" placeholder="Contact, adresse, mentions légales…">${esc(c.headerText||'')}</textarea>
+      </div>
+      <div class="field">
+        <label>📄 Pied de page documents</label>
+        <textarea class="textarea" id="cfFooterText" style="min-height:80px" placeholder="Mentions de pied de page…">${esc(c.footerText||'')}</textarea>
+      </div>
+    </div>
     ${billingSectionHTML}
     <div class="sep"></div>
     <div class="section-title">🕐 ${t('clinic_open_24_7')}</div>
@@ -15607,7 +15793,8 @@ async function saveClinic(id){
   const address = ($('#cfAddress')?.value||'').trim();
   const phone = ($('#cfPhone')?.value||'').trim();
   const email = ($('#cfEmail')?.value||'').trim();
-  const desc = ($('#cfDesc')?.value||'').trim();
+  const headerText = ($('#cfHeaderText')?.value||'').trim();
+  const footerText = ($('#cfFooterText')?.value||'').trim();
   const workStart = '00:00';
   const workEnd = '23:59';
   const workDays = [0,1,2,3,4,5,6];
@@ -15664,7 +15851,7 @@ async function saveClinic(id){
   else if(billingType === 'sub_trial') billingFields = {billingType:'sub_trial', commissionAmount:null, subStart:trialStart, subTrialEnd:trialEnd};
   else billingFields = {billingType:'none', commissionAmount:null, subStart:null, subTrialEnd:null};
 
-  const commonFields = {name, avatar, wilaya, commune, address, phone, email, description: desc, workDays, workStart, workEnd, open24_7, password: pwd, passwordPlain: pwdPlain, recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain};
+  const commonFields = {name, avatar, wilaya, commune, address, phone, email, headerText, footerText, workDays, workStart, workEnd, open24_7, password: pwd, passwordPlain: pwdPlain, recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain};
 
   if(id){
     const dbc = DB.clinics.find(x=>String(x.id)===String(id));
@@ -16469,9 +16656,7 @@ function printAdminStats(){
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_services')}</div><div class="ts-val">${s.totalServiceBookings}</div></div>
     <div class="ts-item"><div class="ts-lbl">${t('stats_total_revenue')}</div><div class="ts-val money">${fmtDA(totalRev)}</div></div>
   </div>
-  <div class="footer">
-    <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-  </div>
+  ${getClinicFooterBlock(c)}
 </body></html>`);
   toast(t('print_stats') + ' ✓','success');
 }
@@ -20315,8 +20500,8 @@ function printAdmissionInvoice(admissionId){
       <div class="logo-box">
         <div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div>
         <div>
-          <h1>OmniMed</h1>
-          <div class="sub">FACTURE HOSPITALISATION — ${c ? esc(c.name) : '—'}</div>
+          <h1>${c ? esc(c.name) : 'OmniMed'}</h1>
+          <div class="sub">FACTURE HOSPITALISATION${c && c.wilaya ? ' — ' + esc(c.wilaya) : ''}</div>
           <div class="ref">Réf. ${esc(invRef)}</div>
         </div>
       </div>
@@ -20327,6 +20512,7 @@ function printAdmissionInvoice(admissionId){
       </div>
     </div>
   </div>
+  ${c ? getClinicHeaderBlock(c) : ''}
 
   <div class="section-head"><span class="ico-badge">👤</span> Informations patient & admission</div>
   <div class="info-grid">
@@ -20365,9 +20551,7 @@ function printAdmissionInvoice(admissionId){
     <strong>Arrêtée la présente facture à la somme de :</strong> ${esc(totalWords)}
   </div>
 
-  <div class="footer">
-    <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-  </div>
+  ${getClinicFooterBlock(c)}
 </body></html>`);
   closeModal();
 }
@@ -21557,6 +21741,7 @@ function printClinicStats(){
       </div>
     </div>
   </div>
+  ${getClinicHeaderBlock(c)}
   <div class="section-head"><span class="ico-badge">📊</span> Vue d'ensemble</div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-lbl">${t('clinic_total_doctors')}</div><div class="k-val">${clinicLinkedDoctorIds(c.id).length}</div></div>
@@ -22265,6 +22450,7 @@ function printClinicAdmissionsRevenue(){
       </div>
     </div>
   </div>
+  ${getClinicHeaderBlock(c)}
   <div class="section-head"><span class="ico-badge">📊</span> Synthèse — ${esc(periodLabel)}</div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-lbl">Admissions</div><div class="k-val">${list.length}</div></div>
@@ -22296,9 +22482,7 @@ function printClinicAdmissionsRevenue(){
     </tr></tfoot>
   </table>
   <div class="letter-amount"><strong>${t('stop_invoice')} :</strong> ${esc(totalWords)}</div>
-  <div class="footer">
-    <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-  </div>
+  ${getClinicFooterBlock(c)}
 </body></html>`);
   toast('🖨️ Impression générée', 'success');
 }
@@ -22432,6 +22616,7 @@ function printClinicRevenue(){
       </div>
     </div>
   </div>
+  ${getClinicHeaderBlock(c)}
   <div class="section-head"><span class="ico-badge">📊</span> Synthèse financière — ${esc(periodLabel)}</div>
   <div class="kpi-grid">
     <div class="kpi info"><div class="k-lbl">${t('recette_fees')}</div><div class="k-val">${n2(totalFees)} DA</div></div>
@@ -22460,9 +22645,7 @@ function printClinicRevenue(){
       <td class="r comm">-${n2(totalCommission)}</td>
     </tr></tfoot>
   </table>
-  <div class="footer">
-    <div class="stamp">📄 ${t('generated_auto')} — OmniMed</div>
-  </div>
+  ${getClinicFooterBlock(c)}
 </body></html>`);
 }
 /* ============================================================ */
@@ -22493,8 +22676,8 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
       <div class="inv-brand">
         <div class="inv-logo">${c ? (c.avatar||'🏥') : '🏥'}</div>
         <div>
-          <div class="inv-title">OmniMed · FACTURE</div>
-          <div class="inv-sub">${c ? esc(c.name) : '—'}</div>
+          <div class="inv-title">${c ? esc(c.name) : 'OmniMed'} · FACTURE</div>
+          <div class="inv-sub">${c ? (esc(c.wilaya) + (c.commune ? ' · ' + esc(c.commune) : '')) : '—'}</div>
         </div>
       </div>
       <div class="invoice-meta">
@@ -22570,9 +22753,10 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
 </style></head>
 <body>
   <div class="head">
-    <div class="brand"><div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div><div class="brand-txt"><h1>OmniMed</h1><div class="sub">${c ? esc(c.name) : '—'}</div></div></div>
-    <div class="meta"><div style="font-weight:700;color:#7c3aed">OmniMed une solution OmniSoft</div><div>Facture N° FACT-${esc(appt.id)}</div><div>Émise le ${printDate}</div></div>
+    <div class="brand"><div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div><div class="brand-txt"><h1>${c ? esc(c.name) : 'OmniMed'}</h1><div class="sub">FACTURE</div></div></div>
+    <div class="meta"><div>Facture N° FACT-${esc(appt.id)}</div><div>Émise le ${printDate}</div></div>
   </div>
+  ${c ? getClinicHeaderBlock(c) : ''}
   <div class="info-grid">
     <div><div class="k">Patient</div><div class="v">${esc(appt.patientName)} ${appt.patientAge ? '('+appt.patientAge+' ans)' : ''}</div></div>
     <div><div class="k">Téléphone</div><div class="v">${esc(appt.patientPhone)}</div></div>
@@ -22590,6 +22774,7 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
     <tfoot><tr><td style="text-align:right">TOTAL :</td><td style="text-align:right;color:#059669;font-size:14px">${n2(total)} DA</td></tr></tfoot>
   </table>
   <div class="letter-amount"><strong>Arrêtée la présente facture à la somme de :</strong> ${esc(totalWords)}</div>
+  ${getClinicFooterBlock(c)}
 </body></html>`;
   }
 
@@ -22733,7 +22918,7 @@ function viewClinicProfile(){
     </div>
 
     <!-- ═══════════ 3. Informations & Description ═══════════ -->
-    <div style="display:grid;grid-template-columns:${c.description ? '1fr 1fr' : '1fr'};gap:14px;margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
       <div class="card">
         <div class="card-title" style="font-size:15px">📋 ${t('profile')}</div>
         <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12.5px">
@@ -22759,11 +22944,19 @@ function viewClinicProfile(){
           </div>
         </div>
       </div>
-      ${c.description ? `
       <div class="card">
-        <div class="card-title" style="font-size:15px">📝 ${t('clinic_description')}</div>
-        <div style="margin-top:12px;font-size:13px;line-height:1.8;color:var(--text-main);white-space:pre-wrap;padding:12px 14px;background:var(--glass-bg-3);border-radius:10px;border-left:3px solid var(--accent-primary)">${esc(c.description)}</div>
-      </div>` : ''}
+        <div class="card-title" style="font-size:15px">📄 En-tête & Pied de page</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;color:var(--text-muted);margin-bottom:5px">📄 En-tête (documents imprimables)</div>
+            <div style="font-size:12px;line-height:1.7;white-space:pre-wrap;padding:10px 12px;background:var(--glass-bg-3);border-radius:10px;border-left:3px solid var(--accent-primary);min-height:44px;color:var(--text-main)">${c.headerText ? esc(c.headerText) : `<em style="color:var(--text-muted)">Non défini — cliquez sur ✏️ Modifier pour ajouter</em>`}</div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;color:var(--text-muted);margin-bottom:5px">📄 Pied de page (documents imprimables)</div>
+            <div style="font-size:12px;line-height:1.7;white-space:pre-wrap;padding:10px 12px;background:var(--glass-bg-3);border-radius:10px;border-left:3px solid #ec4899;min-height:44px;color:var(--text-main)">${c.footerText ? esc(c.footerText) : `<em style="color:var(--text-muted)">Non défini — cliquez sur ✏️ Modifier pour ajouter</em>`}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══════════ 4. Chambres & Lits ═══════════ -->
@@ -22852,7 +23045,16 @@ function openClinicProfileForm(){
       <div class="field"><label>${t('phone')}</label><input class="input" id="cfPhone" value="${esc(c.phone)}"></div>
       <div class="field"><label>${t('email')} *</label><input class="input" id="cfEmail" type="email" value="${esc(c.email)}"></div>
     </div>
-    <div class="field"><label>${t('clinic_description')}</label><textarea class="textarea" id="cfDesc" style="min-height:70px">${esc(c.description||'')}</textarea></div>
+    <div class="field">
+      <label>📄 En-tête des documents imprimables</label>
+      <textarea class="textarea" id="cfHeaderText" style="min-height:90px" placeholder="Ex :&#10;Clinique El Amel&#10;12 rue des Roses, Alger&#10;Tél : 021 XX XX XX — contact@clinique.dz&#10;N° d'agrément : 12345">${esc(c.headerText||'')}</textarea>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Apparaîtra en en-tête de tous les documents imprimés (factures, statistiques, rapports, dossiers…)</div>
+    </div>
+    <div class="field">
+      <label>📄 Pied de page des documents imprimables</label>
+      <textarea class="textarea" id="cfFooterText" style="min-height:70px" placeholder="Ex :&#10;Merci de votre confiance&#10;www.clinique-elamel.dz">${esc(c.footerText||'')}</textarea>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Apparaîtra en pied de page de tous les documents imprimés</div>
+    </div>
   `,
   `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
    <button class="pill-btn primary" onclick="saveClinicProfile()">💾 ${t('save')}</button>`);
@@ -22873,11 +23075,12 @@ function saveClinicProfile(){
   const address = ($('#cfAddress')?.value||'').trim();
   const phone = ($('#cfPhone')?.value||'').trim();
   const email = ($('#cfEmail')?.value||'').trim();
-  const desc = ($('#cfDesc')?.value||'').trim();
+  const headerText = ($('#cfHeaderText')?.value||'').trim();
+  const footerText = ($('#cfFooterText')?.value||'').trim();
   if(!name || !wilaya || !email){ toast(t('required_fields'),'error'); return; }
   const dbc = DB.clinics.find(x => String(x.id)===String(c.id));
   if(!dbc){ toast(t('clinic_not_found'),'error'); return; }
-  Object.assign(dbc, { name, avatar, wilaya, commune, address, phone, email, description: desc });
+  Object.assign(dbc, { name, avatar, wilaya, commune, address, phone, email, headerText, footerText });
   state.clinic = dbc;
   saveDB();
   closeModal();
@@ -23052,7 +23255,6 @@ function hideEmergencyAlertModal(){
   stopEmergencyTimer();
   const root = document.getElementById('emergencyModalRoot');
   if(root){ root.innerHTML = ''; root.classList.remove('open'); }
-  _maybePopModalHistory();
 }
 function emergencyTypeLabel(ty){
   const map = {
@@ -23246,7 +23448,6 @@ function checkClinicEmergencies(){
 function showEmergencyAlertModal(e){
   const root = document.getElementById('emergencyModalRoot');
   if(!root) return;
-  _pushModalHistory();
   root.innerHTML = `
     <div class="emergency-back">
       <div class="emergency-modal">
@@ -24254,6 +24455,7 @@ async function init(){
   setInterval(async () => {
     if(_isApplyingRemote) return;
     if(_isPushing) return;
+    if(Date.now() < _criticalGuardUntil) return;
     if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
     if(document.visibilityState !== 'visible') return;
     const ae = document.activeElement;
@@ -24296,7 +24498,82 @@ async function init(){
   });
 }
 window.addEventListener('DOMContentLoaded', init);
+/* ═══════════════════════════════════════════════════════════
+   🔙 FIX BOUTON RETOUR (Mobile / Tablette)
+   Ferme les popups au lieu de fermer l'application
+   ═══════════════════════════════════════════════════════════ */
+let _historyModalPushed = false;
+let _pendingHistoryBack = null;
+let _internalPop = false;
+let _inPopstateHandler = false;
 
+// Wrapper openModal : pousse un state history à la 1ère ouverture
+(function(){
+  const _origOpen = window.openModal;
+  window.openModal = function(...args){
+    try { _origOpen.apply(this, args); }
+    catch(e){ console.error('[openModal wrapper]', e); return; }
+    if(_pendingHistoryBack){
+      clearTimeout(_pendingHistoryBack);
+      _pendingHistoryBack = null;
+      return;
+    }
+    if(!_historyModalPushed){
+      _historyModalPushed = true;
+      try { history.pushState({ omnimedModal: true }, ''); } catch(e){}
+    }
+  };
+})();
+
+// Wrapper closeModal : programme la suppression du state (asynchrone)
+(function(){
+  const _origClose = window.closeModal;
+  window.closeModal = function(){
+    try { _origClose.apply(this, arguments); }
+    catch(e){ console.error('[closeModal wrapper]', e); }
+    if(_inPopstateHandler) return;
+    if(_historyModalPushed && !_pendingHistoryBack){
+      _pendingHistoryBack = setTimeout(() => {
+        _pendingHistoryBack = null;
+        const stillClosed =
+          !document.querySelector('.modal-back') &&
+          !document.getElementById('subModalRoot')?.classList.contains('open') &&
+          !document.getElementById('emergencyModalRoot')?.classList.contains('open');
+        if(stillClosed){
+          _historyModalPushed = false;
+          _internalPop = true;
+          try { history.back(); }
+          catch(e){ _internalPop = false; }
+        }
+      }, 0);
+    }
+  };
+})();
+
+// Gestion popstate : intercepte le bouton "retour"
+window.addEventListener('popstate', () => {
+  if(_internalPop){
+    _internalPop = false;
+    return;
+  }
+  const anyModalOpen =
+    !!document.querySelector('.modal-back') ||
+    document.getElementById('subModalRoot')?.classList.contains('open') ||
+    document.getElementById('emergencyModalRoot')?.classList.contains('open');
+
+  if(_historyModalPushed || anyModalOpen){
+    _historyModalPushed = false;
+    if(_pendingHistoryBack){
+      clearTimeout(_pendingHistoryBack);
+      _pendingHistoryBack = null;
+    }
+    _inPopstateHandler = true;
+    try { closeModal(); } catch(e){}
+    _inPopstateHandler = false;
+    try { hideSubscriptionExpiredModal(); } catch(e){}
+    try { hideEmergencyAlertModal(); } catch(e){}
+  }
+});
 Object.assign(window, {
   go, setRole, toggleDark, setLang, goHome,
   openAccountLogin, doAccountLogin, logoutAccount,
