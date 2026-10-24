@@ -16756,12 +16756,12 @@ function viewAdminAvailability() {
 
   const renderRow = (item, isDoc) => {
     const st = getStatus(item);
-    return `$1<div class="avail-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;min-width:0">
+    return `<div class="avail-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;min-width:0">
         <div style="width:20px;height:20px;border-radius:5px;background:var(--accent-light);display:grid;place-items:center;font-size:12px;flex-shrink:0">
           ${isDoc ? specialtyAvatar(item.specialty) : (item.avatar || '🏥')}
-        </div>$1<div class="avail-name" style="flex:1;min-width:0;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        </div><div class="avail-name" style="flex:1;min-width:0;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${esc(item.name)}<span style="font-weight:400;color:var(--text-muted);font-size:10px"> · ${isDoc ? esc(item.specialty) : 'Clinique'}</span>
-        </div>$1<div class="avail-badge" style="display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9999px;background:$${st.bg};border:1px solid $${st.color};color:$${st.color};font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0">
+        </div><div class="avail-badge" style="display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9999px;background:${st.bg};border:1px solid ${st.color};color:${st.color};font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0">
           <div style="width:4px;height:4px;border-radius:50%;background:${st.color};${st.online ? 'box-shadow:0 0 6px '+st.color : ''}"></div>
           ${st.text}
         </div>
@@ -16780,7 +16780,9 @@ function viewAdminAvailability() {
     `;
   };
 
-  return `$1<div class="admin-availability-view grid grid-2" style="gap:14px">$2<div class="card" style="display:flex;flex-direction:column;">$3<div class="card-title" style="font-size:16px;margin-bottom:2px">🧑‍⚕️ Médecins <span class="tag accent">${doctors.length}</span></div>
+  return `<div class="admin-availability-view grid grid-2" style="gap:14px">
+      <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-title" style="font-size:16px;margin-bottom:2px">🧑‍⚕️ Médecins <span class="tag accent">${doctors.length}</span></div>
         <div class="card-sub">Statut de connexion en temps réel</div>
         <div style="flex:1;margin-top:12px;max-height:65vh;overflow-y:auto;padding-right:4px">
           <div class="avail-inner-grid">
