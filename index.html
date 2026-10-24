@@ -6,9 +6,12 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <title>OmniMed — Plateforme Médicale</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -566,15 +569,16 @@ body.dark .stat.money .stat-val{color:#6ee7b7}
 .notif-rdv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 @media(max-width:900px){.notif-rdv-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.notif-rdv-grid{grid-template-columns:repeat(2,1fr)}}
-.notif-rdv-label{padding:8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);
+.notif-rdv-label{position:relative;padding:11px 12px 10px;background:var(--glass-bg);border:1.5px solid var(--glass-border);box-shadow:0 2px 8px rgba(0,0,0,.04);overflow:hidden;
   border-radius:var(--radius-md);cursor:pointer;transition:var(--transition);
   text-align:left;font-family:inherit;color:var(--text-main);width:100%;min-width:0;
   display:flex;flex-direction:column;gap:3px}
 .notif-rdv-label.unread{background:var(--accent-light);border-color:var(--accent-primary)}
 .notif-rdv-label:hover{background:var(--accent-light);border-color:var(--accent-primary);transform:translateY(-1px)}
-.notif-rdv-label .nl-time{font-family:var(--font-numbers);font-weight:500;font-size:13px;color:var(--accent-primary)}
-.notif-rdv-label .nl-name{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.notif-rdv-label .nl-meta{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif-rdv-label::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent-primary),#ec4899);opacity:.7}
+.notif-rdv-label .nl-time{font-family:var(--font-numbers);font-weight:700;font-size:15px;color:var(--accent-primary);letter-spacing:-.3px}
+.notif-rdv-label .nl-name{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif-rdv-label .nl-meta{font-size:10.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .modal-back{
   position:fixed;inset:0;
   background:
@@ -2695,6 +2699,16 @@ body.dark .clinic-notif-mini.emergency .cnm-name{ color:#fca5a5; }
   .patient-nav-tag .pnt-ico{font-size:12px;}
 }
 /* ============================================================ */
+/* ===== FIX TOP-ALIGN MOBILE/TABLET ===== */
+@media (max-width: 900px){
+  html{height:100% !important}
+  body{height:100vh !important;height:100dvh !important;min-height:100vh !important;min-height:100dvh !important;align-items:flex-start !important;align-content:flex-start !important;overflow:hidden !important;padding-top:8px !important;padding-bottom:8px !important;display:flex !important;justify-content:center !important}
+  .app{height:calc(100vh - 16px) !important;height:calc(100dvh - 16px) !important;margin:0 auto !important}
+}
+@media (max-width: 640px){
+  body{padding-top:0 !important;padding-bottom:0 !important;padding-left:0 !important;padding-right:0 !important}
+  .app{height:100vh !important;height:100dvh !important;border-radius:0 !important;margin:0 !important}
+}
 </style>
 </head>
 <body>
@@ -4811,6 +4825,7 @@ const state = {
     interventions:[], pricePerDay:0, notes:''
   },
   admissionFilter:{status:'active', search:'', serviceId:'all'},
+  hospitalizationSearch:'',
   roomForm:{id:null, serviceId:null, name:'', beds:2, floor:'', notes:''},
   doctorClinicsTab:'linked',
     clinicInternalForm: {
@@ -4872,6 +4887,7 @@ function specialtyAvatar(specialty){
 function isDoctorHiddenFromPatients(doc){
   if(!doc) return true;
   if(isSubscriptionType(doc) && !isSubscriptionActive(doc)) return true;
+  if(doc.isClinicLocal || doc.ownedByClinic) return true;
   return false;
 }
 function localISO(d){
@@ -5310,7 +5326,13 @@ async function loadDB(){
       })),
 
       clinicServices: (csR.data||[]).filter(cs=>!_pendingDeletes.clinicServices.includes(String(cs.id))).map(cs=>({
-        id: cs.id, clinicId: cs.clinic_id, name: cs.name, icon: cs.icon||'🩺', description: cs.description||''
+        id: cs.id, clinicId: cs.clinic_id, name: cs.name, icon: cs.icon||'🩺', description: cs.description||'',
+        schedulingMode: cs.scheduling_mode || '24_7',
+        workDays: Array.isArray(cs.work_days) ? cs.work_days : [0,1,2,3,4,5,6],
+        workStart: cs.work_start || '08:00',
+        workEnd: cs.work_end || '17:00',
+        slotDuration: Number(cs.slot_duration) || 30,
+        disabledSlots: Array.isArray(cs.disabled_slots) ? cs.disabled_slots : []
       })),
 
       clinicPrestations: (cpR.data||[]).filter(cp=>!_pendingDeletes.clinicPrestations.includes(String(cp.id))).map(cp=>({
@@ -5665,7 +5687,13 @@ async function pushToSupabase(){
     if(syncClinicServices && DB.clinicServices.length){
       await sb.from('clinic_services').upsert(DB.clinicServices.map(cs=>({
         id:String(cs.id), clinic_id:String(cs.clinicId),
-        name:cs.name, icon:cs.icon||'🩺', description:cs.description||''
+        name:cs.name, icon:cs.icon||'🩺', description:cs.description||'',
+        scheduling_mode: cs.schedulingMode || '24_7',
+        work_days: Array.isArray(cs.workDays) ? cs.workDays : [0,1,2,3,4,5,6],
+        work_start: cs.workStart || '08:00',
+        work_end: cs.workEnd || '17:00',
+        slot_duration: Number(cs.slotDuration) || 30,
+        disabled_slots: Array.isArray(cs.disabledSlots) ? cs.disabledSlots : []
       })));
     }
 
@@ -6603,10 +6631,19 @@ function printHTML(htmlContent){
 }
 function generateSlots(workStart, workEnd, duration){
   const start = toMin(workStart||'08:00');
-  const end = toMin(workEnd||'17:00');
+  let end = toMin(workEnd||'17:00');
   const step = duration||30;
-  const out = []; let cur = start;
-  while(cur + step <= end){ out.push(toHHMM(cur)); cur += step; }
+
+  /* 🌙 PERMANENCE — si fin <= début, on considère une nuit (jusqu'au lendemain) */
+  if(end <= start) end += 24 * 60;
+
+  const out = [];
+  let cur = start;
+  while(cur + step <= end){
+    /* On ramène l'heure dans [00:00 - 23:59] pour l'affichage */
+    out.push(toHHMM(cur % (24 * 60)));
+    cur += step;
+  }
   return out;
 }
 /* ============================================================
@@ -6616,10 +6653,17 @@ function generateSlots(workStart, workEnd, duration){
 // Renvoie la durée réelle d'un RDV (prestation prioritaire, sinon médecin)
 function appointmentDuration(a){
   if(!a) return 30;
+  /* 1. Prestation prioritaire (elle définit sa durée propre) */
   if(a.prestationId){
     const p = clinicPrestationById(a.prestationId);
     if(p && p.duration) return p.duration;
   }
+  /* 2. Service clinique (slot_duration personnalisé) */
+  if(a.clinicServiceId){
+    const sv = clinicServiceById(a.clinicServiceId);
+    if(sv && sv.slotDuration) return Number(sv.slotDuration) || 30;
+  }
+  /* 3. Durée du médecin (par défaut) */
   if(a.doctorId){
     const d = docById(a.doctorId);
     if(d && d.duration) return d.duration;
@@ -6753,6 +6797,181 @@ function availableDaysForClinic(c, count, durationOverride){
 }
 
 /* ---- NOUVEAU : créneaux basés sur le médecin (utilisés dans la clinique) ---- */
+/* ═══════════════════════════════════════════════════════════
+   🗓️ PLANIFICATION PERSONNALISÉE DES SERVICES CLINIQUE
+   ═══════════════════════════════════════════════════════════ */
+
+function getServiceSchedule(service){
+  if(!service) return null;
+  let workDays = service.workDays;
+  if(typeof workDays === 'string'){
+    try { workDays = JSON.parse(workDays); } catch(e){ workDays = [0,1,2,3,4,5,6]; }
+  }
+  if(!Array.isArray(workDays)) workDays = [0,1,2,3,4,5,6];
+  let disabledSlots = service.disabledSlots;
+  if(typeof disabledSlots === 'string'){
+    try { disabledSlots = JSON.parse(disabledSlots); } catch(e){ disabledSlots = []; }
+  }
+  if(!Array.isArray(disabledSlots)) disabledSlots = [];
+  return {
+    mode: service.schedulingMode || '24_7',
+    workDays: workDays,
+    workStart: service.workStart || '08:00',
+    workEnd: service.workEnd || '17:00',
+    slotDuration: Number(service.slotDuration) || 30,
+    disabledSlots: disabledSlots
+  };
+}
+
+function isServiceWorkDay(service, dateISO){
+  if(!service) return false;
+  const sched = getServiceSchedule(service);
+  if(sched.mode === '24_7') return true;
+  const dow = new Date(dateISO+'T00:00:00').getDay();
+  return sched.workDays.includes(dow);
+}
+
+function generateServiceSlots(service, dateISO){
+  if(!service) return [];
+  const sched = getServiceSchedule(service);
+  if(sched.mode === '24_7') return [];
+  if(!isServiceWorkDay(service, dateISO)) return [];
+  return generateSlots(sched.workStart, sched.workEnd, sched.slotDuration)
+    .filter(s => !sched.disabledSlots.includes(s));
+}
+
+/* Slots d'un service SANS médecin (prestation directe) */
+function slotsForClinicService(serviceId, dateISO){
+  const service = clinicServiceById(serviceId);
+  if(!service) return [];
+  const sched = getServiceSchedule(service);
+
+  /* Mode 24/7 → hériter du comportement clinique actuel */
+  if(sched.mode === '24_7'){
+    return slotsForClinic(service.clinicId, dateISO, sched.slotDuration);
+  }
+
+  if(!isServiceWorkDay(service, dateISO)) return [];
+
+  const allSlots = generateSlots(sched.workStart, sched.workEnd, sched.slotDuration)
+    .filter(s => !sched.disabledSlots.includes(s));
+
+  const busyIntervals = [];
+  DB.appointments.forEach(a => {
+    if(String(a.clinicId) !== String(service.clinicId)) return;
+    if(a.date !== dateISO) return;
+    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(!a.time) return;
+    const start = toMin(a.time);
+    busyIntervals.push({ start, end: start + appointmentDuration(a) });
+  });
+
+  const isToday = dateISO === todayISO();
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  return allSlots.map(s => {
+    const ss = toMin(s);
+    const se = ss + sched.slotDuration;
+    const overlaps = busyIntervals.some(iv => ss < iv.end && se > iv.start);
+    let available = !overlaps;
+    if(isToday && available && ss <= nowMin) available = false;
+    return { time: s, available };
+  });
+}
+
+/* Slots d'un MÉDECIN dans un SERVICE (intersection horaires) */
+function slotsForDoctorInService(doctorId, serviceId, dateISO){
+  const doc = docById(doctorId);
+  const service = clinicServiceById(serviceId);
+  if(!doc || !service) return [];
+
+  /* Le médecin doit travailler ce jour-là (son propre planning) */
+  if(!isWorkDay(doc, dateISO)) return [];
+
+  const sched = getServiceSchedule(service);
+  let hoursStart, hoursEnd, slotDur;
+
+  if(sched.mode === '24_7'){
+    /* 24/7 → le médecin dicte ses propres horaires et sa durée */
+    hoursStart = doc.workStart || '08:00';
+    hoursEnd   = doc.workEnd   || '17:00';
+    slotDur    = doc.duration  || 30;
+  } else {
+    /* Mode personnalisé → le service dicte les horaires */
+    if(!isServiceWorkDay(service, dateISO)) return [];
+    hoursStart = sched.workStart;
+    hoursEnd   = sched.workEnd;
+    slotDur    = sched.slotDuration;
+  }
+
+  const disabled = sched.disabledSlots || [];
+  const allSlots = generateSlots(hoursStart, hoursEnd, slotDur)
+    .filter(s => sched.mode === 'custom' ? !disabled.includes(s) : true);
+
+  /* Busy intervals = TOUS les RDV du médecin (cabinet + clinique + interne) */
+  const busyIntervals = [];
+  DB.appointments.forEach(a => {
+    if(String(a.doctorId) !== String(doctorId)) return;
+    if(a.date !== dateISO) return;
+    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(!a.time) return;
+    const start = toMin(a.time);
+    busyIntervals.push({ start, end: start + appointmentDuration(a) });
+  });
+
+  const isToday = dateISO === todayISO();
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  return allSlots.map(s => {
+    const ss = toMin(s);
+    const se = ss + slotDur;
+    const overlaps = busyIntervals.some(iv => ss < iv.end && se > iv.start);
+    let available = !overlaps;
+    if(isToday && available && ss <= nowMin) available = false;
+    return { time: s, available };
+  });
+}
+
+function availableDaysForDoctorInService(doctorId, serviceId, count){
+  count = count || 15;
+  const doc = docById(doctorId);
+  const service = clinicServiceById(serviceId);
+  if(!doc || !service) return [];
+  const out = [];
+  for(let i=0; i<60 && out.length<count; i++){
+    const iso = dateOffset(i);
+    const slots = slotsForDoctorInService(doctorId, serviceId, iso);
+    if(slots.some(x => x.available)) out.push(iso);
+  }
+  return out;
+}
+
+function availableDaysForService(serviceId, count){
+  count = count || 15;
+  const service = clinicServiceById(serviceId);
+  if(!service) return [];
+  const out = [];
+  for(let i=0; i<60 && out.length<count; i++){
+    const iso = dateOffset(i);
+    const slots = slotsForClinicService(serviceId, iso);
+    if(slots.some(x => x.available)) out.push(iso);
+  }
+  return out;
+}
+
+function firstAvailableSlotForDoctorInService(doctorId, serviceId, maxDays){
+  maxDays = maxDays || 60;
+  const doc = docById(doctorId);
+  const service = clinicServiceById(serviceId);
+  if(!doc || !service) return null;
+  for(let i=0; i<maxDays; i++){
+    const iso = dateOffset(i);
+    const slots = slotsForDoctorInService(doctorId, serviceId, iso);
+    const free = slots.find(s => s.available);
+    if(free) return { date: iso, time: free.time, doctorId: doctorId };
+  }
+  return null;
+}
 function slotsForDoctorInClinic(doctorId, dateISO){
   return slotsFor(doctorId, dateISO);
 }
@@ -6779,10 +6998,10 @@ function firstAvailableSlotForDoctor(doctorId, maxDays){
 function findAutoDoctorForService(clinicId, serviceId){
   const doctors = clinicLinkedDoctors(clinicId).filter(d => getDoctorServiceInClinic(d.id, clinicId) === serviceId);
   if(!doctors.length) return null;
-  /* Pour chaque médecin, trouver son premier créneau libre */
+  /* 🆕 Pour chaque médecin, utiliser les slots du SERVICE (intersection) */
   let best = null;
   for(const d of doctors){
-    const slot = firstAvailableSlotForDoctor(d.id, 60);
+    const slot = firstAvailableSlotForDoctorInService(d.id, serviceId, 60);
     if(!slot) continue;
     const dt = new Date(slot.date + 'T' + slot.time + ':00');
     if(!best || dt < new Date(best.date + 'T' + best.time + ':00')){
@@ -7245,11 +7464,202 @@ function renderMessageDetail(m){
         </div>
       ` : ''}
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        ${hasHTML ? `
+          <button class="pill-btn success" onclick="downloadMessageHTMLPDF('${jsStr(m.id)}')">📄 Télécharger PDF</button>
+          <button class="pill-btn primary" onclick="printMessageHTML('${jsStr(m.id)}')">🖨️ Imprimer</button>
+        ` : ''}
         ${!isMine ? `<button class="pill-btn primary" onclick="replyToMessage('${m.id}')">↩️ ${t('msg_reply')}</button>` : ''}
         <button class="pill-btn danger" onclick="askDeleteMessage('${m.id}')">🗑️ ${t('msg_delete')}</button>
       </div>
     </div>
   `;
+}
+/* ═══════════════════════════════════════════════════════════
+   📄 TÉLÉCHARGEMENT PDF + IMPRESSION DES MESSAGES HTML
+   Utilisé pour les dossiers médicaux, factures, etc.
+   ═══════════════════════════════════════════════════════════ */
+async function downloadMessageHTMLPDF(messageId){
+  const m = DB.messages.find(x => x.id === messageId);
+  if(!m || !m.bodyHTML){
+    toast('Contenu introuvable','error');
+    return;
+  }
+
+  /* 1. Vérifier les bibliothèques */
+  if(typeof html2canvas === 'undefined'){
+    toast('html2canvas non chargé — vérifiez votre connexion','error');
+    return;
+  }
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    toast('jsPDF non chargé — vérifiez votre connexion','error');
+    return;
+  }
+
+  /* 2. Attendre les polices */
+  try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(e){}
+
+  /* 3. Overlay de chargement */
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:100000;display:grid;place-items:center;font-family:Inter,system-ui,sans-serif;color:#fff;text-align:center';
+  overlay.innerHTML = `
+    <div>
+      <div style="font-size:52px;margin-bottom:14px">📄</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Génération du PDF en cours…</div>
+      <div style="font-size:12.5px;opacity:.85">Capture de la page et pagination A4</div>
+      <div style="margin-top:18px;width:220px;height:4px;background:rgba(255,255,255,.2);border-radius:99px;overflow:hidden;margin-left:auto;margin-right:auto">
+        <div style="width:40%;height:100%;background:linear-gradient(90deg,#8b5cf6,#ec4899);border-radius:99px;animation:__pdfProgress 1.5s ease-in-out infinite"></div>
+      </div>
+      <style>@keyframes __pdfProgress{0%{transform:translateX(-100%)}50%{transform:translateX(150%)}100%{transform:translateX(250%)}}</style>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  /* 4. Conteneur VISIBLE (opacity:1) — caché par l'overlay z-index:100000 */
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:0',
+    'width:800px',
+    'min-height:100px',
+    'background:#ffffff',
+    'padding:40px',
+    'box-sizing:border-box',
+    'z-index:99998',                /* sous l'overlay, mais rendu par le navigateur */
+    'font-family:Inter,system-ui,-apple-system,sans-serif',
+    'color:#1f2937',
+    'font-size:12px',
+    'line-height:1.55',
+    'opacity:1',                    /* ⚡ html2canvas a besoin de opacity:1 */
+    'pointer-events:none'
+  ].join(';');
+  wrapper.innerHTML = m.bodyHTML;
+  document.body.appendChild(wrapper);
+
+  /* 5. Attendre le calcul du layout */
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  await new Promise(r => setTimeout(r, 500));
+
+  /* 6. Diagnostics — ouvre la console F12 pour voir ces valeurs */
+  const wrapRect = wrapper.getBoundingClientRect();
+  console.log('🔍 [PDF] Dimensions du contenu:', {
+    width: wrapRect.width,
+    height: wrapRect.height,
+    scrollHeight: wrapper.scrollHeight,
+    childCount: wrapper.children.length,
+    htmlPreview: m.bodyHTML.substring(0, 200) + '...'
+  });
+
+  if(wrapRect.height < 10){
+    console.error('❌ [PDF] Le contenu est vide (height < 10px) !');
+    wrapper.remove();
+    overlay.remove();
+    toast('Erreur : contenu vide (vérifiez la console)','error');
+    return;
+  }
+
+  /* 7. Capture en canvas */
+  let canvas;
+  try{
+    canvas = await html2canvas(wrapper, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: '#ffffff',
+      logging: false,
+      windowWidth: 800,
+      width: 800,
+      height: wrapper.scrollHeight
+    });
+  }catch(e){
+    console.error('[html2canvas]', e);
+    wrapper.remove();
+    overlay.remove();
+    toast('Erreur capture : ' + (e.message || 'échec'),'error');
+    return;
+  }
+
+  console.log('🔍 [PDF] Canvas généré:', { width: canvas.width, height: canvas.height });
+
+  if(!canvas.width || !canvas.height){
+    wrapper.remove();
+    overlay.remove();
+    toast('Erreur : canvas vide','error');
+    return;
+  }
+
+  /* 8. Génération PDF avec pagination manuelle */
+  try{
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pageWidth = pdf.internal.pageSize.getWidth();    /* 210mm */
+    const pageHeight = pdf.internal.pageSize.getHeight();  /* 297mm */
+
+    /* Dimensions en mm de l'image une fois redimensionnée à la largeur de page */
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    /* Première page */
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    /* Pages suivantes */
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const baseName = (m.subject || 'document')
+      .replace(/[^a-zA-Z0-9_\-]/g, '_')
+      .replace(/_+/g, '_')
+      .substring(0, 60) || 'document';
+    pdf.save(baseName + '.pdf');
+
+    const pagesCount = pdf.internal.getNumberOfPages();
+    console.log('✅ [PDF] Fichier généré :', pagesCount, 'page(s)');
+    toast('📄 PDF téléchargé ✓ (' + pagesCount + ' page' + (pagesCount > 1 ? 's' : '') + ')','success');
+  }catch(e){
+    console.error('[jsPDF]', e);
+    toast('Erreur génération PDF : ' + (e.message || 'échec'),'error');
+  }finally{
+    wrapper.remove();
+    overlay.remove();
+  }
+}
+
+function printMessageHTML(messageId){
+  const m = DB.messages.find(x => x.id === messageId);
+  if(!m || !m.bodyHTML){
+    toast('Contenu introuvable','error');
+    return;
+  }
+  printHTML(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${esc(m.subject || 'Document')}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rubik:wght@500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4 portrait;margin:10mm}
+  html,body{width:100%}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    padding:8px;background:#fff;color:#1f2937;
+    font-size:10.5px;line-height:1.5;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  table{page-break-inside:auto}
+  tr{page-break-inside:avoid;page-break-after:auto}
+  thead{display:table-header-group}
+</style></head>
+<body>${m.bodyHTML}</body></html>`);
 }
 function renderMsgList(list, kind){
   if(!list.length){
@@ -7455,6 +7865,12 @@ function renderAdminMessageDetail(m){
               <span style="color:var(--accent-primary);font-weight:600">⬇</span>
             </div>
           `).join('')}
+        </div>
+      ` : ''}
+      ${hasHTML ? `
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="pill-btn success" onclick="downloadMessageHTMLPDF('${jsStr(m.id)}')">📄 Télécharger PDF</button>
+          <button class="pill-btn primary" onclick="printMessageHTML('${jsStr(m.id)}')">🖨️ Imprimer</button>
         </div>
       ` : ''}
     </div>
@@ -8267,6 +8683,10 @@ function viewLogin(){
           <input class="input" id="comptePwd" type="password" placeholder="••••" autocomplete="current-password"
             onkeydown="if(event.key==='Enter'){event.preventDefault();doAccountLogin()}">
         </div>
+        <div class="field" style="flex-direction:row; align-items:center; gap:8px; margin-top:-4px; margin-bottom:12px;">
+          <input type="checkbox" id="compteRemember" style="width:16px;height:16px;accent-color:var(--accent-primary);cursor:pointer;">
+          <label for="compteRemember" style="font-size:12px;cursor:pointer;margin:0;">Se souvenir de moi (sauvegarde locale)</label>
+        </div>
         <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:14px">
           <button class="pill-btn" onclick="go('home')">← ${t('back')}</button>
           <button class="pill-btn primary" id="compteLoginBtn" onclick="doAccountLogin()" style="flex:1;justify-content:center">${t('sign_in')} →</button>
@@ -8274,6 +8694,30 @@ function viewLogin(){
       </div>
     </div>
   `;
+}
+// Fonctions utilitaires de sauvegarde locale
+function saveLocalSession(role, id, password) {
+  const remember = document.getElementById('compteRemember')?.checked;
+  const sessionData = { role: role, id: id, date: Date.now() };
+  
+  if (remember) {
+    // Sauvegarde persistante
+    localStorage.setItem('omnimed_saved_session', JSON.stringify(sessionData));
+    if (password) {
+      // Encodage basique en Base64 pour ne pas stocker en clair absolu
+      const encodedPwd = btoa(unescape(encodeURIComponent(password)));
+      localStorage.setItem('omnimed_saved_pwd_' + id, encodedPwd);
+    }
+  } else {
+    // Sauvegarde temporaire (session)
+    sessionStorage.setItem('omnimed_saved_session', JSON.stringify(sessionData));
+  }
+}
+
+function clearLocalSession() {
+  localStorage.removeItem('omnimed_saved_session');
+  sessionStorage.removeItem('omnimed_saved_session');
+  // On ne supprime pas les mots de passe sauvegardés pour que l'utilisateur n'ait pas à les retaper
 }
 async function doAccountLogin(){
   const ident = ($('#compteIdent')?.value||'').trim();
@@ -8298,6 +8742,10 @@ async function doAccountLogin(){
     state.msgSelected = [];
     state.selectedAppts = [];
     hideSubscriptionExpiredModal();
+    
+    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Admin)
+    saveLocalSession('admin', 'admin', pwd);
+    
     saveDB();
     render();
     toast(t('account_admin_welcome') + ' ✓','success');
@@ -8337,6 +8785,10 @@ async function doAccountLogin(){
       return;
     }
     hideSubscriptionExpiredModal();
+    
+    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Clinique)
+    saveLocalSession('clinic', clinicFound.id, pwd);
+    
     state.emergencyAlertId = null;
     render();
     setTimeout(checkClinicEmergencies, 300);
@@ -8384,6 +8836,10 @@ async function doAccountLogin(){
       return;
     }
     hideSubscriptionExpiredModal();
+    
+    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Médecin)
+    saveLocalSession('doctor', doc.id, pwd);
+    
     render();
     toast(t('account_doctor_welcome') + ' ✓','success');
     return;
@@ -8391,6 +8847,7 @@ async function doAccountLogin(){
   toast(t('invalid_login'),'error');
 }
 function logoutAccount(){
+  clearLocalSession();
   state.admin = null;
   state.doctor = null;
   state.clinic = null;
@@ -9047,6 +9504,8 @@ function openClinicPublic(clinicId){
   if(state.role === 'patient') logSearch('clinic_view', String(c.id), false);
   state.clinicBooking.clinicId = clinicId;
   state.view = 'clinicProfile';
+  const cw = document.getElementById('content');
+  if(cw) cw.scrollTop = 0;
   render();
 }
 function viewClinicPublic(){
@@ -9129,7 +9588,7 @@ function viewClinicPublicProfile(){
         }).join('')}
       </div>
     </div>` : `<div class="card" style="margin-bottom:14px"><div class="empty">${t('clinic_no_services')}</div></div>`}
-    ${doctors.length ? `
+    ${false ? `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">🧑‍⚕️ ${t('clinic_doctors_available')} <span class="tag accent">${doctors.length}</span></div>
       <div class="grid grid-2" style="margin-top:10px">
@@ -9188,7 +9647,7 @@ function openClinicServiceModal(serviceId){
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
         ${svDoctors.map(d => {
           const r = getDoctorRating(d.id);
-          const nextSlot = firstAvailableSlotForDoctor(d.id, 60);
+          const nextSlot = firstAvailableSlotForDoctorInService(d.id, sv.id, 60);
           const nextLabel = nextSlot ? `${fmtDate(nextSlot.date)} — ${nextSlot.time}` : t('clinic_service_no_slot');
           return `
             <button type="button" class="clinic-booking-modal-doc" onclick="chooseDoctorForService('${jsStr(d.id)}')">
@@ -9466,9 +9925,13 @@ function clinicBookStep3(){
   
   let availDays = [];
   if(isDoctor && doc){
-    availDays = availableDaysFor(doc, 30);
+    availDays = s.serviceId
+      ? availableDaysForDoctorInService(doc.id, s.serviceId, 30)
+      : availableDaysFor(doc, 30);
   } else if(!isDoctor && prestation){
-    availDays = availableDaysForClinic(c, 30, prestation.duration);
+    availDays = s.serviceId
+      ? availableDaysForService(s.serviceId, 30)
+      : availableDaysForClinic(c, 30, prestation.duration);
   }
   
   const slots = s.date ? getSlotsForDate(s.date, 'clinic') : [];
@@ -9584,7 +10047,7 @@ function clinicBookStep4(){
         ${isDoctor ? `<div><strong>🧑‍⚕️ ${t('doctor')} :</strong> ${esc(doc?.name||'')} — ${esc(doc?.specialty||'')}</div>` : ''}
         ${!isDoctor ? `<div><strong>💉 ${t('clinic_prestation')} :</strong> ${esc(prestation?.name||'')}</div>` : ''}
         <div><strong>📅 ${t('when')} :</strong> ${s.date ? fmtLongDate(s.date) : '—'} ${s.time||''}</div>
-        <div><strong>💰 ${t('fee')} :</strong> ${isDoctor ? n2(doc?.fee||0) : n2(prestation?.price||0)} DA</div>
+        <div><strong>💰 ${t('fee')} :</strong> ${isDoctor ? '<span style="color:var(--text-muted);font-weight:500">Prestations de la clinique uniquement</span>' : n2(prestation?.price||0) + ' DA'}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -9735,6 +10198,8 @@ function openDoctorProfile(id){
   if(state.role === 'patient'){
     logSearch('doctor_view', String(d.id), false);
   }
+  const cw = document.getElementById('content');
+  if(cw) cw.scrollTop = 0;
   const todayWork = isWorkDay(d, todayISO());
   const days = (d.workDays||[]);
   const allSlots = generateSlots(d.workStart, d.workEnd, d.duration);
@@ -9764,7 +10229,9 @@ function openDoctorProfile(id){
       </div>
       ${state.role === 'admin' ? '' : (isClosed
         ? `<div class="indispo-badge">🚫 Médecin Indisponible</div>`
-        : `<button class="pill-btn primary" onclick="startBookingWith('${jsStr(d.id)}')" style="flex-shrink:0">📅 ${t('book_with')}</button>`)}
+        : (d.isClinicLocal || d.ownedByClinic)
+          ? `<div class="indispo-badge" style="background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1));color:#be185d;border-color:rgba(236,72,153,.4)">🏥 Médecin de clinique</div>`
+          : `<button class="pill-btn primary" onclick="startBookingWith('${jsStr(d.id)}')" style="flex-shrink:0">📅 ${t('book_with')}</button>`)}
     </div>
     <div class="grid grid-2" style="gap:10px;margin-bottom:12px">
       <div class="card" style="padding:12px">
@@ -10081,7 +10548,10 @@ function getSlotsForDate(iso, prefix){
   if(prefix === 'clinic-internal'){
     const f = state.clinicInternalForm;
     const doc = f.doctorId ? docById(f.doctorId) : null;
-    return doc ? slotsFor(doc.id, iso) : [];
+    if(!doc) return [];
+    /* 🆕 Intersection avec le service si présent */
+    if(f.serviceId) return slotsForDoctorInService(doc.id, f.serviceId, iso);
+    return slotsFor(doc.id, iso);
   }
   if(prefix === 'clinic'){
     const s = state.clinicBooking;
@@ -10089,9 +10559,14 @@ function getSlotsForDate(iso, prefix){
     if(!c) return [];
     if(s.mode === 'doctor'){
       const doc = docById(s.doctorId);
-      return doc ? slotsFor(doc.id, iso) : [];
+      if(!doc) return [];
+      /* 🆕 Intersection avec le service si présent */
+      if(s.serviceId) return slotsForDoctorInService(doc.id, s.serviceId, iso);
+      return slotsFor(doc.id, iso);
     } else {
       const prest = s.prestationId ? clinicPrestationById(s.prestationId) : null;
+      /* 🆕 Slots du service si présent (prestation directe) */
+      if(s.serviceId) return slotsForClinicService(s.serviceId, iso);
       return slotsForClinic(c.id, iso, prest?.duration || 30);
     }
   } else {
@@ -11009,7 +11484,7 @@ function openNotifDetail(notifId){
   const c = a.clinicId ? clinicById(a.clinicId) : null;
   const docN = (a.documents||[]).length;
   const body = `
-    <div style="font-size:13px;line-height:2">
+    <div style="font-size:13px;line-height:2">${a.status === 'pending' ? `<div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#8b5cf6 0%,#a855f7 40%,#ec4899 100%);border-radius:16px;padding:16px 18px;margin-bottom:14px;color:#fff;box-shadow:0 10px 24px rgba(139,92,246,.22)"><div style="position:relative;z-index:1;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.3);display:grid;place-items:center;font-size:24px;flex-shrink:0">${a.patientAge && a.patientAge < 15 ? '🧒' : a.patientAge && a.patientAge > 60 ? '🧓' : '👤'}</div><div style="flex:1;min-width:140px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:.85;margin-bottom:3px">📩 ${t('status_pending')}</div><div style="font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.15">${esc(a.patientName)}${a.patientAge ? ' <span style="font-size:12px;font-weight:500;opacity:.85">· ' + a.patientAge + ' ' + t('billing_years_old') + '</span>' : ''}</div><div style="font-size:11px;opacity:.9;margin-top:4px">📞 ${esc(a.patientPhone)}</div></div><div style="background:rgba(255,255,255,.24);border:1px solid rgba(255,255,255,.35);border-radius:11px;padding:9px 13px;text-align:center;flex-shrink:0"><div style="font-family:var(--font-numbers);font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1">${a.time}</div><div style="font-size:9.5px;opacity:.85;margin-top:3px;text-transform:uppercase;font-weight:600">${a.date.slice(8,10)}/${a.date.slice(5,7)}</div></div></div></div>` : ''}
       <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}${a.patientAge?` (${a.patientAge} ${t('billing_years_old')})`:''}</div>
       <div><strong>${t('phone')} :</strong> ${esc(a.patientPhone)}</div>
       ${a.patientEmail?`<div><strong>${t('email')} :</strong> ${esc(a.patientEmail)}</div>`:''}
@@ -11391,6 +11866,62 @@ function buildDossierHTMLForMessage(f){
   parts.push(`</div>`);
   return parts.join('');
 }
+function printApptTicket(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  if(!a){ toast('RDV introuvable','error'); return; }
+  if(a.status === 'done' || a.status === 'deleted'){ toast('Ticket non disponible pour ce RDV','error'); return; }
+  const doc = docById(a.doctorId);
+  const c = a.clinicId ? clinicById(a.clinicId) : null;
+  const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
+  const svc = a.clinicServiceId ? clinicServiceById(a.clinicServiceId) : null;
+  
+  let hText = '';
+  if (c) {
+    hText = c.headerText ? c.headerText : c.name;
+  } else if (doc) {
+    hText = doc.name;
+  }
+
+  let docRow = '';
+  if (doc) docRow = '<div class="row"><span class="lbl">Médecin :</span><span class="val">' + esc(doc.name) + '</span></div>';
+  let svcRow = '';
+  if (svc) svcRow = '<div class="row"><span class="lbl">Service :</span><span class="val">' + esc(svc.name) + '</span></div>';
+  let prestRow = '';
+  if (prest) prestRow = '<div class="row"><span class="lbl">Prestation :</span><span class="val">' + esc(prest.name) + '</span></div>';
+
+  const html = '<!DOCTYPE html>' +
+    '<html><head><meta charset="UTF-8"><title>Ticket</title>' +
+    '<style>' +
+    '@page { size: 58mm auto; margin: 0; }' +
+    '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    'body { font-family: "Courier New", monospace; width: 58mm; padding: 2mm; color: #000; background: #fff; font-size: 11px; line-height: 1.2; }' +
+    '.center { text-align: center; }' +
+    '.hr { border-top: 1px dashed #000; margin: 4px 0; }' +
+    '.header { text-align: center; font-size: 10px; font-weight: bold; margin-bottom: 5px; white-space: pre-wrap; }' +
+    '.patient-box { text-align: center; margin: 6px 0; border: 1.5px solid #000; padding: 5px; }' +
+    '.name { font-size: 16px; font-weight: 900; text-transform: uppercase; line-height: 1.1; }' +
+    '.time { font-size: 22px; font-weight: 900; margin: 3px 0; }' +
+    '.id { font-size: 11px; font-weight: bold; }' +
+    '.row { display: flex; justify-content: space-between; font-size: 10px; margin-top: 3px; }' +
+    '.row .lbl { font-weight: bold; }' +
+    '.row .val { text-align: right; }' +
+    '</style></head><body>' +
+    '<div class="header">' + esc(hText) + '</div>' +
+    '<div class="hr"></div>' +
+    '<div class="patient-box">' +
+      '<div class="name">' + esc(a.patientName) + '</div>' +
+      '<div class="time">' + a.time + '</div>' +
+      '<div class="id">N° : ' + esc(a.id) + '</div>' +
+    '</div>' +
+    '<div class="hr"></div>' +
+    '<div class="row"><span class="lbl">Date :</span><span class="val">' + fmtDateFR(a.date) + '</span></div>' +
+    docRow + svcRow + prestRow +
+    '<div class="hr"></div>' +
+    '<div class="center" style="font-size: 9px; margin-top: 4px;">Merci de patienter</div>' +
+    '</body></html>';
+
+  printHTML(html);
+}
 function renderDoctorView(){
   switch(state.view){
     case 'ddash': return viewDoctorDash();
@@ -11586,7 +12117,7 @@ function doctorApptHTML(a){
       </div>
       <div class="appt-actions">
         ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
-        <button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁 ${t('dossier_open')}</button>
+        ${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁 ${t('dossier_open')}</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')" title="Documentation médicale">📎</button>`:''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
@@ -11600,6 +12131,7 @@ function doctorApptHTML(a){
     </div>
   `;
 }
+function _buildConfirmApptHero(a, doc){ return `<div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:16px;padding:18px 20px;color:#fff;box-shadow:0 10px 24px rgba(16,185,129,.24);margin-bottom:4px"><div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)"></div><div style="position:relative;z-index:1"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><div style="width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.24);border:1.5px solid rgba(255,255,255,.35);display:grid;place-items:center;font-size:26px;flex-shrink:0">✓</div><div style="flex:1;min-width:140px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:.85;margin-bottom:3px">Confirmation RDV</div><div style="font-size:18px;font-weight:800;letter-spacing:-.3px;line-height:1.15">${esc(a.patientName)}${a.patientAge ? ` <span style="font-size:12.5px;font-weight:500;opacity:.85">· ${a.patientAge} ${t('billing_years_old')}</span>` : ''}</div><div style="font-size:11.5px;opacity:.92;margin-top:4px">📞 ${esc(a.patientPhone)}</div></div><div style="background:rgba(255,255,255,.26);border:1px solid rgba(255,255,255,.4);border-radius:12px;padding:10px 14px;text-align:center;flex-shrink:0"><div style="font-family:var(--font-numbers);font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1">${a.time}</div><div style="font-size:10px;opacity:.88;margin-top:3px;text-transform:uppercase;font-weight:600">${fmtDateFR(a.date)}</div></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(255,255,255,.22);font-size:11.5px">${doc ? `<div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border-radius:9999px;padding:5px 12px"><span style="font-size:14px">🧑‍⚕️</span><span>${esc(doc.name)}</span></div>` : ''}${a.motif ? `<div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border-radius:9999px;padding:5px 12px"><span style="font-size:14px">📝</span><span>${esc(a.motif)}</span></div>` : ''}<div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border-radius:9999px;padding:5px 12px"><span style="font-size:14px">🆔</span><span style="font-family:var(--font-numbers)">${a.id}</span></div></div></div></div>`; }
 function confirmApptWithNotify(id){
   try {
     const a = DB.appointments.find(x=>x.id===id);
@@ -11609,7 +12141,7 @@ function confirmApptWithNotify(id){
     }
     const doc = docById(a.doctorId);
     openModal('✓ '+t('confirm_confirm_rdv'), `${a.patientName} — ${fmtLongDate(a.date)} ${a.time}`,
-      `<div style="font-size:13px;line-height:1.9">
+      `${_buildConfirmApptHero(a, doc)}<div style="padding:16px 18px;background:var(--glass-bg-3);border-radius:14px;border:1px solid var(--glass-border);line-height:2;font-size:13px;margin-top:12px">
          <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div>
          <div><strong>${t('phone')} :</strong> ${esc(a.patientPhone)}</div>
          ${a.patientEmail?`<div><strong>${t('email')} :</strong> ${esc(a.patientEmail)}</div>`:''}
@@ -11923,7 +12455,7 @@ function printRDVTable(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
+        <div style="color:#6b7280;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
       </div>
     </div>
   </div>
@@ -12136,9 +12668,12 @@ function viewDoctorClinics(){
           <div class="invitation-item">
             <div class="inv-title">🏥 ${esc(c.name)}</div>
             <div class="inv-sub">
-              📍 ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}
-              ${sv ? `<br>🏗️ ${t('clinic_doctor_service')} : <strong>${esc(sv.icon||'')} ${esc(sv.name)}</strong>` : ''}
-              <br>📅 ${t('billing_generated')} : ${new Date(l.invitedAt||Date.now()).toLocaleDateString('fr-FR')}
+              Nous avons le plaisir de vous inviter à rejoindre notre équipe.<br><br>
+              📍 <strong>Localisation :</strong> ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}${c.address ? ' (' + esc(c.address) + ')' : ''}<br>
+              ${sv ? `🏗️ <strong>Service assigné :</strong> ${esc(sv.icon||'')} ${esc(sv.name)}<br>` : ''}
+              📞 <strong>Contact :</strong> ${esc(c.phone || 'Non renseigné')}<br>
+              ${c.email ? `✉️ <strong>Email :</strong> ${esc(c.email)}<br>` : ''}
+              📅 <strong>Date de l'invitation :</strong> ${new Date(l.invitedAt||Date.now()).toLocaleDateString('fr-FR')}
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="pill-btn success" onclick="acceptClinicInvite('${l.id}')">✓ ${t('doctor_clinic_accept')}</button>
@@ -14341,7 +14876,7 @@ function printDoctorRevenue(){
   @page{size:A4 portrait;margin:10mm}
   html,body{width:100%}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:8px}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden;page-break-inside:avoid}
+  .cover{position:relative;background:#ffffff;color:#111827;border:2px solid #8b5cf6;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden;page-break-inside:avoid}
   .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
   .cover .logo-box{display:flex;gap:14px;align-items:center}
@@ -15111,7 +15646,7 @@ function openDoctorForm(id, isSelf, ownedByClinicId){
       <div class="field"><label>${t('email')} *</label><input class="input" id="fEmail" type="email" value="${esc(d.email)}" placeholder="medecin@exemple.com"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>${t('fee')} (DA)</label><input class="input" id="fFee" type="number" inputmode="numeric" value="${d.fee}" ${isSelf?'disabled style="opacity:.6"':''}></div>
+      <div class="field"><label>${t('fee')} (DA)</label><input class="input" id="fFee" type="number" inputmode="numeric" min="0" step="100" value="${d.fee}"></div>
       <div class="field"><label>${t('duration')} (${t('min')})</label>
         <input class="input" id="fDur" type="number" inputmode="numeric" min="5" step="5" value="${d.duration}" oninput="updateSlotPreview()">
       </div>
@@ -15308,7 +15843,10 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
 
   if(!name || !specialty || !wilaya){ toast(t('required_fields'),'error'); return; }
   if(!isSelf && !email){ toast('Email obligatoire (sert d\'identifiant)','error'); return; }
-  if(toMin(workStart) >= toMin(workEnd)){ toast('Heure de fin doit être après le début','error'); return; }
+  if(toMin(workStart) === toMin(workEnd)){
+    toast('Heure de début et de fin ne peuvent pas être identiques','error');
+    return;
+  }
   if(!workDays.length){ toast('Sélectionnez au moins un jour de travail','error'); return; }
   if(!DB.specialties.includes(specialty)) DB.specialties.push(specialty);
   if(!DB.wilayas.includes(wilaya)) DB.wilayas.push(wilaya);
@@ -15320,7 +15858,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   if(isSelf){
     if(id){
       const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
-      Object.assign(d, commonFields);
+      Object.assign(d, commonFields, {fee: Number(fee) || 0, duration: Number(duration) || 30});
       d.passwordPlain = pwdPlain;
       if(state.doctor && String(state.doctor.id)===String(id)) state.doctor = d;
     }
@@ -16785,7 +17323,7 @@ function viewAdminRevenue(){
           <label>${t('billing_doctor')}</label>
           <select class="select" onchange="onQuickRevDoctorSelect(this.value)">
             <option value="all" ${q.doctorId==='all'?'selected':''}>👥 ${t('billing_all_doctors')}</option>
-            ${DB.doctors.map(d=>`<option value="${jsStr(String(d.id))}" ${String(q.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
+            ${DB.doctors.filter(d => !d.isClinicLocal && !d.ownedByClinic).map(d=>`<option value="${jsStr(String(d.id))}" ${String(q.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
           </select>
         </div>
         <div class="field" style="margin-bottom:0">
@@ -16883,7 +17421,7 @@ function viewAdminRevenue(){
         <label>${t('billing_doctor')}</label>
         <select class="select" onchange="onBillingDoctorSelect(this.value)">
           <option value="all" ${b.doctorId==='all'?'selected':''}>👥 ${t('billing_all_doctors')}</option>
-          ${DB.doctors.map(d=>`<option value="${jsStr(String(d.id))}" ${String(b.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
+          ${DB.doctors.filter(d => !d.isClinicLocal && !d.ownedByClinic).map(d=>`<option value="${jsStr(String(d.id))}" ${String(b.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)} — ${esc(d.specialty)}</option>`).join('')}
         </select>
         ${b.doctorId === 'all' ? `<div style="font-size:11px;color:var(--accent-primary);margin-top:6px;padding:6px 10px;background:var(--accent-light);border-radius:6px;font-weight:600">💡 ${t('print_per_doctor_hint')}</div>` : ''}
       </div>
@@ -17004,6 +17542,7 @@ function renderBillingSuggestions(q){
   const query = (q||'').trim().toLowerCase();
   if(!query){ box.innerHTML = ''; return; }
   const results = DB.doctors.filter(d=>{
+    if(d.isClinicLocal || d.ownedByClinic) return false; // 🆕 Exclure médecins internes
     const hay = `${d.name} ${d.specialty} ${d.wilaya} ${d.commune}`.toLowerCase();
     return hay.includes(query);
   });
@@ -17039,6 +17578,13 @@ function onQuickRevDoctorSelect(v){
 function computeQuickRevenue(){
   const q = state.quickRev;
   let list = DB.appointments.filter(a=>a.status==='done' && !a.clinicId);
+  
+  // 🆕 Exclure les médecins internes de clinique
+  list = list.filter(a => {
+    const d = docById(a.doctorId);
+    return d && !d.isClinicLocal && !d.ownedByClinic;
+  });
+
   if(q.doctorId !== 'all') list = list.filter(a=>String(a.doctorId)===String(q.doctorId));
   let periodLabel = '';
   if(q.periodType === 'day'){
@@ -17097,17 +17643,17 @@ function printQuickRevenueDetails(){
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:8px}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden}
-  .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
+  .cover{position:relative;background:#ffffff;border:2px solid #8b5cf6;color:#111827;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden}
+  .cover::before{content:none}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
   .cover .logo-box{display:flex;gap:14px;align-items:center}
-  .cover .logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
-  .cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:'Playfair Display',Georgia,serif}
-  .cover .sub{font-size:11.5px;opacity:.94;font-weight:500}
-  .cover .ref{margin-top:4px;font-family:'Rubik',sans-serif;font-size:10.5px;opacity:.9}
-  .cover .date-box{background:rgba(255,255,255,.18);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}
-  .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}
-  .cover .date-box strong{display:block;font-size:13px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize}
+  .cover .logo{width:58px;height:58px;border-radius:16px;background:#f3f4f6;display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid #8b5cf6;color:#8b5cf6}
+  .cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:'Playfair Display',Georgia,serif;color:#8b5cf6}
+  .cover .sub{font-size:11.5px;color:#4b5563;font-weight:500}
+  .cover .ref{margin-top:4px;font-family:'Rubik',sans-serif;font-size:10.5px;color:#6b7280}
+  .cover .date-box{background:#f9fafb;padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid #e5e7eb;min-width:150px}
+  .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;color:#6b7280;font-weight:700;font-size:8.5px}
+  .cover .date-box strong{display:block;font-size:13px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize;color:#111827}
   .section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #ede9fe;margin:20px 0 12px}
   .section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:14px}
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
@@ -17160,7 +17706,7 @@ function printQuickRevenueDetails(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
+        <div style="color:#6b7280;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
       </div>
     </div>
   </div>
@@ -17203,6 +17749,13 @@ function printQuickRevenueDetails(){
 function computeBillingData(){
   const b = state.billing;
   let list = DB.appointments.filter(a=>a.status==='done' && !a.clinicId);
+  
+  // 🆕 Exclure les médecins internes de clinique
+  list = list.filter(a => {
+    const d = docById(a.doctorId);
+    return d && !d.isClinicLocal && !d.ownedByClinic;
+  });
+
   if(b.doctorId !== 'all') list = list.filter(a=>String(a.doctorId)===String(b.doctorId));
   let periodLabel = '';
   if(b.periodType === 'day'){
@@ -17457,7 +18010,7 @@ function buildInvoiceStyles(){
   body{font-family:'Inter',system-ui,sans-serif;color:#1f2937;padding:6px;background:#fff;font-size:8.5px;line-height:1.25}
   .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:8px;margin-bottom:10px}
   .brand{display:flex;gap:10px;align-items:flex-start}
-  .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0}
+  .logo{width:48px;height:48px;border-radius:12px;background:#ffffff;border:2px solid #8b5cf6;display:grid;place-items:center;color:#8b5cf6;font-size:24px;flex-shrink:0}
   .brand-txt{display:flex;flex-direction:column}
   .brand-txt h1{font-family:'Playfair Display',Georgia,serif;font-size:24px;color:#8b5cf6;margin-bottom:2px;line-height:1.05;letter-spacing:-.3px}
   .brand-txt .fact-no{font-family:'Rubik',sans-serif;font-weight:700;font-size:15px;color:#ec4899;letter-spacing:.2px;margin-bottom:3px}
@@ -17836,7 +18389,70 @@ function buildClinicSubscriptionInvoiceBlock(clinic){
     <div class="letter-amount"><strong>${t('stop_invoice')} :</strong> ${esc(totalWords)}</div>
   `;
 }
+function buildClinicInvoiceStyles(){return `
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4 portrait;margin:10mm}
+  body{font-family:'Inter','Segoe UI',system-ui,sans-serif;color:#1f2937;padding:8px;background:#fff;font-size:10px;line-height:1.5}
+  .head{display:flex;flex-direction:column;gap:12px;padding-bottom:16px;margin-bottom:20px;border-bottom:3px solid;border-image:linear-gradient(90deg,#8b5cf6,#ec4899) 1;position:relative}
+  .head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+  .head-clinic-info{background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04));border:1.5px solid rgba(139,92,246,.25);border-radius:12px;padding:12px 44px 12px 16px;font-size:10px;line-height:1.6;color:#1f2937;white-space:pre-wrap;position:relative;overflow:hidden}
+  .head-clinic-info::before{content:'📄';position:absolute;top:10px;right:12px;font-size:18px;opacity:.3}
+  .brand{display:flex;gap:14px;align-items:flex-start}
+  .logo{width:58px;height:58px;border-radius:14px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:28px;flex-shrink:0;box-shadow:0 6px 16px rgba(139,92,246,.22)}
+  .brand-txt h1{font-family:'Playfair Display',Georgia,serif;font-size:22px;color:#1f2937;margin-bottom:3px;line-height:1.1;letter-spacing:-.4px}
+  .brand-txt .fact-no{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px;color:#ec4899;letter-spacing:.3px;margin-bottom:4px}
+  .brand-txt .sub{color:#6b7280;font-size:10.5px;line-height:1.4}
+  .meta{text-align:right;font-size:10.5px;color:#6b7280;line-height:1.7;flex-shrink:0}
+  .meta .brand-line{font-family:'Rubik',sans-serif;font-weight:700;font-size:9px;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .meta .brand-line-3{font-size:13px;color:#1f2937;font-weight:700;font-family:'Rubik',sans-serif}
+  table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:8px}
+  thead th{background:linear-gradient(180deg,#faf5ff 0%,#f5f3ff 100%);color:#4c1d95;padding:8px 6px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1.5px solid #ddd6fe;font-weight:800}
+  tbody td{padding:7px 6px;border-bottom:1px solid #f3f4f6;vertical-align:middle;font-size:9px}
+  tbody tr:nth-child(even){background:#fafaff}
+  tbody td:first-child, tbody td:nth-child(3){font-family:'Rubik',sans-serif;font-weight:500}
+  table.sub-tbl tbody td{padding:9px 8px;font-size:10px}
+  .total-line{text-align:right;font-size:13px;font-weight:800;margin-top:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.04));border-radius:10px;border:1.5px solid rgba(16,185,129,.3)}
+  .total-line .amount{color:#059669;font-family:'Rubik',sans-serif;font-size:16px;margin-left:8px;font-weight:800}
+  .letter-amount{background:linear-gradient(135deg,rgba(139,92,246,.05),rgba(236,72,153,.03));border:1.5px dashed rgba(139,92,246,.35);border-radius:12px;padding:11px 14px;margin-top:12px;font-size:10.5px;line-height:1.6;font-style:italic;color:#1f2937}
+  .letter-amount strong{color:#7c3aed;font-style:normal;font-weight:800}
+  .page-break{page-break-after:always;height:0}
+  `;}
+function _buildClinicInvoicePageHTML_PRO(clinic, clinicAppts, periodLabel, invNo, totalWords, total){
+  const clinicLabel = clinic ? clinic.name : t('clinics');
+  const b = clinic ? getClinicBilling(clinic) : null;
+  const isSub = b && (b.type === 'sub_monthly' || b.type === 'sub_yearly') && isClinicSubscriptionActive(clinic);
+  const isTrial = clinic && clinic.billingType === 'sub_trial';
+  const block = isSub ? buildClinicSubscriptionInvoiceBlock(clinic) : buildClinicInvoiceTableBlock(clinicAppts, clinic, state.clinicBilling.periodType);
+  let factNo;
+  if(isTrial) factNo = t('billing_type_sub_trial');
+  else if(isSub) factNo = invNo ? `${t('clinic_invoice_title')} N° ${invNo}` : t('clinic_invoice_title');
+  else if(invNo && invNo !== '(par clinique)') factNo = `${t('clinic_invoice_title')} N° ${invNo}`;
+  else factNo = t('clinic_invoice_title');
+  return `
+  <div class="head">
+    <div class="head-row">
+      <div class="brand">
+        <div class="logo">${clinic ? (clinic.avatar||'🏥') : '🏥'}</div>
+        <div class="brand-txt">
+          <h1>OmniMed</h1>
+          <div class="fact-no">${factNo}</div>
+          <div class="sub"><strong>${esc(clinicLabel)}</strong>${clinic && clinic.wilaya ? ` — ${esc(clinic.wilaya)}` : ''}</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="brand-line">OmniMed une solution OmniSoft</div>
+        <div class="brand-line-3">${esc(periodLabel)}</div>
+      </div>
+    </div>
+    ${clinic && clinic.headerText ? `<div class="head-clinic-info">${esc(clinic.headerText)}</div>` : ''}
+  </div>
+  ${isSub ? block : (block + `<div class="letter-amount"><strong>${t('stop_invoice')} :</strong> ${esc(totalWords)}</div>`)}
+  `;
+}
 function buildClinicInvoicePageHTML(clinic, clinicAppts, periodLabel, invNo, totalWords, total){
+  return _buildClinicInvoicePageHTML_PRO(clinic, clinicAppts, periodLabel, invNo, totalWords, total);
+  /* corps original (dead-code conservé pour patcher idempotent) */
+
   const clinicLabel = clinic ? `${clinic.name}` : t('clinics');
   const b = clinic ? getClinicBilling(clinic) : null;
   const isSub = b && (b.type === 'sub_monthly' || b.type === 'sub_yearly') && isClinicSubscriptionActive(clinic);
@@ -18056,8 +18672,8 @@ function printClinicBillingReport(){
   const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>OmniMed — ${title}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>${buildInvoiceStyles()}</style></head>
-<body>${buildClinicInvoicePageHTML(singleClinic, list, periodLabel, invNo, totalWords, total)}</body></html>`;
+<style>${buildClinicInvoiceStyles()}</style></head>
+<body>${buildClinicInvoicePageHTML(singleClinic, list, periodLabel, invNo, totalWords, total)}${getClinicFooterBlock(singleClinic)}</body></html>`;
   printHTML(html);
 }
 
@@ -18545,7 +19161,7 @@ function adminApptRow(a){
       </div>
       <div class="appt-actions">
         ${!isDeleted ? `
-          ${doc?`<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>`:''}
+          ${doc?`${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>`:''}
           ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
           ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
           ${a.status==='confirmed'?(
@@ -19786,6 +20402,16 @@ function viewClinicHospitalization(){
   const services = clinicServicesFor(c.id);
   const rooms = roomsForClinic(c.id);
   const active = activeAdmissionsForClinic(c.id);
+  const q = (state.hospitalizationSearch || '').trim().toLowerCase();
+  const qn = normPhone(q);
+  let displayedRooms = rooms;
+  let matchCount = 0;
+  if(q){
+    const matchingPatients = active.filter(x => (x.patientName||'').toLowerCase().includes(q) || (qn && normPhone(x.patientPhone||'').includes(qn)) || (x.id||'').toLowerCase().includes(q));
+    matchCount = matchingPatients.length;
+    const matchRoomIds = new Set(matchingPatients.map(x => String(x.roomId)));
+    displayedRooms = rooms.filter(r => (r.name||'').toLowerCase().includes(q) || (r.floor||'').toLowerCase().includes(q) || matchRoomIds.has(String(r.id)));
+  }
   const totalBeds = rooms.reduce((s, r) => s + (r.beds || 0), 0);
   const occupiedBeds = active.length;
   const freeBeds = totalBeds - occupiedBeds;
@@ -19794,7 +20420,7 @@ function viewClinicHospitalization(){
   const roomsByService = {};
   services.forEach(sv => { roomsByService[sv.id] = []; });
   roomsByService['__none__'] = [];
-  rooms.forEach(r => {
+  displayedRooms.forEach(r => {
     const k = r.serviceId && roomsByService[r.serviceId] !== undefined ? r.serviceId : '__none__';
     roomsByService[k].push(r);
   });
@@ -19807,7 +20433,14 @@ function viewClinicHospitalization(){
       <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">📥</div><div><div class="stat-val">${active.length}</div><div class="stat-lbl">Hospitalisés</div></div></div>
     </div>
 
+    <div class="card" style="margin-bottom:14px">
+      <div class="field" style="margin-bottom:0">
+        <input class="input" id="hospSearch" placeholder="🔎 Rechercher un patient, un téléphone, un n° d'admission ou une chambre…" value="${esc(state.hospitalizationSearch||'')}" oninput="state.hospitalizationSearch=this.value;render()">
+      </div>
+      ${q ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;font-weight:600"><span style="color:var(--text-muted)">🔎 <strong style="color:var(--accent-primary);font-family:var(--font-numbers)">${displayedRooms.length}</strong> chambre(s) · <strong style="color:var(--accent-primary);font-family:var(--font-numbers)">${matchCount}</strong> patient(s)</span><button class="mini-btn ghost" onclick="state.hospitalizationSearch='';render()">✕ Effacer</button></div>` : ''}
+    </div>
     ${!rooms.length ? `<div class="card"><div class="empty" style="padding:40px"><div class="empty-ico">🛏️</div>Aucune chambre configurée. Ajoutez des chambres dans <strong>Mon profil</strong>.</div></div>` : ''}
+    ${q && displayedRooms.length === 0 && rooms.length > 0 ? `<div class="card"><div class="empty" style="padding:30px"><div class="empty-ico">🔍</div>Aucun résultat pour « ${esc(state.hospitalizationSearch)} »</div></div>` : ''}
 
     ${services.map(sv => {
       const svRooms = roomsByService[sv.id] || [];
@@ -19994,6 +20627,9 @@ function openAdmissionForm(admissionId){
 }
 
 function renderAdmissionFormBody(admissionId){
+  return _renderAdmissionFormBody_V2(admissionId);
+}
+function _renderAdmissionFormBody_OLD(admissionId){
   const body = document.getElementById('admissionFormBody');
   if(!body) return;
   state._editingAdmissionId = admissionId || null;
@@ -20106,8 +20742,7 @@ function renderAdmissionFormBody(admissionId){
     </div>
     <div class="field-row" style="align-items:flex-end">
       <div class="field" style="margin-bottom:0"><label>Intervention</label><input class="input" id="ivName" placeholder="Ex : Appendicectomie"></div>
-      <div class="field" style="margin-bottom:0;max-width:90px"><label>Jours</label><input class="input" id="ivDays" type="number" min="1" value="1"></div>
-      <div class="field" style="margin-bottom:0;max-width:140px"><label>Prix (DA)</label><input class="input" id="ivPrice" type="number" min="0" step="500" value="0"></div>
+            <div class="field" style="margin-bottom:0;max-width:140px"><label>Prix (DA)</label><input class="input" id="ivPrice" type="number" min="0" step="500" value="0"></div>
       <button type="button" class="pill-btn primary" style="height:42px" onclick="addAdmissionIntervention()">+ Ajouter</button>
     </div>
 
@@ -20130,12 +20765,175 @@ function renderAdmissionFormBody(admissionId){
   `;
 }
 
+function updateAdmissionFullName(){
+  const nomEl = document.getElementById('adNom');
+  const prenomEl = document.getElementById('adPrenom');
+  state.admissionForm.patientName = ((nomEl?.value || '').trim() + ' ' + (prenomEl?.value || '').trim()).trim();
+}
+function _renderAdmissionFormBody_V2(admissionId){
+  const body = document.getElementById('admissionFormBody');
+  if(!body) return;
+  state._editingAdmissionId = admissionId || null;
+  const c = state.clinic;
+  const f = state.admissionForm;
+  const services = clinicServicesFor(c.id);
+  const rooms = roomsForClinicService(c.id, f.serviceId);
+  const doctors = clinicLinkedDoctors(c.id);
+  const appts = DB.appointments.filter(a =>
+    String(a.clinicId) === String(c.id) &&
+    ['confirmed','pending','done'].includes(a.status) &&
+    normPhone(a.patientPhone) === normPhone(f.patientPhone)
+  ).slice(0, 10);
+  const interventionsTotal = (f.interventions || []).reduce((s, i) => s + (Number(i.price) || 0), 0);
+  const todayDate = todayISO();
+  const days = f.admissionDate ? (() => {
+    const diff = Math.ceil((new Date(todayDate + 'T00:00:00') - new Date(f.admissionDate + 'T00:00:00')) / (1000 * 60 * 60 * 24));
+    return Math.max(1, diff + 1);
+  })() : 0;
+  const roomTotal = (f.pricePerDay || 0) * days;
+  const _parts = (f.patientName || '').trim().split(/\s+/);
+  const _nom = _parts[0] || '';
+  const _prenom = _parts.slice(1).join(' ');
+  body.innerHTML = `
+    <style>
+      #admissionFormBody .adm-sec-title{font-size:10.5px;font-weight:800;color:var(--accent-primary);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(139,92,246,.15);display:flex;align-items:center;gap:5px}
+      #admissionFormBody .adm-sec-title:first-child{margin-top:0}
+      #admissionFormBody .field{margin-bottom:6px;gap:2px}
+      #admissionFormBody .field label{font-size:10px;font-weight:700;margin-bottom:0;color:var(--text-muted);text-transform:none;letter-spacing:0}
+      #admissionFormBody .input,#admissionFormBody .select,#admissionFormBody .textarea{padding:6px 10px;font-size:12px;border-radius:8px}
+      #admissionFormBody .adm-row{display:grid;gap:6px;margin-bottom:6px;align-items:end}
+      #admissionFormBody .room-pick{padding:7px 6px;border-radius:7px;border:1.5px solid var(--glass-border);background:var(--glass-bg-3);cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--text-main);transition:var(--transition);text-align:center;line-height:1.2}
+      #admissionFormBody .room-pick:hover{border-color:var(--accent-primary);background:var(--accent-light)}
+      #admissionFormBody .room-pick.sel{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary);box-shadow:0 3px 8px rgba(139,92,246,.3)}
+      #admissionFormBody .iv-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;font-size:11.5px;margin-bottom:3px}
+      #admissionFormBody .bed-pick{padding:5px 10px;border-radius:6px;border:1.5px solid var(--glass-border);background:var(--glass-bg-3);cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--text-main);transition:var(--transition)}
+      #admissionFormBody .bed-pick:hover:not(:disabled){border-color:var(--accent-primary);background:var(--accent-light)}
+      #admissionFormBody .bed-pick.sel{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}
+      #admissionFormBody .bed-pick:disabled{opacity:.45;cursor:not-allowed;background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3);color:var(--danger)}
+      #admissionFormBody .adm-total{margin-top:10px;padding:10px 14px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(59,130,246,.04));border:1.5px solid rgba(16,185,129,.35);border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+      @media(max-width:640px){
+        #admissionFormBody .adm-patient-row{grid-template-columns:1fr 1fr !important}
+        #admissionFormBody .adm-sejour-row{grid-template-columns:1fr !important}
+      }
+    </style>
+
+    <div class="adm-sec-title">👤 Patient</div>
+    <div class="adm-row adm-patient-row" style="grid-template-columns:1.3fr 1.2fr 0.6fr 1.3fr 1.1fr">
+      <div class="field"><label>Nom *</label>
+        <input class="input" id="adNom" value="${esc(_nom)}" onchange="updateAdmissionFullName()" placeholder="Nom"></div>
+      <div class="field"><label>Prénom</label>
+        <input class="input" id="adPrenom" value="${esc(_prenom)}" onchange="updateAdmissionFullName()" placeholder="Prénom"></div>
+      <div class="field"><label>Âge</label>
+        <input class="input" type="number" min="0" max="130" value="${esc(f.patientAge)}" oninput="state.admissionForm.patientAge=this.value"></div>
+      <div class="field"><label>Téléphone *</label>
+        <input class="input" type="tel" value="${esc(f.patientPhone)}" oninput="state.admissionForm.patientPhone=this.value"></div>
+      <div class="field"><label>Wilaya</label>
+        <select class="select" onchange="state.admissionForm.patientWilaya=this.value">
+          <option value="">—</option>
+          ${DB.wilayas.map(w => `<option ${f.patientWilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    ${appts.length ? `
+    <div class="adm-row" style="grid-template-columns:1fr">
+      <div class="field"><label>🔗 RDV lié</label>
+        <select class="select" onchange="state.admissionForm.fromApptId=this.value||null">
+          <option value="">— Aucun —</option>
+          ${appts.map(a => `<option value="${a.id}" ${f.fromApptId===a.id?'selected':''}>${a.id} — ${fmtDateFR(a.date)} ${a.time}</option>`).join('')}
+        </select>
+      </div>
+    </div>` : ''}
+
+    <div class="adm-sec-title">🏗️ Service & Chambre</div>
+    <div class="adm-row adm-sejour-row" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Service *</label>
+        <select class="select" onchange="state.admissionForm.serviceId=this.value;state.admissionForm.roomId=null;renderAdmissionFormBody('${admissionId || ''}')">
+          ${services.map(sv => `<option value="${sv.id}" ${f.serviceId===sv.id?'selected':''}>${sv.icon||'🩺'} ${esc(sv.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Médecin</label>
+        <select class="select" onchange="state.admissionForm.doctorId=this.value||null">
+          <option value="">—</option>
+          ${doctors.map(d => `<option value="${jsStr(String(d.id))}" ${String(f.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Chambre *</label>
+      <div class="adm-row" style="grid-template-columns:repeat(auto-fill,minmax(85px,1fr));margin-bottom:0">
+        ${rooms.length ? rooms.map(r => {
+          const isSel = String(f.roomId) === String(r.id);
+          return `<button type="button" class="room-pick ${isSel?'sel':''}" onclick="state.admissionForm.roomId='${r.id}';state.admissionForm.bedNumber=1;renderAdmissionFormBody('${admissionId || ''}')">
+            🛏️ ${esc(r.name)}
+            <div style="font-size:9.5px;opacity:.8;font-weight:500;margin-top:2px">${r.beds} lit${r.beds>1?'s':''}${r.floor?' · '+esc(r.floor):''}</div>
+          </button>`;
+        }).join('') : `<div style="grid-column:1/-1;font-size:11px;color:var(--text-muted);text-align:center;padding:6px">Aucune chambre dans ce service</div>`}
+      </div>
+    </div>
+    ${f.roomId ? `<div class="field">
+      <label>Lit *</label>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${Array.from({length: (roomById(f.roomId)?.beds||1)}, (_,i)=>i+1).map(n => {
+          const occ = isBedOccupied(f.roomId, n);
+          const selfOcc = String(f.roomId)===String(state.admissionForm.roomId) && f.bedNumber===n;
+          const occupiedByOther = occ && !(admissionId && DB.admissions.find(a=>a.id===admissionId && a.status==='active' && a.roomId===f.roomId && a.bedNumber===n));
+          return `<button type="button" class="bed-pick ${selfOcc?'sel':''}" ${occupiedByOther?'disabled':''} onclick="state.admissionForm.bedNumber=${n};renderAdmissionFormBody('${admissionId || ''}')">
+            🛏️ Lit ${n}${occupiedByOther?' (occupé)':''}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="adm-sec-title">📅 Séjour</div>
+    <div class="adm-row adm-sejour-row" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Date d'admission *</label>
+        <input class="input" type="date" value="${f.admissionDate||''}" onchange="state.admissionForm.admissionDate=this.value;renderAdmissionFormBody('${admissionId || ''}')"></div>
+      <div class="field"><label>💰 Prix chambre / jour (DA) *</label>
+        <input class="input" type="number" min="0" step="500" value="${f.pricePerDay || 0}" onchange="state.admissionForm.pricePerDay=parseInt(this.value,10)||0;renderAdmissionFormBody('${admissionId || ''}')"></div>
+    </div>
+    <div class="adm-row" style="grid-template-columns:1fr">
+      <div class="field"><label>Motif</label>
+        <input class="input" value="${esc(f.motif)}" oninput="state.admissionForm.motif=this.value" placeholder="Ex : intervention chirurgicale…"></div>
+    </div>
+
+    <div class="adm-sec-title">💉 Interventions / Prestations</div>
+    <div class="adm-row" style="grid-template-columns:1fr 120px auto">
+      <div class="field"><label>Intervention</label>
+        <input class="input" id="ivName" placeholder="Nom de l'intervention"></div>
+      <div class="field"><label>Prix (DA)</label>
+        <input class="input" id="ivPrice" type="number" min="0" step="500" value="0"></div>
+      <button type="button" class="pill-btn primary" style="padding:6px 14px;font-size:12px;height:32px;white-space:nowrap" onclick="addAdmissionIntervention()">+ Ajouter</button>
+    </div>
+    ${(f.interventions||[]).length ? `
+      <div style="margin-bottom:6px">
+        ${f.interventions.map((iv, i) => `
+          <div class="iv-item">
+            <span style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(iv.name)}</span>
+            <span style="font-family:var(--font-numbers);color:#059669;font-weight:700">${n2(iv.price)} DA</span>
+            <button type="button" class="mini-btn out-red" style="padding:2px 7px;font-size:10px;line-height:1" onclick="removeAdmissionIntervention(${i})">✕</button>
+          </div>
+        `).join('')}
+      </div>
+    ` : `<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:4px;margin-bottom:6px">Aucune intervention</div>`}
+
+    <div class="adm-sec-title">📝 Notes</div>
+    <textarea class="textarea" style="min-height:40px" oninput="state.admissionForm.notes=this.value" placeholder="Notes additionnelles…">${esc(f.notes)}</textarea>
+
+    <div class="adm-total">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--text-muted)">
+        <span>🛏️ Chambre (<strong>${days}j</strong> × ${n2(f.pricePerDay||0)} DA) : <strong style="color:var(--text-main);font-family:var(--font-numbers)">${n2(roomTotal)} DA</strong></span>
+        <span>💉 Interventions : <strong style="color:var(--text-main);font-family:var(--font-numbers)">${n2(interventionsTotal)} DA</strong></span>
+      </div>
+      <div style="font-size:17px;font-weight:800;color:#059669;font-family:var(--font-numbers);letter-spacing:-.3px">Total : ${n2(roomTotal + interventionsTotal)} DA</div>
+    </div>
+  `;
+}
 function addAdmissionIntervention(){
   const name = (document.getElementById('ivName')?.value || '').trim();
-  const days = parseInt(document.getElementById('ivDays')?.value, 10) || 1;
   const price = parseInt(document.getElementById('ivPrice')?.value, 10) || 0;
   if(!name){ toast('Nom requis', 'error'); return; }
-  state.admissionForm.interventions.push({ id: 'IV-'+uid('X'), name, days, price });
+  state.admissionForm.interventions.push({ id: 'IV-'+uid('X'), name, price });
   renderAdmissionFormBody(state._editingAdmissionId || null);
   const n = document.getElementById('ivName'); if(n) n.value = '';
 }
@@ -20263,8 +21061,7 @@ function openAdmissionDetail(admissionId){
         ${a.interventions.map(iv => `
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--glass-bg);border-radius:8px;margin-bottom:5px;font-size:12.5px;border:1px solid var(--glass-border)">
             <div style="flex:1;min-width:0;font-weight:600">${esc(iv.name)}</div>
-            <span class="tag accent" style="font-size:10.5px">${iv.days||0}j</span>
-            <span class="tag money" style="font-family:var(--font-numbers);font-size:11.5px">${n2(iv.price)} DA</span>
+                        <span class="tag money" style="font-family:var(--font-numbers);font-size:11.5px">${n2(iv.price)} DA</span>
           </div>
         `).join('')}
       </div>
@@ -20351,7 +21148,7 @@ function buildAdmissionInvoiceModalContent(a){
     </tr>`,
     ...(a.interventions||[]).map((iv, i) => `<tr>
       <td style="text-align:center;color:var(--text-muted);font-weight:600">${i+2}</td>
-      <td><strong>💉 ${esc(iv.name)}</strong>${iv.days>1 ? `<div style="font-size:10.5px;color:var(--text-muted)">${iv.days} jour(s) requis</div>` : ''}</td>
+      <td><strong>💉 ${esc(iv.name)}</strong></td>
       <td class="num">1</td>
       <td class="num">${n2(iv.price)} DA</td>
       <td class="num" style="color:#059669;font-weight:700">${n2(iv.price)} DA</td>
@@ -20423,7 +21220,36 @@ function openAdmissionInvoiceModal(admissionId){
     true);
 }
 
+function _printAdmissionInvoice_PRO(admissionId){
+  const a = DB.admissions.find(x => x.id === admissionId);
+  if(!a){ toast('Admission introuvable','error'); return; }
+  const c = clinicById(a.clinicId);
+  const room = a.roomId ? roomById(a.roomId) : null;
+  const svc = a.serviceId ? clinicServiceById(a.serviceId) : null;
+  const doc = a.doctorId ? docById(a.doctorId) : null;
+  const tot = computeAdmissionTotals(a);
+  const invRef = 'FACT-' + a.id;
+  const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const totalWords = numberToFrenchWords(tot.total) + ' ' + t('dinars');
+  const dateStr = (a.admissionDate ? fmtDateFR(a.admissionDate) : '—') + (a.dischargeDate ? ' → ' + fmtDateFR(a.dischargeDate) : ' (en cours)');
+  const statusLbl = a.status === 'active' ? '🏥 Hospitalisé' : a.status === 'discharged' ? '✅ Sorti' : '✕ Annulé';
+  const statusCls = a.status === 'active' ? 'active' : a.status === 'discharged' ? 'discharged' : 'cancelled';
+  let rowsHTML = '<tr><td class="c">1</td><td><strong>🛏️ Chambre ' + (room ? esc(room.name) : '—') + ' — séjour</strong>' + ((room && room.floor) ? '<div class="sub">📍 ' + esc(room.floor) + ' · Lit ' + a.bedNumber + '</div>' : '') + '</td><td class="c">' + tot.days + ' j</td><td class="r">' + n2(a.pricePerDay) + ' DA</td><td class="r" style="color:#059669;font-weight:700">' + n2(tot.roomTotal) + ' DA</td></tr>';
+  (a.interventions || []).forEach((iv, i) => {
+    rowsHTML += '<tr><td class="c">' + (i+2) + '</td><td><strong>💉 ' + esc(iv.name) + '</strong>' + (iv.days > 1 ? '<div class="sub">' + iv.days + ' jour(s)</div>' : '') + '</td><td class="c">1</td><td class="r">' + n2(iv.price) + ' DA</td><td class="r" style="color:#059669;font-weight:700">' + n2(iv.price) + ' DA</td></tr>';
+  });
+  const cHeader = c && c.headerText ? '<div class="head-clinic-info">' + esc(c.headerText) + '</div>' : '';
+  const brandTitle = c ? esc(c.name) : 'OmniMed';
+  const brandSub = c ? '<strong>' + esc(c.name) + '</strong>' + (c.wilaya ? ' — ' + esc(c.wilaya) + (c.commune ? ' · ' + esc(c.commune) : '') : '') : '—';
+  const svcHTML = (svc ? (svc.icon||'🩺') + ' ' + esc(svc.name) : '—') + (room ? '<div class="sub-v">🛏️ ' + esc(room.name) + ' · Lit ' + a.bedNumber + '</div>' : '');
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OmniMed — Facture hospitalisation ' + esc(a.id) + '</title><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}@page{size:A4 portrait;margin:10mm}body{font-family:Inter,system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.head{display:flex;flex-direction:column;gap:12px;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:14px}.head-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px}.brand{display:flex;gap:10px;align-items:flex-start}.logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0}.brand-txt h1{font-family:\'Playfair Display\',Georgia,serif;font-size:22px;color:#1f2937;margin-bottom:3px;line-height:1.1;letter-spacing:-.4px}.brand-txt .fact-no{font-family:Rubik,sans-serif;font-weight:700;font-size:12px;color:#ec4899;letter-spacing:.3px;margin-bottom:4px}.brand-txt .sub{color:#6b7280;font-size:10.5px;line-height:1.4}.meta{text-align:right;font-size:10px;color:#6b7280;line-height:1.6;flex-shrink:0}.meta strong{color:#1f2937;font-weight:700;font-family:Rubik,sans-serif}.head-clinic-info{background:linear-gradient(135deg,rgba(139,92,246,.05),rgba(236,72,153,.03));border:1px solid rgba(139,92,246,.25);border-radius:10px;padding:10px 44px 10px 14px;font-size:10px;line-height:1.6;color:#1f2937;white-space:pre-wrap;position:relative;overflow:hidden}.head-clinic-info::before{content:\'📄\';position:absolute;top:8px;right:11px;font-size:15px;opacity:.35}.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:14px;overflow:hidden}.info-grid .cell{padding:11px 14px;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}.info-grid .cell:nth-child(3n){border-right:none}.info-grid .cell:nth-last-child(-n+3){border-bottom:none}.info-grid .k{font-size:8.5px;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:800;margin-bottom:4px}.info-grid .v{color:#1f2937;font-weight:700;font-size:11px;line-height:1.35}.info-grid .v small{font-size:9.5px;font-weight:500;color:#6b7280}.info-grid .v .sub-v{font-size:9.5px;color:#6b7280;margin-top:2px;font-weight:500}.info-grid .v.status{display:inline-block;padding:2px 10px;border-radius:9999px;font-size:9.5px;font-weight:800;letter-spacing:.3px}.info-grid .v.status.active{background:#fef3c7;color:#b45309}.info-grid .v.status.discharged{background:#d1fae5;color:#059669}.info-grid .v.status.cancelled{background:#fee2e2;color:#dc2626}table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:0}thead th{background:linear-gradient(180deg,#faf5ff 0%,#f5f3ff 100%);color:#4c1d95;padding:9px 8px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1.5px solid #ddd6fe;font-weight:800}tbody td{padding:7px 8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}tbody tr:nth-child(even){background:#fafaff}tbody td.c{text-align:center}tbody td.r{text-align:right;font-family:Rubik,sans-serif}tbody td .sub{font-size:9px;color:#6b7280;margin-top:2px;font-weight:400}.total-line{text-align:right;font-size:12px;font-weight:800;margin-top:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.04));border-radius:10px;border:1.5px solid rgba(16,185,129,.3)}.total-line .amount{color:#059669;font-family:Rubik,sans-serif;font-size:15px;margin-left:8px;font-weight:800}.letter-amount{background:linear-gradient(135deg,rgba(139,92,246,.05),rgba(236,72,153,.03));border:1.5px dashed rgba(139,92,246,.35);border-radius:12px;padding:11px 14px;margin-top:12px;font-size:10.5px;line-height:1.6;font-style:italic;color:#1f2937}.letter-amount strong{color:#7c3aed;font-style:normal;font-weight:800}</style></head><body><div class="head"><div class="head-row"><div class="brand"><div class="logo">' + (c ? (c.avatar||'🏥') : '🏥') + '</div><div class="brand-txt"><h1>' + brandTitle + '</h1><div class="fact-no">FACTURE HOSPITALISATION · ' + esc(invRef) + '</div><div class="sub">' + brandSub + '</div></div></div><div class="meta"><div><strong>Admission</strong> · ' + esc(a.id) + '</div><div><strong>Émise le</strong> · ' + printDate + '</div></div></div>' + cHeader + '</div><div class="info-grid"><div class="cell"><div class="k">👤 Patient</div><div class="v">' + esc(a.patientName) + (a.patientAge ? ' <small>(' + a.patientAge + ' ans)</small>' : '') + '</div></div><div class="cell"><div class="k">🧑‍⚕️ Médecin</div><div class="v">' + (doc ? esc(doc.name) : '—') + '</div></div><div class="cell"><div class="k">📅 Séjour</div><div class="v">' + dateStr + '</div></div><div class="cell"><div class="k">📞 Téléphone</div><div class="v">' + esc(a.patientPhone||'—') + '</div></div><div class="cell"><div class="k">🏗️ Service</div><div class="v">' + svcHTML + '</div></div><div class="cell"><div class="k">🔔 Statut</div><div class="v"><span class="status ' + statusCls + '">' + statusLbl + '</span></div></div></div><table><thead><tr><th style="text-align:center;width:32px">#</th><th>Désignation</th><th style="text-align:center;width:60px">Qté</th><th style="text-align:right;width:110px">P.U.</th><th style="text-align:right;width:120px">Montant</th></tr></thead><tbody>' + rowsHTML + '</tbody></table><div class="total-line">TOTAL À PAYER :<span class="amount">' + n2(tot.total) + ' DA</span></div><div class="letter-amount"><strong>' + t('stop_invoice') + ' :</strong> ' + esc(totalWords) + '</div>' + getClinicFooterBlock(c) + '</body></html>';
+  printHTML(html);
+  closeModal();
+}
 function printAdmissionInvoice(admissionId){
+  return _printAdmissionInvoice_PRO(admissionId);
+}
+function _printAdmissionInvoice_DEAD(admissionId){
   const a = DB.admissions.find(x => x.id === admissionId);
   if(!a){ toast('Admission introuvable', 'error'); return; }
   const c = clinicById(a.clinicId);
@@ -20599,7 +21425,7 @@ function viewClinicDoctors(){
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 ${link ? `<button class="mini-btn ghost" onclick="openClinicServicePicker('${link.id}')">🏗️ ${t('clinic_doctor_service')}</button>` : ''}
-                <button class="mini-btn ghost" onclick="openDoctorForm('${jsStr(String(d.id))}', false, '${jsStr(String(c.id))}')">✏️</button>
+                <button class="mini-btn ghost" onclick="openClinicInternalDoctorForm('${jsStr(String(d.id))}')">✏️</button>
                 <button class="mini-btn red" onclick="confirmDeleteDoctor('${jsStr(String(d.id))}')">🗑️</button>
               </div>
             </div>
@@ -20738,7 +21564,7 @@ function sendClinicInvite(doctorId){
     joinedAt: null
   };
   DB.doctorClinicLinks.push(link);
-  pushNotif('doctor', t('clinic_doctor_invite'), `${c.name} vous invite à rejoindre la clinique`, d.id, null);
+            pushNotif('doctor', t('clinic_doctor_invite'), `🏥 ${c.name} (${c.wilaya}) vous invite chaleureusement à rejoindre son équipe médicale. Contact : ${c.phone || 'Non renseigné'}`, d.id, null);
   pushClinicNotif('Invitation envoyée', `Invitation envoyée à ${d.name}`, c.id, null);
   saveDB();
   closeModal();
@@ -20758,9 +21584,235 @@ function cancelClinicInvite(linkId){
 
 /* --- MODIFICATION #6 : Ajouter un médecin local à la clinique --- */
 function openClinicAddLocalDoctorModal(){
+  openClinicInternalDoctorForm(null);
+}
+/* ═══════════════════════════════════════════════════════════
+   🏥 FORMULAIRE MÉDECIN INTERNE DE CLINIQUE
+   Formulaire dédié — pas de compte, pas d'email, pas de tarif
+   ═══════════════════════════════════════════════════════════ */
+function openClinicInternalDoctorForm(doctorId){
   const c = state.clinic;
-  /* Ouvrir directement le formulaire de médecin avec ownedByClinicId */
-  openDoctorForm(null, false, String(c.id));
+  if(!c){ toast(t('clinic_not_found'),'error'); return; }
+  const isEdit = !!doctorId;
+  const services = clinicServicesFor(c.id);
+
+  let d, currentServiceId = null;
+  if(isEdit){
+    d = docById(doctorId);
+    if(!d){ toast(t('doctor_not_found'),'error'); return; }
+    const link = clinicLinksForDoctor(doctorId).find(l =>
+      String(l.clinicId) === String(c.id) && l.status === 'accepted'
+    );
+    currentServiceId = link && link.serviceId ? link.serviceId : null;
+  } else {
+    d = {
+      name:'', specialty:'', phone:'', bio:'',
+      workDays:[0,1,2,3,4,5,6], workStart:'08:00', workEnd:'17:00'
+    };
+  }
+  if(!Array.isArray(d.workDays) || !d.workDays.length) d.workDays = [0,1,2,3,4,5,6];
+  if(!d.workStart) d.workStart = '08:00';
+  if(!d.workEnd) d.workEnd = '17:00';
+
+  window._internalDocWorkDays = [...d.workDays];
+
+  openModal(
+    isEdit ? '✏️ Modifier le médecin interne' : '🏥 Ajouter un médecin interne',
+    `${c.avatar||'🏥'} ${c.name} — Médecin rattaché à la clinique`,
+    `
+      <div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);margin-bottom:14px">
+        🏥 <strong>Médecin interne clinique</strong><br>
+        <span style="font-size:11.5px">Pas de compte indépendant · Pas d'email · Suit les prestations et les horaires du service</span>
+      </div>
+
+      <div class="section-title">👤 Informations du médecin</div>
+      <div class="field-row">
+        <div class="field"><label>Nom complet *</label>
+          <input class="input" id="idfName" value="${esc(d.name||'')}" placeholder="Dr. Prénom Nom"></div>
+        <div class="field"><label>Spécialité *</label>
+          <select class="select" id="idfSpec">
+            <option value="">— Sélectionner —</option>
+            ${DB.specialties.map(s=>`<option ${d.specialty===s?'selected':''}>${esc(s)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Téléphone *</label>
+        <input class="input" id="idfPhone" type="tel" value="${esc(d.phone||'')}" placeholder="+2136…">
+      </div>
+      <div class="field">
+        <label>Présentation (facultatif)</label>
+        <textarea class="textarea" id="idfBio" style="min-height:60px" placeholder="Courte présentation…">${esc(d.bio||'')}</textarea>
+      </div>
+
+      <div class="sep"></div>
+      <div class="section-title">🏗️ Affectation au service</div>
+      <div class="field">
+        <label>Service assigné</label>
+        <select class="select" id="idfServiceId">
+          <option value="">— Aucun service (non affecté) —</option>
+          ${services.map(sv=>`<option value="${sv.id}" ${currentServiceId===sv.id?'selected':''}>${sv.icon||'🩺'} ${esc(sv.name)}</option>`).join('')}
+        </select>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
+          💡 Le médecin sera visible et réservable uniquement dans ce service
+        </div>
+        ${!services.length ? `<div style="font-size:11px;color:var(--warn);margin-top:3px">⚠️ Aucun service créé — créez d'abord un service pour pouvoir affecter ce médecin</div>` : ''}
+      </div>
+
+      <div class="sep"></div>
+      <div class="section-title">🗓️ Horaires du médecin</div>
+      <div class="field">
+        <label>Jours de travail</label>
+        <div class="chips" style="margin:0">
+          ${DAY_NAMES_SHORT.map((lbl,i)=>{
+            const on = (window._internalDocWorkDays||[]).includes(i);
+            return `<button type="button" class="wday ${on?'on':''}" data-day="${i}" onclick="toggleInternalDocWorkDay(${i}, this)">${lbl}</button>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Heure de début</label>
+          <input class="input" id="idfStart" type="time" value="${d.workStart}" oninput="onInternalDocTimeChange()"></div>
+        <div class="field"><label>Heure de fin</label>
+          <input class="input" id="idfEnd" type="time" value="${d.workEnd}" oninput="onInternalDocTimeChange()"></div>
+      </div>
+      <div id="idfShiftHint" style="margin-top:6px"></div>
+      <div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);margin-top:8px;font-size:11.5px">
+        ℹ️ La durée des consultations est définie par chaque prestation. Aucun tarif fixe — les patients paient selon les prestations du service.
+      </div>
+    `,
+    `<button class="pill-btn" onclick="window._internalDocWorkDays=null;closeModal()">${t('cancel')}</button>
+     <button class="pill-btn primary" onclick="saveClinicInternalDoctor('${isEdit?jsStr(doctorId):'new'}')">💾 ${t('save')}</button>`
+  );
+}
+
+function toggleInternalDocWorkDay(day, btn){
+  if(!window._internalDocWorkDays) window._internalDocWorkDays = [];
+  const idx = window._internalDocWorkDays.indexOf(day);
+  if(idx >= 0) window._internalDocWorkDays.splice(idx, 1);
+  else window._internalDocWorkDays.push(day);
+  btn.classList.toggle('on');
+}
+
+function saveClinicInternalDoctor(doctorId){
+  const c = state.clinic;
+  if(!c){ toast(t('clinic_not_found'),'error'); return; }
+
+  const name = ($('#idfName')?.value||'').trim();
+  const specialty = ($('#idfSpec')?.value||'').trim();
+  const phone = ($('#idfPhone')?.value||'').trim();
+  const bio = ($('#idfBio')?.value||'').trim();
+  const serviceId = ($('#idfServiceId')?.value||'').trim() || null;
+  const workStart = $('#idfStart')?.value || '08:00';
+  const workEnd = $('#idfEnd')?.value || '17:00';
+  const workDays = [...(window._internalDocWorkDays||[])].sort((a,b)=>a-b);
+
+  if(!name){ toast('Le nom est obligatoire','error'); return; }
+  if(!specialty){ toast('La spécialité est obligatoire','error'); return; }
+  if(!phone){ toast('Le téléphone est obligatoire','error'); return; }
+  if(!workDays.length){ toast('Sélectionnez au moins un jour de travail','error'); return; }
+  if(toMin(workStart) === toMin(workEnd)){
+    toast('L\'heure de début et de fin ne peuvent pas être identiques','error');
+    return;
+  }
+
+  if(!DB.specialties.includes(specialty)) DB.specialties.push(specialty);
+
+  const isEdit = doctorId !== 'new';
+  let docId;
+
+  if(isEdit){
+    const d = DB.doctors.find(x=>String(x.id)===String(doctorId));
+    if(!d){ toast('Médecin introuvable','error'); return; }
+    docId = d.id;
+    Object.assign(d, {
+      name, specialty, phone, bio, workDays, workStart, workEnd,
+      wilaya: d.wilaya || c.wilaya || '',
+      commune: d.commune || c.commune || '',
+      address: d.address || c.address || ''
+    });
+  } else {
+    docId = uid('CLN-DOC-');
+    let tries = 0;
+    while(DB.doctors.some(x=>String(x.id)===docId) && tries < 50){
+      docId = uid('CLN-DOC-');
+      tries++;
+    }
+    DB.doctors.push({
+      id: docId,
+      name, specialty,
+      phone, email:'',
+      wilaya: c.wilaya || '',
+      commune: c.commune || '',
+      address: c.address || '',
+      bio,
+      fee: 0,
+      duration: 30,
+      password: '',
+      recettePassword: '',
+      passwordPlain: '',
+      recettePasswordPlain: '',
+      workDays, workStart, workEnd,
+      disabledSlots: [],
+      sessionClosed: false,
+      locked: false,
+      billingType: 'none',
+      commissionAmount: null,
+      subStart: null,
+      subTrialEnd: null,
+      ownedByClinic: String(c.id),
+      isClinicLocal: true,
+      createdAt: todayISO()
+    });
+  }
+
+  /* Synchroniser le lien médecin-clinique (service affecté) */
+  let link = DB.doctorClinicLinks.find(l =>
+    String(l.doctorId)===String(docId) &&
+    String(l.clinicId)===String(c.id) &&
+    l.status === 'accepted'
+  );
+  if(link){
+    link.serviceId = serviceId;
+  } else {
+    DB.doctorClinicLinks.push({
+      id: uid('DCL-'),
+      doctorId: docId,
+      clinicId: String(c.id),
+      serviceId: serviceId,
+      feeOverride: null,
+      status: 'accepted',
+      invitedAt: nowISO(),
+      joinedAt: nowISO()
+    });
+  }
+
+  window._internalDocWorkDays = null;
+  saveDB();
+  closeModal();
+  render();
+  toast(isEdit ? '✅ Médecin modifié' : '✅ Médecin interne ajouté', 'success');
+
+  try { autoLockPrestations(); render(); } catch(e){}
+}
+function onInternalDocTimeChange(){
+  const hint = document.getElementById('idfShiftHint');
+  if(!hint) return;
+  const sEl = document.getElementById('idfStart');
+  const eEl = document.getElementById('idfEnd');
+  if(!sEl || !eEl) return;
+  const s = sEl.value, e = eEl.value;
+  if(!s || !e) { hint.innerHTML = ''; return; }
+  if(s === e){
+    hint.innerHTML = `<div style="padding:8px 12px;background:var(--danger-bg);border:1px solid rgba(239,68,68,.4);border-radius:10px;font-size:11.5px;color:var(--danger);font-weight:600">⚠️ Début et fin identiques — modifiez l'un des deux</div>`;
+    return;
+  }
+  const isNight = toMin(s) > toMin(e);
+  if(isNight){
+    hint.innerHTML = `<div style="padding:8px 12px;background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(236,72,153,.06));border:1px solid rgba(139,92,246,.35);border-radius:10px;font-size:11.5px;color:var(--accent-primary);font-weight:600">🌙 Permanence de nuit — ${esc(s)} → ${esc(e)} (lendemain)</div>`;
+  } else {
+    hint.innerHTML = `<div style="padding:8px 12px;background:var(--success-bg);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-size:11.5px;color:#059669;font-weight:600">☀️ Horaire de jour — ${esc(s)} → ${esc(e)}</div>`;
+  }
 }
 function openClinicServicePicker(linkId){
   const l = DB.doctorClinicLinks.find(x => x.id === linkId);
@@ -20835,6 +21887,8 @@ function viewClinicServices(){
         ${services.map(sv => {
           const svDoctors = clinicLinkedDoctors(c.id).filter(d => getDoctorServiceInClinic(d.id, c.id) === sv.id);
           const svPrestations = clinicPrestationsForService(sv.id);
+          const sched = getServiceSchedule(sv);
+          const isCustom = sched.mode === 'custom';
           return `
           <div class="card">
             <div class="service-card-head">
@@ -20843,7 +21897,14 @@ function viewClinicServices(){
               <div class="service-count">${svDoctors.length} 🧑‍⚕️ · ${svPrestations.length} 💉</div>
             </div>
             ${sv.description ? `<div class="service-desc">${esc(sv.description)}</div>` : ''}
-            <div class="di-actions" style="border-top:none;padding-top:0;margin-top:0">
+            <div style="margin-top:8px;padding:8px 10px;background:var(--glass-bg-3);border-radius:8px;font-size:11.5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${isCustom
+                ? `<span class="tag accent">🗓️ ${esc(sched.workStart)} – ${esc(sched.workEnd)}</span>
+                   <span class="tag accent">⏱️ ${sched.slotDuration} min</span>
+                   <span class="tag accent" style="font-family:var(--font-numbers);font-weight:600">${(sched.workDays||[]).map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`
+                : `<span class="tag success">🕐 24h/24 · 7j/7</span>`}
+            </div>
+            <div class="di-actions" style="border-top:none;padding-top:8px;margin-top:8px">
               <button class="mini-btn ghost" onclick="openClinicServiceForm('${sv.id}')">✏️</button>
               <button class="mini-btn out-red" onclick="openClinicDeleteServiceConfirm('${sv.id}')">🗑️</button>
             </div>
@@ -20855,33 +21916,185 @@ function viewClinicServices(){
 }
 function openClinicServiceForm(serviceId){
   const isEdit = !!serviceId;
-  const sv = isEdit ? clinicServiceById(serviceId) : { id:null, name:'', icon:'🩺', description:'' };
+  const sv = isEdit ? clinicServiceById(serviceId) : {
+    id:null, name:'', icon:'🩺', description:'',
+    schedulingMode: '24_7',
+    workDays: [0,1,2,3,4,5,6],
+    workStart: '08:00', workEnd: '17:00',
+    slotDuration: 30, disabledSlots: []
+  };
   if(!sv) return;
+
+  /* État mutable du formulaire */
+  window._serviceSched = {
+    mode: sv.schedulingMode || '24_7',
+    workDays: [...(Array.isArray(sv.workDays) ? sv.workDays : [0,1,2,3,4,5,6])],
+    workStart: sv.workStart || '08:00',
+    workEnd: sv.workEnd || '17:00',
+    slotDuration: Number(sv.slotDuration) || 30,
+    disabledSlots: [...(Array.isArray(sv.disabledSlots) ? sv.disabledSlots : [])]
+  };
+
+  const isCustom = window._serviceSched.mode === 'custom';
+
   openModal(isEdit?t('clinic_service_edit'):t('clinic_service_add'), '', `
     <div class="field-row">
       <div class="field"><label>${t('clinic_service_name')} *</label><input class="input" id="csvName" value="${esc(sv.name)}"></div>
       <div class="field"><label>${t('clinic_service_icon')}</label><input class="input" id="csvIcon" maxlength="4" value="${esc(sv.icon||'🩺')}"></div>
     </div>
     <div class="field"><label>${t('clinic_service_desc')}</label><textarea class="textarea" id="csvDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
+
+    <div class="sep"></div>
+    <div class="section-title">🕐 Horaires du service</div>
+    <div class="field">
+      <label>Mode de disponibilité</label>
+      <div class="toggle-group" id="csvModeToggle" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="${!isCustom?'active':''}" onclick="onServiceSchedulingModeChange('24_7')" style="padding:8px 14px;border-radius:9999px;border:1px solid var(--glass-border);background:${!isCustom?'var(--accent-primary)':'var(--glass-bg-3)'};color:${!isCustom?'#fff':'var(--text-main)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">🕐 24h/24 · 7j/7</button>
+        <button type="button" class="${isCustom?'active':''}" onclick="onServiceSchedulingModeChange('custom')" style="padding:8px 14px;border-radius:9999px;border:1px solid var(--glass-border);background:${isCustom?'var(--accent-primary)':'var(--glass-bg-3)'};color:${isCustom?'#fff':'var(--text-main)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">🗓️ Horaires personnalisés</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+        💡 En mode 24/7, chaque médecin suit son propre planning. En mode personnalisé, le médecin sera limité aux heures du service.
+      </div>
+    </div>
+
+    <div id="csvCustomSchedule" style="display:${isCustom?'block':'none'}">
+      <div class="field">
+        <label>Jours d'ouverture</label>
+        <div class="chips" id="csvWorkDaysPicker" style="margin:0">
+          ${DAY_NAMES_SHORT.map((lbl,i)=>{
+            const on = window._serviceSched.workDays.includes(i);
+            return `<button type="button" class="wday ${on?'on':''}" data-day="${i}" onclick="toggleServiceWorkDay(${i}, this)">${lbl}</button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field"><label>Heure d'ouverture</label>
+          <input class="input" id="csvWorkStart" type="time" value="${window._serviceSched.workStart}" oninput="onServiceScheduleTimeChange()"></div>
+        <div class="field"><label>Heure de fermeture</label>
+          <input class="input" id="csvWorkEnd" type="time" value="${window._serviceSched.workEnd}" oninput="onServiceScheduleTimeChange()"></div>
+      </div>
+
+      <div class="field">
+        <label>Durée d'un créneau (minutes)</label>
+        <input class="input" id="csvSlotDuration" type="number" min="5" step="5" value="${window._serviceSched.slotDuration}" oninput="onServiceScheduleTimeChange()">
+      </div>
+
+      <div class="field">
+        <label>Aperçu des créneaux</label>
+        <div class="slot-preview" id="csvSlotPreview"></div>
+        <div class="pv-hint">🟢 Disponible · 🔴 Bloqué · Cliquez sur un créneau pour le bloquer/débloquer</div>
+      </div>
+    </div>
   `,
-  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+  `<button class="pill-btn" onclick="window._serviceSched=null;closeModal()">${t('cancel')}</button>
    <button class="pill-btn primary" onclick="saveClinicService('${isEdit?sv.id:'new'}')">💾 ${t('save')}</button>`);
+
+  if(isCustom) setTimeout(renderServiceSlotPreview, 30);
+}
+
+function onServiceSchedulingModeChange(mode){
+  if(!window._serviceSched) return;
+  window._serviceSched.mode = mode;
+  const customBlock = document.getElementById('csvCustomSchedule');
+  if(customBlock) customBlock.style.display = mode === 'custom' ? 'block' : 'none';
+  const toggle = document.getElementById('csvModeToggle');
+  if(toggle){
+    const btns = toggle.querySelectorAll('button');
+    btns.forEach((b, i) => {
+      const isActive = (i === 0 && mode === '24_7') || (i === 1 && mode === 'custom');
+      b.style.background = isActive ? 'var(--accent-primary)' : 'var(--glass-bg-3)';
+      b.style.color = isActive ? '#fff' : 'var(--text-main)';
+      b.classList.toggle('active', isActive);
+    });
+  }
+  if(mode === 'custom') setTimeout(renderServiceSlotPreview, 30);
+}
+
+function toggleServiceWorkDay(day, btn){
+  if(!window._serviceSched) return;
+  const idx = window._serviceSched.workDays.indexOf(day);
+  if(idx >= 0) window._serviceSched.workDays.splice(idx, 1);
+  else window._serviceSched.workDays.push(day);
+  btn.classList.toggle('on');
+}
+
+function onServiceScheduleTimeChange(){
+  if(!window._serviceSched) return;
+  const startEl = document.getElementById('csvWorkStart');
+  const endEl = document.getElementById('csvWorkEnd');
+  const durEl = document.getElementById('csvSlotDuration');
+  if(startEl) window._serviceSched.workStart = startEl.value || '08:00';
+  if(endEl) window._serviceSched.workEnd = endEl.value || '17:00';
+  if(durEl) window._serviceSched.slotDuration = parseInt(durEl.value, 10) || 30;
+  renderServiceSlotPreview();
+}
+
+function renderServiceSlotPreview(){
+  const container = document.getElementById('csvSlotPreview');
+  if(!container || !window._serviceSched) return;
+  const s = window._serviceSched;
+  const slots = generateSlots(s.workStart, s.workEnd, s.slotDuration);
+  container.innerHTML = slots.length
+    ? slots.map(sl => {
+        const off = s.disabledSlots.includes(sl);
+        return `<button type="button" class="pv-slot ${off?'off':''}" onclick="toggleServicePreviewSlot('${sl}')">${sl}</button>`;
+      }).join('')
+    : `<span style="color:var(--text-muted);font-size:12px">Aucun créneau généré</span>`;
+}
+
+function toggleServicePreviewSlot(time){
+  if(!window._serviceSched) return;
+  const idx = window._serviceSched.disabledSlots.indexOf(time);
+  if(idx >= 0) window._serviceSched.disabledSlots.splice(idx, 1);
+  else window._serviceSched.disabledSlots.push(time);
+  renderServiceSlotPreview();
 }
 function saveClinicService(id){
   const c = state.clinic;
   const name = ($('#csvName')?.value||'').trim();
   const icon = ($('#csvIcon')?.value||'🩺').trim() || '🩺';
   const desc = ($('#csvDesc')?.value||'').trim();
+
+  const sched = window._serviceSched || {
+    mode:'24_7', workDays:[0,1,2,3,4,5,6],
+    workStart:'08:00', workEnd:'17:00', slotDuration:30, disabledSlots:[]
+  };
+
   if(!name){ toast(t('required_fields'),'error'); return; }
+
+  /* Validation du mode personnalisé */
+  if(sched.mode === 'custom'){
+    if(!sched.workDays.length){
+      toast('Sélectionnez au moins un jour d\'ouverture','error'); return;
+    }
+    if(toMin(sched.workStart) === toMin(sched.workEnd)){
+      toast('L\'heure d\'ouverture et de fermeture ne peuvent pas être identiques','error'); return;
+    }
+    if(sched.slotDuration < 5){
+      toast('Durée de créneau invalide (min 5)','error'); return;
+    }
+  }
+
+  const fields = {
+    name, icon, description: desc,
+    schedulingMode: sched.mode,
+    workDays: sched.mode === 'custom' ? [...sched.workDays].sort((a,b)=>a-b) : [0,1,2,3,4,5,6],
+    workStart: sched.mode === 'custom' ? sched.workStart : '08:00',
+    workEnd: sched.mode === 'custom' ? sched.workEnd : '17:00',
+    slotDuration: Number(sched.slotDuration) || 30,
+    disabledSlots: sched.mode === 'custom' ? [...sched.disabledSlots] : []
+  };
+
   if(id === 'new'){
-    DB.clinicServices.push({
-      id: uid('CS-'), clinicId: c.id, name, icon, description: desc
-    });
+    DB.clinicServices.push({ id: uid('CS-'), clinicId: c.id, ...fields });
   } else {
     const sv = clinicServiceById(id);
     if(!sv) return;
-    sv.name = name; sv.icon = icon; sv.description = desc;
+    Object.assign(sv, fields);
   }
+
+  window._serviceSched = null;
   saveDB();
   closeModal();
   render();
@@ -21169,7 +22382,7 @@ function clinicApptRow(a){
       </div>
       <div class="appt-actions">
         ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
-        <button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>
+        ${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn green" onclick="openAdmissionFromAppt('${a.id}')" title="Admettre à l'hospitalisation">📥</button>`:''}
         ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🏥</button>` : ''}
@@ -21258,8 +22471,14 @@ function viewClinicInternal(){
     ? clinicLinkedDoctors(c.id).filter(d => getDoctorServiceInClinic(d.id, c.id) === service.id)
     : [];
   const selectedDoctor = f.doctorId ? docById(f.doctorId) : null;
-  const availDays = selectedDoctor ? availableDaysFor(selectedDoctor, 30) : [];
-  const slots = (f.date && selectedDoctor) ? slotsFor(selectedDoctor.id, f.date) : [];
+  const availDays = selectedDoctor
+    ? (f.serviceId
+        ? availableDaysForDoctorInService(selectedDoctor.id, f.serviceId, 30)
+        : availableDaysFor(selectedDoctor, 30))
+    : [];
+  const slots = (f.date && selectedDoctor)
+    ? getSlotsForDate(f.date, 'clinic-internal')
+    : [];
   const docs = f.documents || [];
   
   /* ⚠️ RÈGLE MÉTIER : RDV interne clinique = PRESTATIONS CLINIQUE UNIQUEMENT
@@ -21557,9 +22776,8 @@ function viewClinicStats(){
   const billableList = appts.filter(a => a.status === 'done');
   let totalRev = 0;
   billableList.forEach(a => {
-    /* ❌ RDV interne clinique : pas de frais cabinet */
-    const fee = a.internal ? 0 : ((docById(a.doctorId)?.fee)||0);
-    totalRev += fee + (a.servicesTotal||0);
+    /* 🏥 Clinique : prestations uniquement */
+    totalRev += (a.servicesTotal || 0);
   });
   const docCount = clinicLinkedDoctors(c.id).map(d => ({
     d,
@@ -21833,11 +23051,8 @@ function viewClinicRevenue(){
   const today = todayISO();
   const done = DB.appointments.filter(a => String(a.clinicId)===String(c.id) && a.status === 'done');
   const feeFor = a => {
-    /* ❌ RDV interne clinique : uniquement prestations, pas de frais cabinet */
-    if(a.internal) return (a.servicesTotal||0);
-    const doc = docById(a.doctorId);
-    const fee = doc ? (doc.fee||0) : 0;
-    return fee + (a.servicesTotal||0);
+    /* 🏥 Clinique : prestations uniquement — le tarif cabinet du médecin ne s'applique pas */
+    return (a.servicesTotal || 0);
   };
   const todayRev = done.filter(a => a.date === today).reduce((s,a)=>s+feeFor(a), 0);
   const weekStart = dateOffset(-6);
@@ -22446,7 +23661,7 @@ function printClinicAdmissionsRevenue(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
+        <div style="color:#6b7280;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
       </div>
     </div>
   </div>
@@ -22509,12 +23724,8 @@ function computeClinicRevenue(){
     periodLabel = `${fmtDate(q.startDate)} → ${fmtDate(q.endDate)}`;
   }
   list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
-  const totalFees = list.reduce((s,a) => {
-    /* ❌ RDV interne clinique : JAMAIS de frais cabinet — prestations uniquement */
-    if(a.internal) return s;
-    const doc = docById(a.doctorId);
-    return s + (doc ? (doc.fee||0) : 0);
-  }, 0);
+  /* 🏥 Clinique : aucun frais cabinet — uniquement les prestations */
+  const totalFees = 0;
   const totalServices = list.reduce((s,a) => s + (a.servicesTotal||0), 0);
   const totalGross = totalFees + totalServices;
   const totalCommission = list.reduce((s,a) => s + apptClinicCommission(a), 0);
@@ -22530,8 +23741,8 @@ function printClinicRevenue(){
   const refNo = 'CLN-REC-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
   const rows = list.map((a,i)=>{
     const doc = docById(a.doctorId);
-    /* ❌ RDV interne clinique : frais cabinet = 0 */
-    const fee = a.internal ? 0 : (doc ? (doc.fee||0) : 0);
+    /* 🏥 Clinique : prestations uniquement, pas de frais cabinet */
+    const fee = 0;
     const srv = a.servicesTotal||0;
     const gross = fee + srv;
     const comm = apptClinicCommission(a);
@@ -22612,7 +23823,7 @@ function printClinicRevenue(){
       <div class="date-box">
         <div class="lbl">${t('printed_on')}</div>
         <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
+        <div style="color:#6b7280;font-size:9.5px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
       </div>
     </div>
   </div>
@@ -22656,6 +23867,7 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   const doc = docById(appt.doctorId);
   const svc = appt.clinicServiceId ? clinicServiceById(appt.clinicServiceId) : null;
   const prest = appt.prestationId ? clinicPrestationById(appt.prestationId) : null;
+  /* 🏥 Clinique : prestations uniquement, le tarif cabinet ne s'applique pas */
   const fee = appt.internal ? 0 : (doc ? (doc.fee || 0) : 0);
   const servicesTotal = appt.servicesTotal || 0;
   const total = fee + servicesTotal;
@@ -22735,7 +23947,10 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:11px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:14px}
+  .head{display:flex;flex-direction:column;gap:12px;border-bottom:2px solid #8b5cf6;padding-bottom:10px;margin-bottom:14px}
+  .head-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px}
+  .head-clinic-info{background:linear-gradient(135deg,rgba(139,92,246,.05),rgba(236,72,153,.03));border:1px solid rgba(139,92,246,.25);border-radius:10px;padding:10px 44px 10px 14px;font-size:10px;line-height:1.6;color:#1f2937;white-space:pre-wrap;position:relative;overflow:hidden}
+  .head-clinic-info::before{content:\'📄\';position:absolute;top:8px;right:11px;font-size:15px;opacity:.35}
   .brand{display:flex;gap:10px;align-items:flex-start}
   .logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;color:#fff;font-size:24px;flex-shrink:0}
   .brand-txt h1{font-family:'Playfair Display',Georgia,serif;font-size:24px;color:#8b5cf6;margin-bottom:2px;line-height:1.05}
@@ -22753,10 +23968,12 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
 </style></head>
 <body>
   <div class="head">
-    <div class="brand"><div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div><div class="brand-txt"><h1>${c ? esc(c.name) : 'OmniMed'}</h1><div class="sub">FACTURE</div></div></div>
-    <div class="meta"><div>Facture N° FACT-${esc(appt.id)}</div><div>Émise le ${printDate}</div></div>
+    <div class="head-row">
+      <div class="brand"><div class="logo">${c ? (c.avatar||'🏥') : '🏥'}</div><div class="brand-txt"><h1>${c ? esc(c.name) : 'OmniMed'}</h1><div class="sub">FACTURE</div></div></div>
+      <div class="meta"><div>Facture N° FACT-${esc(appt.id)}</div><div>Émise le ${printDate}</div></div>
+    </div>
+    ${c && c.headerText ? `<div class="head-clinic-info">${esc(c.headerText)}</div>` : ''}
   </div>
-  ${c ? getClinicHeaderBlock(c) : ''}
   <div class="info-grid">
     <div><div class="k">Patient</div><div class="v">${esc(appt.patientName)} ${appt.patientAge ? '('+appt.patientAge+' ans)' : ''}</div></div>
     <div><div class="k">Téléphone</div><div class="v">${esc(appt.patientPhone)}</div></div>
@@ -24483,6 +25700,52 @@ async function init(){
       _releaseRemoteLock();
     }
   }, 60000);
+
+  // =========================================================
+  // ÉTAPE 4 : RESTAURATION AUTOMATIQUE DE SESSION
+  // =========================================================
+  const savedSessionStr = localStorage.getItem('omnimed_saved_session') || sessionStorage.getItem('omnimed_saved_session');
+  if (savedSessionStr) {
+    try {
+      const sess = JSON.parse(savedSessionStr);
+      const isLocal = !!localStorage.getItem('omnimed_saved_session');
+      const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 jours
+      
+      if (!isLocal || (Date.now() - sess.date < maxAge)) {
+        let savedPwd = '';
+        if (isLocal) {
+          const encodedPwd = localStorage.getItem('omnimed_saved_pwd_' + sess.id);
+          if (encodedPwd) savedPwd = decodeURIComponent(escape(atob(encodedPwd)));
+        }
+
+        if (sess.role === 'admin' && DB.admin.username === sess.id) {
+           state.admin = {username: DB.admin.username};
+           state.role = 'admin';
+           state.view = 'adash';
+        } 
+        else if (sess.role === 'clinic') {
+           const clinic = DB.clinics.find(c => String(c.id) === String(sess.id));
+           if (clinic && !clinic.locked) {
+             state.clinic = clinic;
+             state.role = 'clinic';
+             state.view = 'cdash';
+           }
+        } 
+        else if (sess.role === 'doctor') {
+           const doc = DB.doctors.find(d => String(d.id) === String(sess.id));
+           if (doc && !doc.locked) {
+             state.doctor = doc;
+             state.role = 'doctor';
+             state.view = 'ddash';
+           }
+        }
+      } else {
+        clearLocalSession(); // Session expirée
+      }
+    } catch(e) { console.warn('Erreur restauration session', e); }
+  }
+  // =========================================================
+
   applyDir(); render();
   subscribeRealtime();
   setupVisibilityResync();
@@ -24614,11 +25877,13 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   patientProtectedAction, verifyPatientPwd, rateAppointment, rateClinic,
   hoverStars, resetStarHover,
   printHTML,
+  printApptTicket,
   generateSlots, state,
   sendMessage, onComposeFiles, removeComposeFile, openMessage, askDeleteMessage, deleteMessage,
   toggleMsgSelection, toggleSelectAllMsgs, askDeleteSelectedMsgs, deleteSelectedMsgs,
   onMsgToSearch, renderMsgToSuggestions, pickMsgRecipient, clearMsgRecipient,
   downloadMessageFile, replyToMessage,
+  downloadMessageHTMLPDF, printMessageHTML,
   renderAdminGlobalHistory, renderAdminMessageDetail,
   genApptId, getUserKey,
   toggleApptSelect, toggleSelectAllAppts, clearApptSelection,
@@ -24667,6 +25932,7 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   findAutoDoctorForService, firstAvailableSlotForDoctor, availableDaysForDoctorInClinic,
   /* MODIFICATION #6 — ajouter médecin local */
   openClinicAddLocalDoctorModal,
+  openClinicInternalDoctorForm, toggleInternalDocWorkDay, saveClinicInternalDoctor, onInternalDocTimeChange,
   /* MODIFICATION #4 — invitation */
   openClinicInviteDoctorModal, renderClinicInviteSuggest, sendClinicInvite, cancelClinicInvite,
   openClinicServicePicker, saveClinicServiceLink, openClinicRemoveDoctorConfirm, doRemoveClinicDoctor,
@@ -24691,6 +25957,13 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   computeClinicBillingData, computeClinicRevenue,
   /* MODIFICATION #5 — clinique 24/7 */
   isClinicWorkDay, slotsForClinic, availableDaysForClinic,
+    /* 🗓️ Planification personnalisée des services */
+  getServiceSchedule, isServiceWorkDay, generateServiceSlots,
+  slotsForClinicService, slotsForDoctorInService,
+  availableDaysForDoctorInService, availableDaysForService,
+  firstAvailableSlotForDoctorInService,
+  onServiceSchedulingModeChange, toggleServiceWorkDay,
+  onServiceScheduleTimeChange, renderServiceSlotPreview, toggleServicePreviewSlot,
   /* TASK-005 — URGENCE */
   openEmergencyForm, submitEmergency, findClinicsWithEmergencyService,
   checkClinicEmergencies, showEmergencyAlertModal, hideEmergencyAlertModal,
@@ -24743,6 +26016,7 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   buildAdmissionInvoiceModalContent,
   openAdmissionInvoiceModal,
   printAdmissionInvoice,
+  updateAdmissionFullName,
 });
 </script>
 </body>
