@@ -2699,6 +2699,47 @@ body.dark .clinic-notif-mini.emergency .cnm-name{ color:#fca5a5; }
   .patient-nav-tag .pnt-ico{font-size:12px;}
 }
 /* ============================================================ */
+/* 🆕 Admin Availability & Nav Responsive */
+.admin-availability-view .avail-inner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 1024px) {
+  .admin-availability-view .avail-inner-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 640px) {
+  .admin-availability-view .avail-row {
+    padding: 6px 8px !important;
+  }
+  .admin-availability-view .avail-name {
+    font-size: 11px !important;
+  }
+  .admin-availability-view .avail-badge {
+    font-size: 8.5px !important;
+    padding: 1px 6px !important;
+  }
+}
+@media (max-width: 1024px) {
+  .app-nav.stack .nav-item-tag {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+  }
+  .app-nav.stack .nav-item-tag .nit-ico {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 15px !important;
+  }
+  .app-nav.stack .nav-item-tag .nit-label {
+    font-size: 11px !important;
+  }
+  .app-nav.stack .nav-item-tag .nit-info {
+    font-size: 9.5px !important;
+  }
+}
+
 /* ===== FIX TOP-ALIGN MOBILE/TABLET ===== */
 @media (max-width: 900px){
   html{height:100% !important}
@@ -16715,15 +16756,12 @@ function viewAdminAvailability() {
 
   const renderRow = (item, isDoc) => {
     const st = getStatus(item);
-    return `
-      <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;min-width:0">
+    return `$1<div class="avail-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;min-width:0">
         <div style="width:20px;height:20px;border-radius:5px;background:var(--accent-light);display:grid;place-items:center;font-size:12px;flex-shrink:0">
           ${isDoc ? specialtyAvatar(item.specialty) : (item.avatar || '🏥')}
-        </div>
-        <div style="flex:1;min-width:0;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        </div>$1<div class="avail-name" style="flex:1;min-width:0;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
           ${esc(item.name)}<span style="font-weight:400;color:var(--text-muted);font-size:10px"> · ${isDoc ? esc(item.specialty) : 'Clinique'}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9999px;background:${st.bg};border:1px solid ${st.color};color:${st.color};font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0">
+        </div>$1<div class="avail-badge" style="display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9999px;background:$${st.bg};border:1px solid $${st.color};color:$${st.color};font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0">
           <div style="width:4px;height:4px;border-radius:50%;background:${st.color};${st.online ? 'box-shadow:0 0 6px '+st.color : ''}"></div>
           ${st.text}
         </div>
@@ -16742,13 +16780,10 @@ function viewAdminAvailability() {
     `;
   };
 
-  return `
-    <div class="grid grid-2" style="gap:14px">
-      <div class="card" style="display:flex;flex-direction:column;">
-        <div class="card-title" style="font-size:16px;margin-bottom:2px">🧑‍⚕️ Médecins <span class="tag accent">${doctors.length}</span></div>
+  return `$1<div class="admin-availability-view grid grid-2" style="gap:14px">$2<div class="card" style="display:flex;flex-direction:column;">$3<div class="card-title" style="font-size:16px;margin-bottom:2px">🧑‍⚕️ Médecins <span class="tag accent">${doctors.length}</span></div>
         <div class="card-sub">Statut de connexion en temps réel</div>
         <div style="flex:1;margin-top:12px;max-height:65vh;overflow-y:auto;padding-right:4px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="avail-inner-grid">
             ${docSlice.length ? docSlice.map(d => renderRow(d, true)).join('') : `<div class="empty" style="grid-column:1/-1">Aucun médecin</div>`}
           </div>
         </div>
@@ -16759,7 +16794,7 @@ function viewAdminAvailability() {
         <div class="card-title" style="font-size:16px;margin-bottom:2px">🏥 Cliniques <span class="tag clinic">${clinics.length}</span></div>
         <div class="card-sub">Statut de connexion en temps réel</div>
         <div style="flex:1;margin-top:12px;max-height:65vh;overflow-y:auto;padding-right:4px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="avail-inner-grid">
             ${clinicSlice.length ? clinicSlice.map(c => renderRow(c, false)).join('') : `<div class="empty" style="grid-column:1/-1">Aucune clinique</div>`}
           </div>
         </div>
