@@ -5305,7 +5305,8 @@ async function loadDB(){
         sessionClosed: !!d.session_closed, locked: !!d.locked,
         ownedByClinic: d.owned_by_clinic || null,
         isClinicLocal: !!d.is_clinic_local,
-        createdAt: d.created_at
+        createdAt: d.created_at,
+        updatedAt: d.updated_at || d.created_at
       })),
 
       clinics: (clinicR.data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
@@ -5322,7 +5323,8 @@ async function loadDB(){
         billingType: c.billing_type||'none',
         commissionAmount: c.commission_amount!=null?Number(c.commission_amount):null,
         subStart: c.sub_start, subTrialEnd: c.sub_trial_end,
-        createdAt: c.created_at
+        createdAt: c.created_at,
+        updatedAt: c.updated_at || c.created_at
       })),
 
       clinicServices: (csR.data||[]).filter(cs=>!_pendingDeletes.clinicServices.includes(String(cs.id))).map(cs=>({
@@ -5658,7 +5660,7 @@ async function pushToSupabase(){
         session_closed:!!d.sessionClosed, locked:!!d.locked,
         owned_by_clinic: d.ownedByClinic || null,
         is_clinic_local: !!d.isClinicLocal,
-        updated_at: new Date().toISOString()
+        updated_at: d.updatedAt || new Date().toISOString()
       })));
     }
 
@@ -5679,7 +5681,7 @@ async function pushToSupabase(){
         billing_type:c.billingType||'none',
         commission_amount:c.commissionAmount,
         sub_start:c.subStart, sub_trial_end:c.subTrialEnd,
-        updated_at: new Date().toISOString()
+        updated_at: c.updatedAt || new Date().toISOString()
       })));
     }
 
@@ -9009,6 +9011,7 @@ function adminNav(){
     ['adash','📊',t('adash'), 'Vue d\'ensemble'],
     ['adoctors','🧑‍⚕️',t('adoctors'), totalDocs + ' médecin' + (totalDocs>1?'s':'')],
     ['aclinics','🏥',t('aclinics'), totalClinics + ' clinique' + (totalClinics>1?'s':'')],
+    ['aavailability','📡','Disponibilité', 'En ligne / Hors ligne'],
     ['astats','📈',t('astats'), 'Vue d\'ensemble'],
     ['arevenue','💲',t('arevenue'), 'Finances & commissions'],
     ['aappts','📅',t('aappts'), pendingCount + ' en attente'],
@@ -15343,6 +15346,7 @@ function renderAdminView(){
     case 'adash': return viewAdminDash();
     case 'adoctors': return viewAdminDoctors();
     case 'aclinics': return viewAdminClinics();
+    case 'aavailability': return viewAdminAvailability();
     case 'astats': return viewAdminStats();
     case 'arevenue': return viewAdminRevenue();
     case 'aappts': return viewAdminAppts();
@@ -15389,14 +15393,7 @@ function viewAdminDash(){
       <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">✅</div><div><div class="stat-val">${done}</div><div class="stat-lbl">${t('status_done')}</div></div></div>
       <div class="stat"><div class="stat-ico" style="background:var(--danger-bg);color:var(--danger)">✕</div><div><div class="stat-val">${cancelled}</div><div class="stat-lbl">${t('cancelled_c')}</div></div></div>
     </div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title" style="font-size:15px">⚙️ ${t('commission_general')}</div>
-      <div class="stats-tags">
-        ${statTag(t('commission_general'), n2(commission) + ' DA', 'accent', true)}
-        ${statTag(t('subscription_monthly_price_short'), n2(getSubscriptionMonthlyPrice()) + ' DA', 'accent', true)}
-        ${statTag(t('subscription_yearly_price_short'), n2(getSubscriptionYearlyPrice()) + ' DA', 'accent', true)}
-      </div>
-    </div>
+
     <div class="grid grid-2">
       <div class="card">
         <div class="card-title">📅 ${t('today_appts')} <span class="tag accent">${todayAppts.length}</span></div>
@@ -16677,6 +16674,101 @@ function renderSearchStatsSection(){
     </div>
   `;
 }
+function viewAdminAvailability() {
+  const now = Date.now();
+  const ONLINE_THRESHOLD = 60 * 1000;
+
+  const getStatus = (account) => {
+    const lastSeen = account.updatedAt ? new Date(account.updatedAt).getTime() : 0;
+    const diff = now - lastSeen;
+    if(diff < ONLINE_THRESHOLD) return { online: true, text: 'En ligne', color: 'var(--success)', bg: 'var(--success-bg)' };
+    const mins = Math.floor(diff / 60000);
+    return { online: false, text: `Hors ligne depuis ${mins} min`, color: 'var(--text-muted)', bg: 'var(--glass-bg-3)' };
+  };
+
+  const doctors = DB.doctors.filter(d => !d.isClinicLocal && !d.ownedByClinic);
+  const clinics = DB.clinics;
+
+  const sortedDoctors = [...doctors].sort((a,b) => {
+    const sA = getStatus(a).online ? 1 : 0;
+    const sB = getStatus(b).online ? 1 : 0;
+    return sB - sA;
+  });
+  const sortedClinics = [...clinics].sort((a,b) => {
+    const sA = getStatus(a).online ? 1 : 0;
+    const sB = getStatus(b).online ? 1 : 0;
+    return sB - sA;
+  });
+
+  const ITEMS_PER_PAGE = 40;
+  if(!state.adminAvailabilityPageDocs) state.adminAvailabilityPageDocs = 1;
+  if(!state.adminAvailabilityPageClinics) state.adminAvailabilityPageClinics = 1;
+  
+  const docTotalPages = Math.max(1, Math.ceil(sortedDoctors.length / ITEMS_PER_PAGE));
+  const clinicTotalPages = Math.max(1, Math.ceil(sortedClinics.length / ITEMS_PER_PAGE));
+  
+  const docPage = Math.min(state.adminAvailabilityPageDocs, docTotalPages);
+  const clinicPage = Math.min(state.adminAvailabilityPageClinics, clinicTotalPages);
+
+  const docSlice = sortedDoctors.slice((docPage - 1) * ITEMS_PER_PAGE, docPage * ITEMS_PER_PAGE);
+  const clinicSlice = sortedClinics.slice((clinicPage - 1) * ITEMS_PER_PAGE, clinicPage * ITEMS_PER_PAGE);
+
+  const renderRow = (item, isDoc) => {
+    const st = getStatus(item);
+    return `
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:6px;min-width:0">
+        <div style="width:20px;height:20px;border-radius:5px;background:var(--accent-light);display:grid;place-items:center;font-size:12px;flex-shrink:0">
+          ${isDoc ? specialtyAvatar(item.specialty) : (item.avatar || '🏥')}
+        </div>
+        <div style="flex:1;min-width:0;font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${esc(item.name)}<span style="font-weight:400;color:var(--text-muted);font-size:10px"> · ${isDoc ? esc(item.specialty) : 'Clinique'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding:1px 7px;border-radius:9999px;background:${st.bg};border:1px solid ${st.color};color:${st.color};font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0">
+          <div style="width:4px;height:4px;border-radius:50%;background:${st.color};${st.online ? 'box-shadow:0 0 6px '+st.color : ''}"></div>
+          ${st.text}
+        </div>
+      </div>
+    `;
+  };
+
+  const renderPagination = (currentPage, totalPages, target) => {
+    if(totalPages <= 1) return '';
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--glass-border)">
+        <button class="mini-btn ghost" ${currentPage === 1 ? 'disabled' : ''} onclick="state.${target}=${currentPage - 1};render()" style="padding:4px 10px">← Précédent</button>
+        <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-numbers)">Page ${currentPage} / ${totalPages}</span>
+        <button class="mini-btn ghost" ${currentPage === totalPages ? 'disabled' : ''} onclick="state.${target}=${currentPage + 1};render()" style="padding:4px 10px">Suivant →</button>
+      </div>
+    `;
+  };
+
+  return `
+    <div class="grid grid-2" style="gap:14px">
+      <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-title" style="font-size:16px;margin-bottom:2px">🧑‍⚕️ Médecins <span class="tag accent">${doctors.length}</span></div>
+        <div class="card-sub">Statut de connexion en temps réel</div>
+        <div style="flex:1;margin-top:12px;max-height:65vh;overflow-y:auto;padding-right:4px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            ${docSlice.length ? docSlice.map(d => renderRow(d, true)).join('') : `<div class="empty" style="grid-column:1/-1">Aucun médecin</div>`}
+          </div>
+        </div>
+        ${renderPagination(docPage, docTotalPages, 'adminAvailabilityPageDocs')}
+      </div>
+      
+      <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-title" style="font-size:16px;margin-bottom:2px">🏥 Cliniques <span class="tag clinic">${clinics.length}</span></div>
+        <div class="card-sub">Statut de connexion en temps réel</div>
+        <div style="flex:1;margin-top:12px;max-height:65vh;overflow-y:auto;padding-right:4px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            ${clinicSlice.length ? clinicSlice.map(c => renderRow(c, false)).join('') : `<div class="empty" style="grid-column:1/-1">Aucune clinique</div>`}
+          </div>
+        </div>
+        ${renderPagination(clinicPage, clinicTotalPages, 'adminAvailabilityPageClinics')}
+      </div>
+    </div>
+  `;
+}
+
 function viewAdminStats(){
   const appts = getStatsAppts();
   const s = computeCommonStats(appts);
@@ -25669,6 +25761,28 @@ async function init(){
   /* Auto-lock des prestations cliniques */
   try { autoLockPrestations(); } catch(e){}
   setInterval(checkReminders, 5 * 60 * 1000);
+
+  window.sendHeartbeat = async function() {
+    if (document.visibilityState !== 'visible') return;
+    const now = nowISO();
+    if (state.role === 'doctor' && state.doctor) {
+      const d = DB.doctors.find(x => String(x.id) === String(state.doctor.id));
+      if (d) d.updatedAt = now;
+      state.doctor.updatedAt = now;
+      try { await sb.from('doctors').update({ updated_at: now }).eq('id', state.doctor.id); } catch(e){}
+    } else if (state.role === 'clinic' && state.clinic) {
+      const c = DB.clinics.find(x => String(x.id) === String(state.clinic.id));
+      if (c) c.updatedAt = now;
+      state.clinic.updatedAt = now;
+      try { await sb.from('clinics').update({ updated_at: now }).eq('id', state.clinic.id); } catch(e){}
+    }
+  };
+
+  setInterval(window.sendHeartbeat, 15000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') window.sendHeartbeat();
+  });
   setInterval(async () => {
     if(_isApplyingRemote) return;
     if(_isPushing) return;
@@ -25838,7 +25952,7 @@ window.addEventListener('popstate', () => {
   }
 });
 Object.assign(window, {
-  go, setRole, toggleDark, setLang, goHome,
+  go, setRole, toggleDark, setLang, goHome, viewAdminAvailability,
   openAccountLogin, doAccountLogin, logoutAccount,
   openRecettePasswordModal, checkRecettePassword,
   openClinicRecettePasswordModal, checkClinicRecettePassword,
