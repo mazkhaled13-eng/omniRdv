@@ -4891,7 +4891,9 @@ const state = {
     from: '', to: '',
     sections: { summary: true, allergies: true, antecedents: true, consultations: true, vitals: true, prescriptions: true, labtests: true }
   },
-  _importPending: null
+  _importPending: null,
+  expenseFilter: { periodType:'month', month:0, year:0, startDate:'', endDate:'', dayDate:'', category:'all', search:'' },
+  expensePage: 1
 };
 /* ============================================================
    🚨 TRACKING DES URGENCES TRAITÉES (anti-réapparition modale)
@@ -5190,7 +5192,8 @@ function seedData(){
     visits: { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
     emergencies: [],
     rooms: [],
-    admissions: []
+    admissions: [],
+    expenses: []
   };
 }
 
@@ -5214,10 +5217,11 @@ const _pendingDeletes = (() => {
       clinicServices:    Array.isArray(raw.clinicServices)    ? raw.clinicServices    : [],
       clinicPrestations: Array.isArray(raw.clinicPrestations) ? raw.clinicPrestations : [],
       doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : [],
-      emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : []
+      emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : [],
+      expenses:     Array.isArray(raw.expenses)     ? raw.expenses     : []
     };
   } catch(e){
-    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [] };
+    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [], expenses: [] };
   }
 })();
 function savePendingDeletes(){
@@ -5254,7 +5258,8 @@ async function loadDB(){
       sb.from('clinic_invoice_registry').select('*'),
       sb.from('emergencies').select('*').order('created_at',{ascending:false}),
       sb.from('rooms').select('*'),
-      sb.from('admissions').select('*').order('created_at',{ascending:false})
+      sb.from('admissions').select('*').order('created_at',{ascending:false}),
+      sb.from('expenses').select('*').order('date',{ascending:false})
     ]);
 
     const unwrapOne = (r) => {
@@ -5288,6 +5293,7 @@ async function loadDB(){
     const emgR    = unwrapArr(results[17]);
     const roomR   = unwrapArr(results[18]);
     const admR    = unwrapArr(results[19]);
+    const expR    = unwrapArr(results[20]);
 
     const criticalError = docR.error || apptR.error;
     if(criticalError){
@@ -5328,6 +5334,7 @@ async function loadDB(){
       },
       medications: Array.isArray(s.medications) ? s.medications : [],
       searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
+      expenseCategories: Array.isArray(s.expense_categories) ? s.expense_categories : null,
       visits: (s.visits && typeof s.visits === 'object')
         ? s.visits
         : { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
@@ -5472,6 +5479,15 @@ async function loadDB(){
         commission: Number(a.commission)||0,
         notes: a.notes||'',
         createdAt: a.created_at, updatedAt: a.updated_at
+      })),
+
+      expenses: (expR.data||[]).map(e=>({
+        id: e.id, ownerType: e.owner_type, ownerId: e.owner_id,
+        date: e.date, category: e.category||'autre', label: e.label||'',
+        amount: Number(e.amount)||0, quantity: Number(e.quantity)||1, tva: Number(e.tva)||0,
+        supplier: e.supplier||'', reference: e.reference||'', notes: e.notes||'',
+        attachmentKey: e.attachment_key||null, attachmentName: e.attachment_name||null,
+        createdAt: e.created_at, updatedAt: e.updated_at
       }))
     };
 
@@ -5510,6 +5526,7 @@ async function loadDB(){
     if(!DB.emergencies) DB.emergencies = [];
     if(!DB.rooms) DB.rooms = [];
     if(!DB.admissions) DB.admissions = [];
+    if(!DB.expenses) DB.expenses = [];
     if(!DB.visits || typeof DB.visits !== 'object'){
       DB.visits = { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
     }
@@ -5610,12 +5627,13 @@ async function pushToSupabase(){
     const syncEmergencies           = needsSync('emergencies', 'emergencies');
     const syncRooms                 = needsSync('rooms');
     const syncAdmissions            = needsSync('admissions');
+    const syncExpenses              = needsSync('expenses', 'expenses');
 
     const anyChange = syncSettings || syncVisits || syncDoctors || syncAppointments || syncServices ||
       syncNotifications || syncMessages || syncSpecialties || syncWilayas || syncCommunes ||
       syncInvoiceRegistry || syncSubInvoiceRegistry || syncClinicInvoiceRegistry ||
       syncMedicalFiles || syncClinics || syncClinicServices || syncClinicPrestations ||
-      syncDoctorClinicLinks || syncEmergencies || syncRooms || syncAdmissions;
+      syncDoctorClinicLinks || syncEmergencies || syncRooms || syncAdmissions || syncExpenses;
 
     if(!anyChange) return; // rien n'a changé → 0 requête réseau
 
@@ -5631,6 +5649,7 @@ async function pushToSupabase(){
         admin_password: DB.admin.password,
         medications: DB.medications || [],
         search_logs: DB.searchLogs || [],
+        expense_categories: DB.expenseCategories || null,
         visits: DB.visits || {},
         updated_at: new Date().toISOString()
       };
@@ -5683,6 +5702,10 @@ async function pushToSupabase(){
     if(_pendingDeletes.emergencies.length){
       await sb.from('emergencies').delete().in('id', _pendingDeletes.emergencies);
       _pendingDeletes.emergencies = []; savePendingDeletes();
+    }
+    if(_pendingDeletes.expenses && _pendingDeletes.expenses.length){
+      await sb.from('expenses').delete().in('id', _pendingDeletes.expenses);
+      _pendingDeletes.expenses = []; savePendingDeletes();
     }
 
     // ---- DOCTORS ----
@@ -5916,6 +5939,18 @@ async function pushToSupabase(){
       }
     }
 
+    // ---- EXPENSES ----
+    if(syncExpenses && DB.expenses && DB.expenses.length){
+      await sb.from('expenses').upsert(DB.expenses.map(e=>({
+        id: e.id, owner_type: e.ownerType, owner_id: String(e.ownerId),
+        date: e.date, category: e.category||'autre', label: e.label,
+        amount: Number(e.amount)||0, quantity: Number(e.quantity)||1, tva: Number(e.tva)||0,
+        supplier: e.supplier||null, reference: e.reference||null, notes: e.notes||null,
+        attachment_key: e.attachmentKey||null, attachment_name: e.attachmentName||null,
+        updated_at: new Date().toISOString()
+      })));
+    }
+
     _lastPushedSnapshot = current; // 📸 mémorise l'état poussé
     _lastPushTime = Date.now();
     markSyncBadge(true);
@@ -5981,7 +6016,8 @@ function snapshotDB(){
     visits:             JSON.stringify(DB.visits || {}),
     emergencies:        JSON.stringify(DB.emergencies || []),
     rooms:              JSON.stringify(DB.rooms || []),
-    admissions:         JSON.stringify(DB.admissions || [])
+    admissions:         JSON.stringify(DB.admissions || []),
+    expenses:           JSON.stringify(DB.expenses || [])
   };
 }
 function relevantKeysForCurrentView(){
@@ -5991,8 +6027,8 @@ function relevantKeysForCurrentView(){
   const isClinic = state.role === 'clinic';
   if(isAdmin) return null;
   if(isClinic){
-    if(v === 'cdash' || v === 'cappts' || v === 'cdoctors' || v === 'cservices' || v === 'cprestations' || v === 'cinternal' || v === 'cstats' || v === 'cadmissions' || v === 'chospitalization')
-      return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies','rooms','admissions'];
+    if(v === 'cdash' || v === 'cappts' || v === 'cdoctors' || v === 'cservices' || v === 'cprestations' || v === 'cinternal' || v === 'cstats' || v === 'cadmissions' || v === 'chospitalization' || v === 'cdepenses')
+      return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies','rooms','admissions','expenses'];
     if(v === 'crecette') return ['appointments','clinics','doctors','services','settings','emergencies','rooms','admissions'];
     if(v === 'cprof')    return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','settings'];
     if(v === 'cmessages')return ['messages','clinics','doctors','emergencies'];
@@ -6000,8 +6036,8 @@ function relevantKeysForCurrentView(){
     return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies'];
   }
   if(isDoc){
-    if(v === 'ddash' || v === 'dappts' || v === 'dinternal' || v === 'dstats' || v === 'drecette')
-      return ['appointments','services','notifications','settings','medications','clinics','clinicServices','clinicPrestations','doctorClinicLinks'];
+    if(v === 'ddash' || v === 'dappts' || v === 'dinternal' || v === 'dstats' || v === 'drecette' || v === 'ddepenses')
+      return ['appointments','services','notifications','settings','medications','clinics','clinicServices','clinicPrestations','doctorClinicLinks','expenses'];
     if(v === 'dprof')    return ['doctors','settings','medications','clinics','doctorClinicLinks','clinicServices'];
     if(v === 'dclinics') return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors'];
     if(v === 'ddossier' || v === 'dossier') return ['medicalFiles','doctors','appointments','settings','medications'];
@@ -6020,7 +6056,7 @@ let _realtimeChannel = null;
 let _realtimeDebounce = null;
 let _realtimeStatusStableTimer = null;
 /* ⚡ Rechargement incrémental d'une seule table — remplace loadDB() (18 tables) par 1 seule requête */
-const INCREMENTAL_TABLES = ['appointments','notifications','emergencies','messages','doctors','clinics','rooms','admissions'];
+const INCREMENTAL_TABLES = ['appointments','notifications','emergencies','messages','doctors','clinics','rooms','admissions','expenses'];
 
 async function loadTable(tableName){
   const _guardAtStart = _criticalGuardUntil;   // 🆕 capture l'état du verrou
@@ -6164,6 +6200,19 @@ if(state.role === 'doctor' && state.doctor) {
         }));
         return true;
       }
+      case 'expenses': {
+        const { data, error } = await sb.from('expenses').select('*').order('date',{ascending:false});
+        if(error) return false;
+        DB.expenses = (data||[]).filter(e=>!_pendingDeletes.expenses.includes(String(e.id))).map(e=>({
+          id: e.id, ownerType: e.owner_type, ownerId: e.owner_id,
+          date: e.date, category: e.category||'autre', label: e.label||'',
+          amount: Number(e.amount)||0, quantity: Number(e.quantity)||1, tva: Number(e.tva)||0,
+          supplier: e.supplier||'', reference: e.reference||'', notes: e.notes||'',
+          attachmentKey: e.attachment_key||null, attachmentName: e.attachment_name||null,
+          createdAt: e.created_at, updatedAt: e.updated_at
+        }));
+        return true;
+      }
       default: return false; // → fallback full loadDB()
     }
   } catch(e){
@@ -6174,7 +6223,7 @@ if(state.role === 'doctor' && state.doctor) {
 function subscribeRealtime(){
   if(_realtimeChannel) return;
 
-  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies'];
+  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies','expenses'];
   let chan = sb.channel('omnimed-changes');
 
   // ⚡ Le handler reçoit le payload → on sait QUELLE table a changé
@@ -8971,6 +9020,7 @@ function docNav(){
     ['ddossier','📁',t('ddossier'), dossierCount + ' dossier' + (dossierCount>1?'s':'')],
     ['dstats','📈',t('dstats'), 'Vue d\'ensemble'],
     ['drecette','💲',t('drecette'), 'Recette cabinet'],
+    ['ddepenses','💰','Dépenses', 'Suivi des dépenses'],
     ['dmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
     ['dprof','🧑‍⚕️',t('dprof'), 'Mon profil']
   ];
@@ -9021,6 +9071,7 @@ function clinicNav(){
     ['cdossier','📁',t('ddossier'), dossiersCount + ' dossier' + (dossiersCount>1?'s':'')],
     ['cstats','📈',t('dstats'), 'Vue d\'ensemble'],
     ['crecette','💲',t('drecette'), 'Recette clinique'],
+    ['cdepenses','💰','Dépenses', 'Suivi des dépenses'],
     ['cfacturation','🧾','Facturation', facturesCount + ' facture' + (facturesCount>1?'s':'')],  /* 🆕 */
     ['cmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
     ['cprof','⚙️',t('profile'), 'Paramètres clinique']
@@ -9088,9 +9139,9 @@ function go(view){
     state.booking = {doctorId:null,date:null,time:null,step:1,patientAge:'',editingId:null,services:[],documents:[],
       patientName:'',patientPhone:'',patientEmail:'',patientWilaya:'',patientPassword:'',motif:''};
   }
-  const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','dprof','dmessages','ddossier',
+  const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','ddepenses','dprof','dmessages','ddossier',
     'adash','adoctors','aclinics','astats','arevenue','aappts','alistes','asettings','amessages','adossiers',
-    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cfacturation','cmessages','cprof',
+    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cdepenses','cfacturation','cmessages','cprof',
     'clinicView','clinicBook','clinicProfile'];
   if(accountViews.includes(view) && !state.doctor && !state.admin && !state.clinic){
     openAccountLogin(); return;
@@ -9362,7 +9413,7 @@ function homeDoctorCard(d){
         ${rating.count>0?`<span class="tag rating" style="font-size:9.5px">⭐ ${rating.avg}</span>`:`<span class="tag rating-empty" style="font-size:9.5px">⭐ —</span>`}
         ${canToday?`<span class="tag success" style="font-size:9.5px">✓ Auj.</span>`:''}
       </div>
-      <div class="hrc-price">${n2(d.fee)} DA</div>
+      ${d.fee > 0 ? `<div class="hrc-price">${n2(d.fee)} DA</div>` : ''}
     </div>
   `;
 }
@@ -9488,7 +9539,7 @@ function recentDoctorRowHTML(d){
       ${closed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
       ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg}</span>`:''}
       <span class="tag ${canToday?'success':'muted'}">${canToday?'✓ '+t('today_appts'):'⏳'}</span>
-      <span class="tag accent">${n2(d.fee)} DA</span>
+      ${d.fee > 0 ? `<span class="tag accent">${n2(d.fee)} DA</span>` : ''}
       <span class="dr-arrow">›</span>
     </button>
   `;
@@ -9621,7 +9672,7 @@ function viewClinicPublicProfile(){
                       <span class="pi-name">${esc(p.name)}</span>
                       ${locked ? `<span class="prestation-lock-chip">🔒 ${t('prestation_locked')}</span>` : ''}
                       <span class="pi-meta">${p.duration} ${t('min')}${p.requiresDoctor?' · 🧑‍⚕️':''}</span>
-                      <span class="pi-price">${n2(p.price)} DA</span>
+                      ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
                     </div>`;
                   }).join('')}
                   ${svPrestations.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:4px">+ ${svPrestations.length - 5} …</div>` : ''}
@@ -9646,7 +9697,7 @@ function viewClinicPublicProfile(){
               <div class="doc-name">${esc(d.name)}</div>
               <div class="doc-spec">${esc(d.specialty)}${svName?' · 🏗️ '+esc(svName):''}</div>
               <div class="doc-meta">
-                <span>${n2(d.fee)} DA</span>
+                ${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}
                 <span>⏱️ ${d.duration} ${t('min')}</span>
               </div>
               ${r.count>0?`<div style="margin-top:6px"><span class="tag rating">⭐ ${r.avg} (${r.count})</span></div>`:''}
@@ -9700,7 +9751,7 @@ function openClinicServiceModal(serviceId){
                 <div style="font-weight:600;font-size:13.5px">${esc(d.name)}</div>
                 <div style="font-size:11.5px;color:var(--accent-primary);font-weight:500">${esc(d.specialty)}${r.count>0?' · ⭐ '+r.avg:''}</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
-                  💰 ${n2(d.fee)} DA · ⏱️ ${d.duration} ${t('min')}
+                  ${d.fee > 0 ? `💰 ${n2(d.fee)} DA · ` : ''}⏱️ ${d.duration} ${t('min')}
                 </div>
                 <div style="font-size:11px;color:${nextSlot?'var(--success)':'var(--danger)'};font-weight:600;margin-top:3px">
                   📅 ${t('clinic_service_next_slot')} : ${nextLabel}
@@ -9732,7 +9783,7 @@ function openClinicServiceModal(serviceId){
               <span class="pi-name">${esc(p.name)}</span>
               ${locked ? `<span class="prestation-lock-chip">🔒 ${t('prestation_locked')}</span>` : ''}
               <span class="pi-meta">${p.duration} ${t('min')}</span>
-              <span class="pi-price">${n2(p.price)} DA</span>
+              ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
               ${!locked ? `<span style="color:var(--text-muted);font-size:18px;margin-left:4px">›</span>` : ''}
             </div>
           `;
@@ -9905,7 +9956,7 @@ function clinicBookStep2(){
             <div class="doc-info">
               <div class="doc-name">${esc(d.name)}</div>
               <div class="doc-spec">${esc(d.specialty)}</div>
-              <div class="doc-meta"><span>${n2(d.fee)} DA</span><span>⏱️ ${d.duration} ${t('min')}</span></div>
+              <div class="doc-meta">${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}<span>⏱️ ${d.duration} ${t('min')}</span></div>
               ${r.count>0?`<div style="margin-top:6px"><span class="tag rating">⭐ ${r.avg}</span></div>`:''}
             </div>
           </div>`;
@@ -9924,7 +9975,7 @@ function clinicBookStep2(){
             <span class="pi-name">${esc(p.name)}</span>
             ${locked ? `<span class="prestation-lock-chip">🔒 ${t('prestation_locked')}</span>` : ''}
             <span class="pi-meta">${p.duration} ${t('min')}${p.requiresDoctor?' · 🧑‍⚕️':''}</span>
-            <span class="pi-price">${n2(p.price)} DA</span>
+            ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
           </div>`;
         }).join('')}
       </div>
@@ -10003,7 +10054,7 @@ function clinicBookStep3(){
       <div class="card-sub">
         ${isDoctor
           ? `🧑‍⚕️ ${esc(doc?.name||'')} — ${esc(doc?.specialty||'')}`
-          : `💉 ${esc(prestation?.name||'')} — ${n2(prestation?.price||0)} DA`}
+          : `💉 ${esc(prestation?.name||'')}${(prestation?.price||0) > 0 ? ' — ' + n2(prestation?.price||0) + ' DA' : ''}`}
       </div>
       ${s.autoMode && doc ? `
         <div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);margin-top:8px">
@@ -10091,7 +10142,7 @@ function clinicBookStep4(){
         ${isDoctor ? `<div><strong>🧑‍⚕️ ${t('doctor')} :</strong> ${esc(doc?.name||'')} — ${esc(doc?.specialty||'')}</div>` : ''}
         ${!isDoctor ? `<div><strong>💉 ${t('clinic_prestation')} :</strong> ${esc(prestation?.name||'')}</div>` : ''}
         <div><strong>📅 ${t('when')} :</strong> ${s.date ? fmtLongDate(s.date) : '—'} ${s.time||''}</div>
-        <div><strong>💰 ${t('fee')} :</strong> ${isDoctor ? '<span style="color:var(--text-muted);font-weight:500">Prestations de la clinique uniquement</span>' : n2(prestation?.price||0) + ' DA'}</div>
+        <div><strong>💰 ${t('fee')} :</strong> ${isDoctor ? '<span style="color:var(--text-muted);font-weight:500">Prestations de la clinique uniquement</span>' : ((prestation?.price||0) > 0 ? n2(prestation?.price||0) + ' DA' : '—')}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -10263,7 +10314,7 @@ function openDoctorProfile(id){
           <div style="color:var(--text-muted);font-size:11.5px;margin-bottom:6px">📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             ${isClosed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
-            <span class="tag success">${n2(d.fee)} DA</span>
+            ${d.fee > 0 ? `<span class="tag success">${n2(d.fee)} DA</span>` : ''}
             <span class="tag accent">⏱️ ${d.duration} ${t('min')}</span>
             ${rating.count > 0 ? `<span class="tag rating">⭐ ${rating.avg} · ${rating.count} ${t('reviews')}</span>` : `<span class="tag rating-empty">⭐ ${t('no_rating_yet')}</span>`}
             ${todayWork && dateHasAvail(d.id, todayISO(), '')?`<span class="tag success">✓ ${t('today_appts')}</span>`:`<span class="tag muted">⏳</span>`}
@@ -10304,7 +10355,7 @@ function openDoctorProfile(id){
       ${services.map(s=>`
         <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--glass-border);font-size:12.5px">
           <div style="min-width:0"><strong>${esc(s.name)}</strong>${s.description?`<span style="color:var(--text-muted);font-size:11px"> — ${esc(s.description)}</span>`:''}</div>
-          <span style="font-family:var(--font-numbers);font-weight:500;color:#059669;flex-shrink:0">${n2(s.price)} DA</span>
+          ${s.price > 0 ? `<span style="font-family:var(--font-numbers);font-weight:500;color:#059669;flex-shrink:0">${n2(s.price)} DA</span>` : ''}
         </div>
       `).join('')}
     </div>`:''}
@@ -10509,7 +10560,7 @@ function docCardHTML(d, selected){
         <div class="doc-spec">${esc(d.specialty)}</div>
         <div class="doc-meta">
           <span>📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</span>
-          <span>${n2(d.fee)} DA</span>
+          ${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}
           <span>⏱️ ${d.duration} ${t('min')}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
@@ -10851,12 +10902,12 @@ function bookStep3(){
               <div class="sc-name">${esc(sv.name)}</div>
               ${sv.description?`<div class="sc-desc">${esc(sv.description)}</div>`:''}
             </div>
-            <div class="sc-price">+${n2(sv.price)} DA</div>
+            ${sv.price > 0 ? `<div class="sc-price">+${n2(sv.price)} DA</div>` : ''}
           </label>
         `).join('')}
         <div class="total-box">
           <div>
-            <div class="tb-lbl">${t('consultation_fee')} : ${n2(doc?.fee||0)} DA</div>
+            ${doc?.fee > 0 ? `<div class="tb-lbl">${t('consultation_fee')} : ${n2(doc?.fee||0)} DA</div>` : ''}
             ${servicesTotal>0?`<div class="tb-lbl">${t('services_subtotal')} : +${n2(servicesTotal)} DA</div>`:''}
             <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">${t('total_to_pay')}</div>
           </div>
@@ -11044,7 +11095,7 @@ function bookStep4(){
           <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
           <div style="text-align:left; margin-top:16px">
             <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:8px">💉 ${t('services')}</div>
-            ${appt.services.map(sv=>`<div style="display:flex; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px"><span>${esc(sv.name)}</span><span style="font-family:var(--font-numbers); color:#059669; font-weight:600">${n2(sv.price)} DA</span></div>`).join('')}
+            ${appt.services.map(sv=>`<div style="display:flex; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px"><span>${esc(sv.name)}</span>${sv.price > 0 ? `<span style="font-family:var(--font-numbers); color:#059669; font-weight:600">${n2(sv.price)} DA</span>` : ''}</div>`).join('')}
           </div>
         `:''}
 
@@ -11391,11 +11442,11 @@ function openPatientApptDetail(id){
             ${a.services.map(sv=>`
               <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11.5px">
                 <span>${esc(sv.name)}</span>
-                <span style="font-family:var(--font-numbers);color:#059669;font-weight:600">${n2(sv.price)} DA</span>
+                ${sv.price > 0 ? `<span style="font-family:var(--font-numbers);color:#059669;font-weight:600">${n2(sv.price)} DA</span>` : ''}
               </div>`).join('')}
             <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--glass-border);font-size:12px">
               <strong>${t('total_to_pay')}</strong>
-              <span style="font-family:var(--font-numbers);color:var(--accent-primary);font-weight:800">${n2(((a.internal && a.clinicId) ? 0 : (doc?.fee)||0) + (a.servicesTotal||0))} DA</span>
+              <span style="font-family:var(--font-numbers);color:var(--accent-primary);font-weight:800">${(((a.internal && a.clinicId) ? 0 : (doc?.fee)||0) + (a.servicesTotal||0)) > 0 ? n2(((a.internal && a.clinicId) ? 0 : (doc?.fee)||0) + (a.servicesTotal||0)) + ' DA' : '—'}</span>
             </div>
           </div>
         </div>
@@ -11974,6 +12025,7 @@ function renderDoctorView(){
     case 'dclinics': return viewDoctorClinics();
     case 'dstats': return viewDoctorStats();
     case 'drecette': return state.recetteUnlocked ? viewDoctorRevenue() : viewRecetteLocked();
+    case 'ddepenses': return viewDoctorExpenses();
     case 'dprof': return viewDoctorProfile();
     case 'dmessages': return renderMessagesView();
     case 'ddossier': return viewDossierList('doctor');
@@ -12319,7 +12371,7 @@ function openServicesManager(doctorId){
           <div class="li-name">${esc(sv.name)}</div>
           ${sv.description?`<div style="font-size:11px;color:var(--text-muted)">${esc(sv.description)}</div>`:''}
         </div>
-        <span class="tag accent" style="font-family:var(--font-numbers)">${n2(sv.price)} DA</span>
+        ${sv.price > 0 ? `<span class="tag accent" style="font-family:var(--font-numbers)">${n2(sv.price)} DA</span>` : ''}
         <button class="mini-btn ghost" onclick="openServiceForm('${idStr}','${sv.id}')">✏️</button>
         <button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${idStr}')">🗑️</button>
       </div>
@@ -12330,12 +12382,12 @@ function openServicesManager(doctorId){
 }
 function openServiceForm(doctorId, serviceId){
   const isEdit = !!serviceId;
-  const sv = isEdit ? serviceById(serviceId) : {name:'', price:1000, description:''};
+  const sv = isEdit ? serviceById(serviceId) : {name:'', price:0, description:''};
   if(!sv) return;
   const idStr = jsStr(String(doctorId));
   openModal(isEdit?t('edit_service'):t('add_service'), '', `
     <div class="field"><label>${t('service_name')} *</label><input class="input" id="svName" value="${esc(sv.name)}"></div>
-    <div class="field"><label>${t('service_price')} *</label><input class="input" id="svPrice" type="number" inputmode="numeric" min="0" step="50" value="${sv.price}"></div>
+    <div class="field"><label>${t('service_price')}</label><input class="input" id="svPrice" type="number" inputmode="numeric" min="0" step="50" value="${sv.price || ''}" placeholder="Optionnel"></div>
     <div class="field"><label>${t('service_desc')}</label><textarea class="textarea" id="svDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
   `, `<button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
      <button class="pill-btn primary" onclick="saveService('${idStr}','${jsStr(serviceId||'')}')">💾 ${t('save')}</button>`);
@@ -12626,13 +12678,13 @@ function viewDoctorInternal(){
               <div class="sc-name">${esc(sv.name)}</div>
               ${sv.description?`<div class="sc-desc">${esc(sv.description)}</div>`:''}
             </div>
-            <div class="sc-price">+${n2(sv.price)} DA</div>
+            ${sv.price > 0 ? `<div class="sc-price">+${n2(sv.price)} DA</div>` : ''}
           </label>
         `).join('')}
       ` : `<div class="empty" style="padding:14px"><div class="empty-ico">💉</div>${t('internal_no_services')}</div>`}
       <div class="total-box" style="margin-top:12px">
         <div>
-          <div class="tb-lbl">${t('fee')} : ${n2(doc.fee)} DA</div>
+          ${doc.fee > 0 ? `<div class="tb-lbl">${t('fee')} : ${n2(doc.fee)} DA</div>` : ''}
           <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">${t('total_to_pay')}</div>
         </div>
         <div class="tb-val">${n2(doc.fee + services.filter(sv=>f.services.includes(sv.id)).reduce((s,sv)=>s+sv.price,0))} DA</div>
@@ -15533,7 +15585,7 @@ function viewAdminDoctors(){
             <div class="doc-spec">${esc(d.specialty)} · ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
             <div class="doc-meta" style="margin-top:4px">
               <span>📞 ${esc(d.phone)}</span><span>✉️ ${esc(d.email)}</span>
-              <span>${n2(d.fee)} DA</span><span>⏱️ ${d.duration} ${t('min')}</span>
+              ${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}<span>⏱️ ${d.duration} ${t('min')}</span>
             </div>
             ${owningClinic ? `<div style="font-size:11px;color:var(--accent-primary);margin-top:4px">🏥 Interne clinique : <strong>${esc(owningClinic.name)}</strong></div>` : ''}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
@@ -18079,7 +18131,7 @@ function buildInvoiceTableBlockForDoctor(list, doc, periodType){
       <td style="white-space:nowrap">${esc(a.patientName)}${a.patientAge?` (${a.patientAge})`:''}</td>
       <td style="white-space:nowrap">${esc(a.motif||'—')}</td>
       <td style="white-space:nowrap">${statusLabels[a.status]||a.status}</td>
-      <td style="text-align:right;color:#059669;font-weight:700;white-space:nowrap">+${n2(apptCommission(a))} DA</td>
+      <td style="text-align:right;color:#059669;font-weight:700;white-space:nowrap">${apptCommission(a) > 0 ? '+' + n2(apptCommission(a)) + ' DA' : '—'}</td>
     </tr>`).join('');
     const total = list.reduce((s,a)=>s+apptCommission(a),0);
     return list.length ? `
@@ -19918,6 +19970,7 @@ function renderClinicView(){
     case 'dossier': return viewDossierSingle();
     case 'cstats': return viewClinicStats();
     case 'crecette': return state.clinicRecetteUnlocked ? viewClinicRevenue() : viewClinicRecetteLocked();
+    case 'cdepenses': return viewClinicExpenses();
     case 'cfacturation': return viewClinicFacturation();   /* 🆕 */
     case 'cmessages': return renderMessagesView();
     case 'cprof': return viewClinicProfile();
@@ -20505,8 +20558,8 @@ function viewClinicAdmissions(){
               ${a.motif ? `<span>📝 ${esc(a.motif)}</span>` : ''}
             </div>
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-              <span class="tag money">💰 Chambre : ${n2(totals.roomTotal)} DA</span>
-              <span class="tag money">💉 Interventions : ${n2(totals.interventionsTotal)} DA</span>
+              ${totals.roomTotal > 0 ? `<span class="tag money">💰 Chambre : ${n2(totals.roomTotal)} DA</span>` : ''}
+              ${totals.interventionsTotal > 0 ? `<span class="tag money">💉 Interventions : ${n2(totals.interventionsTotal)} DA</span>` : ''}
               <span class="tag accent">📊 Total : ${n2(totals.total)} DA</span>
             </div>
           </div>
@@ -20606,7 +20659,7 @@ function viewClinicHospitalization(){
                             <div style="width:26px;height:26px;border-radius:50%;background:var(--danger);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0">${n}</div>
                             <div style="flex:1;min-width:0">
                               <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(patient.patientName)}</div>
-                              <div style="font-size:10px;color:var(--text-muted)">${tot.days}j · ${n2(tot.total)} DA</div>
+                              <div style="font-size:10px;color:var(--text-muted)">${tot.days}j${tot.total > 0 ? ' · ' + n2(tot.total) + ' DA' : ''}</div>
                             </div>
                             <span style="font-size:14px;color:var(--danger)">🔴</span>
                           </div>
@@ -21190,7 +21243,7 @@ function openAdmissionDetail(admissionId){
         ${a.interventions.map(iv => `
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--glass-bg);border-radius:8px;margin-bottom:5px;font-size:12.5px;border:1px solid var(--glass-border)">
             <div style="flex:1;min-width:0;font-weight:600">${esc(iv.name)}</div>
-                        <span class="tag money" style="font-family:var(--font-numbers);font-size:11.5px">${n2(iv.price)} DA</span>
+                        ${iv.price > 0 ? `<span class="tag money" style="font-family:var(--font-numbers);font-size:11.5px">${n2(iv.price)} DA</span>` : ''}
           </div>
         `).join('')}
       </div>
@@ -21200,8 +21253,8 @@ function openAdmissionDetail(admissionId){
     <div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(59,130,246,.06));border:1.5px solid rgba(16,185,129,.4);border-radius:16px;padding:16px 18px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:800;color:#059669;margin-bottom:12px">💰 Récapitulatif financier</div>
       <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-bottom:1px dashed rgba(16,185,129,.25)">
-        <span style="color:var(--text-muted)">🛏️ Chambre (${tot.days} j × ${n2(a.pricePerDay)} DA)</span>
-        <strong style="font-family:var(--font-numbers)">${n2(tot.roomTotal)} DA</strong>
+        <span style="color:var(--text-muted)">🛏️ Chambre (${tot.days} j${a.pricePerDay > 0 ? ' × ' + n2(a.pricePerDay) + ' DA' : ''})</span>
+        <strong style="font-family:var(--font-numbers)">${tot.roomTotal > 0 ? n2(tot.roomTotal) + ' DA' : '—'}</strong>
       </div>
       ${tot.interventionsTotal > 0 ? `
       <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-bottom:1px dashed rgba(16,185,129,.25)">
@@ -21272,15 +21325,15 @@ function buildAdmissionInvoiceModalContent(a){
       <td style="text-align:center;color:var(--text-muted);font-weight:600">1</td>
       <td><strong>🛏️ Chambre ${room ? esc(room.name) : '—'} — séjour</strong>${room && room.floor ? `<div style="font-size:10.5px;color:var(--text-muted)">📍 ${esc(room.floor)} · Lit ${a.bedNumber}</div>` : ''}</td>
       <td class="num">${tot.days} j</td>
-      <td class="num">${n2(a.pricePerDay)} DA</td>
-      <td class="num" style="color:#059669;font-weight:700">${n2(tot.roomTotal)} DA</td>
+      <td class="num">${a.pricePerDay > 0 ? n2(a.pricePerDay) + ' DA' : '—'}</td>
+      <td class="num" style="color:#059669;font-weight:700">${tot.roomTotal > 0 ? n2(tot.roomTotal) + ' DA' : '—'}</td>
     </tr>`,
     ...(a.interventions||[]).map((iv, i) => `<tr>
       <td style="text-align:center;color:var(--text-muted);font-weight:600">${i+2}</td>
       <td><strong>💉 ${esc(iv.name)}</strong></td>
       <td class="num">1</td>
-      <td class="num">${n2(iv.price)} DA</td>
-      <td class="num" style="color:#059669;font-weight:700">${n2(iv.price)} DA</td>
+      <td class="num">${iv.price > 0 ? n2(iv.price) + ' DA' : '—'}</td>
+      <td class="num" style="color:#059669;font-weight:700">${iv.price > 0 ? n2(iv.price) + ' DA' : '—'}</td>
     </tr>`)
   ].join('');
 
@@ -22298,7 +22351,7 @@ function viewClinicPrestations(){
             ${locked ? `<span class="prestation-lock-chip">🔒 ${autoLocked ? t('prestation_auto_locked') : t('prestation_locked')}</span>` : ''}
             ${!locked && p.requiresDoctor ? `<span class="tag success" style="font-size:9.5px;padding:1px 6px">🧑‍⚕️ OK</span>` : ''}
             <span class="pi-meta">${p.duration} ${t('min')}${p.requiresDoctor?' · 🧑‍⚕️':''}</span>
-            <span class="pi-price">${n2(p.price)} DA</span>
+            ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
             <button class="pi-lock-btn" onclick="togglePrestationLock('${p.id}')" title="${locked?t('prestation_unlock'):t('prestation_lock')}">
               ${locked ? '🔓' : '🔒'}
             </button>
@@ -22339,7 +22392,7 @@ function openClinicPrestationForm(prestationId){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
   const isEdit = !!prestationId;
-  const p = isEdit ? clinicPrestationById(prestationId) : { id:null, serviceId: services[0]?.id || null, name:'', price:1000, duration:30, description:'', requiresDoctor:false };
+  const p = isEdit ? clinicPrestationById(prestationId) : { id:null, serviceId: services[0]?.id || null, name:'', price:0, duration:30, description:'', requiresDoctor:false };
   if(!p) return;
   openModal(isEdit?t('clinic_prestation_edit'):t('clinic_prestation_add'), '', `
     <div class="field"><label>${t('clinic_service_name')} *</label>
@@ -22349,7 +22402,7 @@ function openClinicPrestationForm(prestationId){
     </div>
     <div class="field"><label>${t('clinic_prestation_name')} *</label><input class="input" id="cpName" value="${esc(p.name)}"></div>
     <div class="field-row">
-      <div class="field"><label>${t('clinic_prestation_price')} *</label><input class="input" id="cpPrice" type="number" min="0" step="100" value="${p.price}"></div>
+      <div class="field"><label>${t('clinic_prestation_price')}</label><input class="input" id="cpPrice" type="number" min="0" step="100" value="${p.price || ''}" placeholder="Optionnel"></div>
       <div class="field"><label>${t('clinic_prestation_duration')}</label><input class="input" id="cpDur" type="number" min="5" step="5" value="${p.duration}"></div>
     </div>
     <div class="field"><label>${t('clinic_prestation_desc')}</label><textarea class="textarea" id="cpDesc" style="min-height:50px">${esc(p.description||'')}</textarea></div>
@@ -22743,7 +22796,7 @@ function viewClinicInternal(){
               ${p.description ? `<div class="sc-desc">${esc(p.description)}</div>` : ''}
               <div class="sc-desc" style="font-size:10.5px">⏱️ ${p.duration} ${t('min')}${p.requiresDoctor ? ' · 🧑‍⚕️' : ''}</div>
             </div>
-            <div class="sc-price">+${n2(p.price)} DA</div>
+            ${p.price > 0 ? `<div class="sc-price">+${n2(p.price)} DA</div>` : ''}
           </label>
         `;
       }).join('')}
@@ -22761,7 +22814,7 @@ function viewClinicInternal(){
             💡 Tarifs clinique uniquement — aucun frais de consultation cabinet
           </div>
         </div>
-        <div class="tb-val">${n2(total)} DA</div>
+        <div class="tb-val">${total > 0 ? n2(total) + ' DA' : '—'}</div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap">
         <button class="pill-btn" onclick="resetClinicInternalForm()">✕ Réinitialiser</button>
@@ -24008,7 +24061,7 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   const servicesLines = (appt.services || []).map(s => `
     <tr>
       <td style="padding:6px;border-bottom:1px solid #eee;">💉 ${esc(s.name)}</td>
-      <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${n2(s.price)} DA</td>
+      <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${s.price > 0 ? n2(s.price) + ' DA' : '—'}</td>
     </tr>
   `).join('');
 
@@ -24045,7 +24098,7 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
           </tr>
         </thead>
         <tbody>
-          ${!appt.internal ? `
+          ${(!appt.internal && fee > 0) ? `
           <tr>
             <td style="padding:6px;border-bottom:1px solid #eee;">🩺 Consultation (Frais médecin)</td>
             <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${n2(fee)} DA</td>
@@ -24114,7 +24167,7 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   <table>
     <thead><tr><th>Désignation</th><th style="text-align:right">Montant</th></tr></thead>
     <tbody>
-      ${!appt.internal ? `<tr><td>🩺 Consultation</td><td style="text-align:right">${n2(fee)} DA</td></tr>` : ''}
+      ${(!appt.internal && fee > 0) ? `<tr><td>🩺 Consultation</td><td style="text-align:right">${n2(fee)} DA</td></tr>` : ''}
       ${(appt.services||[]).map(s => `<tr><td>💉 ${esc(s.name)}</td><td style="text-align:right">${n2(s.price)} DA</td></tr>`).join('')}
     </tbody>
     <tfoot><tr><td style="text-align:right">TOTAL :</td><td style="text-align:right;color:#059669;font-size:14px">${n2(total)} DA</td></tr></tfoot>
@@ -25016,7 +25069,7 @@ function onEmergencyTransferServiceChange(serviceId) {
         <div class="sc-info">
           <div class="sc-name">${esc(p.name)}</div>
         </div>
-        <div class="sc-price">+${n2(p.price)} DA</div>
+        ${p.price > 0 ? `<div class="sc-price">+${n2(p.price)} DA</div>` : ''}
       </label>
     `).join('');
   } else {
@@ -25988,6 +26041,390 @@ window.addEventListener('popstate', () => {
     try { hideEmergencyAlertModal(); } catch(e){}
   }
 });
+/* ============================================================
+   💰 MODULE DÉPENSES (Médecin & Clinique) — 2025
+   ============================================================ */
+const EXPENSE_CATEGORIES = [
+  { key:'loyer',       ico:'🏠', label:'Loyer' },
+  { key:'salaires',    ico:'💼', label:'Salaires / Rémunérations' },
+  { key:'electricite', ico:'⚡', label:'Électricité' },
+  { key:'eau',         ico:'💧', label:'Eau' },
+  { key:'internet',    ico:'🌐', label:'Internet / Téléphone' },
+  { key:'fournitures', ico:'🧴', label:'Fournitures médicales' },
+  { key:'pharmacie',   ico:'💊', label:'Produits pharmaceutiques' },
+  { key:'entretien',   ico:'🧽', label:'Entretien / Ménage' },
+  { key:'assurance',   ico:'🛡️', label:'Assurance' },
+  { key:'impots',      ico:'📋', label:'Impôts / Taxes' },
+  { key:'equipement',  ico:'🖥️', label:'Équipement / Informatique' },
+  { key:'marketing',   ico:'📢', label:'Marketing / Publicité' },
+  { key:'transport',   ico:'🚗', label:'Transport / Carburant' },
+  { key:'formation',   ico:'🎓', label:'Formation' },
+  { key:'reparation',  ico:'🔧', label:'Réparations / Maintenance' },
+  { key:'autre',       ico:'📦', label:'Autre' }
+];
+function getExpenseCatMeta(key){
+  const dyn = (DB && DB.expenseCategories) || [];
+  const found = dyn.find(c => c.key === key) || EXPENSE_CATEGORIES.find(c => c.key === key);
+  return found || { key:'autre', ico:'📦', label:'Autre' };
+}
+function getExpenseCategoriesList(){
+  if(!DB.expenseCategories || !DB.expenseCategories.length){
+    DB.expenseCategories = EXPENSE_CATEGORIES.map(c => ({ key:c.key, ico:c.ico, label:c.label, custom:false }));
+  }
+  return DB.expenseCategories;
+}
+function persistExpenseCategories(){ saveDB(); }
+function getCurrentExpenseOwner(){
+  if(state.role === 'doctor' && state.doctor) return { type:'doctor', id: String(state.doctor.id), label: state.doctor.name };
+  if(state.role === 'clinic' && state.clinic) return { type:'clinic', id: String(state.clinic.id), label: state.clinic.name };
+  return null;
+}
+function expensesFor(ownerType, ownerId){
+  return (DB.expenses || []).filter(e => e.ownerType === ownerType && String(e.ownerId) === String(ownerId));
+}
+function getExpenseFilter(){
+  if(!state.expenseFilter) state.expenseFilter = { periodType:'month', month:0, year:0, startDate:'', endDate:'', dayDate:'', category:'all', search:'' };
+  const f = state.expenseFilter;
+  if(!f.month) f.month = currentMonth();
+  if(!f.year) f.year = currentYear();
+  return f;
+}
+function filterExpensesByPeriod(list, pt, month, year, startDate, endDate, dayDate){
+  if(pt === 'all') return list;
+  if(pt === 'day'){ if(!dayDate) return []; return list.filter(e => e.date === dayDate); }
+  if(pt === 'month'){ const key = year + '-' + String(month).padStart(2,'0'); return list.filter(e => e.date && e.date.startsWith(key)); }
+  if(pt === 'year') return list.filter(e => e.date && e.date.startsWith(String(year)));
+  if(pt === 'interval'){ if(!startDate || !endDate) return []; return list.filter(e => e.date >= startDate && e.date <= endDate); }
+  return list;
+}
+function computeExpenseStats(){
+  const owner = getCurrentExpenseOwner();
+  if(!owner) return null;
+  const all = expensesFor(owner.type, owner.id);
+  const today = todayISO();
+  const todayTotal = all.filter(e => e.date === today).reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const monthKey = today.slice(0,7);
+  const monthTotal = all.filter(e => e.date && e.date.startsWith(monthKey)).reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const yearKey = today.slice(0,4);
+  const yearTotal = all.filter(e => e.date && e.date.startsWith(yearKey)).reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const total = all.reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const dt = new Date(); dt.setMonth(dt.getMonth() - 1);
+  const prevKey = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0');
+  const prevMonthTotal = all.filter(e => e.date && e.date.startsWith(prevKey)).reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  let evolution = null;
+  if(prevMonthTotal > 0) evolution = Math.round(((monthTotal - prevMonthTotal) / prevMonthTotal) * 100);
+  const catMap = {};
+  all.filter(e => e.date && e.date.startsWith(monthKey)).forEach(e => {
+    const k = e.category || 'autre';
+    catMap[k] = (catMap[k] || 0) + (Number(e.amount)||0);
+  });
+  const byCategory = Object.entries(catMap).map(([k,v]) => {
+    const m = getExpenseCatMeta(k);
+    return { key:k, label:m.label, ico:m.ico, total:v };
+  }).sort((a,b)=>b.total - a.total);
+  return { all, todayTotal, monthTotal, yearTotal, total, prevMonthTotal, evolution, byCategory };
+}
+
+function viewExpensesGeneric(){
+  const owner = getCurrentExpenseOwner();
+  if(!owner) return '<div class="empty" style="padding:40px"><div class="empty-ico">🔒</div>Connectez-vous pour accéder aux dépenses.</div>';
+  const f = getExpenseFilter();
+  const stats = computeExpenseStats();
+  const nowY = currentYear();
+  const years = []; for(let y=nowY; y>=nowY-5; y--) years.push(y);
+  let list = filterExpensesByPeriod(stats.all.slice(), f.periodType, f.month, f.year, f.startDate, f.endDate, f.dayDate);
+  if(f.category !== 'all') list = list.filter(e => e.category === f.category);
+  if(f.search){
+    const q = f.search.toLowerCase();
+    list = list.filter(e => (e.label||'').toLowerCase().includes(q) || (e.supplier||'').toLowerCase().includes(q) || (e.reference||'').toLowerCase().includes(q));
+  }
+  list.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
+  const perPage = 25;
+  const totalPages = Math.max(1, Math.ceil(list.length / perPage));
+  if(!state.expensePage || state.expensePage > totalPages) state.expensePage = 1;
+  const page = state.expensePage;
+  const slice = list.slice((page-1)*perPage, page*perPage);
+  const filteredTotal = list.reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const periodLabel = (() => {
+    if(f.periodType === 'all') return 'Toutes les dépenses';
+    if(f.periodType === 'day') return f.dayDate ? fmtDateFR(f.dayDate) : '—';
+    if(f.periodType === 'month') return MONTH_NAMES[f.month-1] + ' ' + f.year;
+    if(f.periodType === 'year') return String(f.year);
+    return (f.startDate && f.endDate) ? (fmtDateFR(f.startDate) + ' → ' + fmtDateFR(f.endDate)) : '—';
+  })();
+  const evolutionBadge = (() => {
+    if(stats.evolution === null) return '';
+    const isUp = stats.evolution > 0;
+    return '<span class="tag ' + (isUp?'danger':'success') + '" style="font-size:11px">' + (isUp?'⚠️':'✓') + ' ' + (isUp?'+':'') + stats.evolution + '% vs mois précédent</span>';
+  })();
+  const maxCat = Math.max(1, ...(stats.byCategory||[]).map(c=>c.total));
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <div class="card-title" style="font-size:17px">💰 Dépenses — ${esc(owner.label)}</div>
+          <div class="card-sub" style="margin-bottom:0">Suivi détaillé des dépenses du ${owner.type === 'doctor' ? 'cabinet' : 'clinique'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="pill-btn primary" onclick="openExpenseForm(null)">+ Nouvelle dépense</button>
+          <button class="pill-btn" onclick="exportExpensesCSV()">📤 CSV</button>
+          <button class="pill-btn" onclick="printExpenses()">🖨️ Imprimer</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-4" style="margin-bottom:14px">
+      <div class="stat"><div class="stat-ico">📅</div><div><div class="stat-val" style="color:#dc2626">${n2(stats.todayTotal)}<span style="font-size:12px;margin-left:3px">DA</span></div><div class="stat-lbl">Aujourd'hui</div></div></div>
+      <div class="stat"><div class="stat-ico">🗓️</div><div><div class="stat-val" style="color:#d97706">${n2(stats.monthTotal)}<span style="font-size:12px;margin-left:3px">DA</span></div><div class="stat-lbl">Ce mois</div></div></div>
+      <div class="stat"><div class="stat-ico">📆</div><div><div class="stat-val" style="color:#7c3aed">${n2(stats.yearTotal)}<span style="font-size:12px;margin-left:3px">DA</span></div><div class="stat-lbl">Cette année</div></div></div>
+      <div class="stat"><div class="stat-ico" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.05));color:#dc2626">💰</div><div><div class="stat-val" style="color:#dc2626">${n2(stats.total)}<span style="font-size:12px;margin-left:3px">DA</span></div><div class="stat-lbl">Total cumulé</div></div></div>
+    </div>
+    ${stats.evolution !== null || stats.byCategory.length ? `<div class="card" style="margin-bottom:14px"><div class="card-title" style="font-size:14px">📊 Analyse</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${evolutionBadge}</div>${stats.byCategory.length ? `<div style="font-size:11.5px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Répartition — ${esc(MONTH_NAMES[currentMonth()-1])}</div>${stats.byCategory.slice(0, 8).map(c => `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px"><div style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">${c.ico} ${esc(c.label)}</div><div style="flex:1;height:8px;background:rgba(0,0,0,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:${(c.total/maxCat*100).toFixed(1)}%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:9999px"></div></div><div style="min-width:100px;text-align:right;font-family:var(--font-numbers);font-weight:700;color:#dc2626">${n2(c.total)} DA</div></div>`).join('')}` : ''}</div>` : ''}
+    <div class="card" style="margin-bottom:14px">
+      <div class="grid grid-3" style="gap:10px;margin-bottom:10px">
+        <div class="field" style="margin-bottom:0"><label>Période</label><select class="select" onchange="setExpensePeriod(this.value)"><option value="all" ${f.periodType==='all'?'selected':''}>Tout</option><option value="day" ${f.periodType==='day'?'selected':''}>📅 Jour</option><option value="month" ${f.periodType==='month'?'selected':''}>🗓️ Mois</option><option value="year" ${f.periodType==='year'?'selected':''}>📆 Année</option><option value="interval" ${f.periodType==='interval'?'selected':''}>📊 Intervalle</option></select></div>
+        <div class="field" style="margin-bottom:0"><label>Catégorie</label><select class="select" onchange="state.expenseFilter.category=this.value;state.expensePage=1;render()"><option value="all" ${f.category==='all'?'selected':''}>Toutes les catégories</option>${EXPENSE_CATEGORIES.map(c=>'<option value="'+c.key+'" '+(f.category===c.key?'selected':'')+'>'+c.ico+' '+c.label+'</option>').join('')}</select></div>
+        <div class="field" style="margin-bottom:0"><label>🔎 Rechercher</label><input class="input" placeholder="Libellé, fournisseur, référence…" value="${esc(f.search||'')}" oninput="state.expenseFilter.search=this.value;state.expensePage=1;render()"></div>
+      </div>
+      ${f.periodType === 'day' ? `<div class="field" style="margin-bottom:0;max-width:300px"><label>Jour</label><input class="input" type="date" value="${f.dayDate||''}" onchange="state.expenseFilter.dayDate=this.value;state.expensePage=1;render()"></div>` : f.periodType === 'month' ? `<div class="month-picker" style="max-width:420px;margin-top:8px"><select class="select" onchange="state.expenseFilter.month=parseInt(this.value,10);state.expensePage=1;render()">${MONTH_NAMES.map((m,i)=>'<option value="'+(i+1)+'" '+(f.month===i+1?'selected':'')+'>'+m+'</option>').join('')}</select><select class="select" onchange="state.expenseFilter.year=parseInt(this.value,10);state.expensePage=1;render()">${years.map(y=>'<option value="'+y+'" '+(f.year===y?'selected':'')+'>'+y+'</option>').join('')}</select></div>` : f.periodType === 'year' ? `<div style="max-width:200px;margin-top:8px"><select class="select" onchange="state.expenseFilter.year=parseInt(this.value,10);state.expensePage=1;render()">${years.map(y=>'<option value="'+y+'" '+(f.year===y?'selected':'')+'>'+y+'</option>').join('')}</select></div>` : f.periodType === 'interval' ? `<div class="field-row" style="margin-top:8px"><div class="field" style="margin-bottom:0"><label>Du</label><input class="input" type="date" value="${f.startDate||''}" onchange="state.expenseFilter.startDate=this.value;state.expensePage=1;render()"></div><div class="field" style="margin-bottom:0"><label>Au</label><input class="input" type="date" value="${f.endDate||''}" onchange="state.expenseFilter.endDate=this.value;state.expensePage=1;render()"></div></div>` : ''}
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--glass-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;color:var(--text-muted)">📅 <strong>${esc(periodLabel)}</strong> · ${list.length} dépense(s)</div>
+        <div style="font-family:var(--font-numbers);font-weight:700;color:#dc2626;font-size:15px">${n2(filteredTotal)} DA</div>
+      </div>
+    </div>
+    ${slice.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:28px">#</th><th>Date</th><th>Catégorie</th><th>Libellé</th><th>Fournisseur</th><th>Référence</th><th style="text-align:right">Montant</th><th style="width:100px;text-align:center">Actions</th></tr></thead><tbody>${slice.map((e,i)=>{const cat = getExpenseCatMeta(e.category);const attach = e.attachmentKey ? `<span title="Pièce jointe" style="cursor:pointer;margin-left:4px" onclick="event.stopPropagation();openExpenseAttachment('${e.id}')">📎</span>` : '';return `<tr><td style="color:var(--text-muted);font-weight:600">${(page-1)*perPage+i+1}</td><td style="white-space:nowrap"><strong>${fmtDateFR(e.date)}</strong></td><td><span class="tag accent" style="font-size:10.5px">${cat.ico} ${esc(cat.label)}</span></td><td style="font-weight:600">${esc(e.label||'—')}${attach}</td><td style="font-size:11.5px;color:var(--text-muted)">${esc(e.supplier||'—')}</td><td style="font-family:var(--font-numbers);font-size:11px;color:var(--text-muted)">${esc(e.reference||'—')}</td><td style="text-align:right;font-family:var(--font-numbers);font-weight:700;color:#dc2626">${n2(e.amount)} DA</td><td style="text-align:center;white-space:nowrap"><button class="mini-btn ghost" onclick="openExpenseForm('${e.id}')" title="Modifier">✏️</button><button class="mini-btn out-red" onclick="confirmDeleteExpense('${e.id}')" title="Supprimer">🗑️</button></td></tr>`;}).join('')}</tbody><tfoot><tr><td colspan="6" style="text-align:right;font-weight:800">Total filtré :</td><td style="text-align:right;font-family:var(--font-numbers);font-weight:800;color:#dc2626;font-size:14px">${n2(filteredTotal)} DA</td><td></td></tr></tfoot></table></div>${totalPages > 1 ? `<div class="pagination" style="margin-top:12px"><button class="page-btn" ${page===1?'disabled':''} onclick="state.expensePage=${page-1};render()">‹</button><span class="page-info">Page ${page} / ${totalPages} · ${list.length} dépense(s)</span><button class="page-btn" ${page===totalPages?'disabled':''} onclick="state.expensePage=${page+1};render()">›</button></div>` : ''}` : `<div class="card"><div class="empty" style="padding:40px"><div class="empty-ico">💰</div>Aucune dépense pour cette période<br><button class="pill-btn primary" style="margin-top:14px" onclick="openExpenseForm(null)">+ Ajouter une dépense</button></div></div>`}
+  `;
+}
+function viewDoctorExpenses(){ return viewExpensesGeneric(); }
+function viewClinicExpenses(){ return viewExpensesGeneric(); }
+function setExpensePeriod(p){ if(!state.expenseFilter) getExpenseFilter(); state.expenseFilter.periodType = p; state.expensePage = 1; render(); }
+
+function openExpenseForm(expenseId){
+  const owner = getCurrentExpenseOwner();
+  if(!owner){ toast('Vous devez être connecté','error'); return; }
+  const isEdit = !!expenseId;
+  const existing = isEdit ? (DB.expenses||[]).find(e => e.id === expenseId) : null;
+  if(isEdit && !existing){ toast('Dépense introuvable','error'); return; }
+  const e = existing || { id: null, ownerType: owner.type, ownerId: owner.id, date: todayISO(), category: 'autre', label: '', amount: 0, quantity: 1, tva: 0, supplier: '', reference: '', notes: '', attachmentKey: null, attachmentName: null };
+  const catList = getExpenseCategoriesList();
+  const categoriesOptions = catList.map(c=>'<option value="'+c.key+'" '+(e.category===c.key?'selected':'')+'>'+c.ico+' '+c.label+'</option>').join('');
+  const body = `<input type="hidden" id="expenseEditingId" value="${isEdit ? e.id : ''}"><div class="field-row"><div class="field"><label>📅 Date *</label><input class="input" id="expDate" type="date" value="${e.date||todayISO()}"></div><div class="field"><label>🏷️ Catégorie *</label><div style="display:flex;gap:6px;align-items:stretch"><select class="select" id="expCategory" style="flex:1;min-width:0">${categoriesOptions}</select><button type="button" class="pill-btn primary" onclick="openExpenseCategoryManager()" title="Gérer les catégories" style="flex-shrink:0;padding:8px 12px;font-size:14px;font-weight:700">+</button></div></div></div><div class="field"><label>📝 Libellé *</label><input class="input" id="expLabel" maxlength="200" value="${esc(e.label||'')}" placeholder="Ex : Loyer janvier 2025"></div><div class="field-row-3"><div class="field"><label>💰 Prix unitaire (DA) *</label><input class="input" id="expAmount" type="number" min="0" step="0.01" value="${e.amount||''}" placeholder="0" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>🔢 Quantité *</label><input class="input" id="expQuantity" type="number" min="1" step="1" value="${e.quantity||1}" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>💵 Total (DA)</label><input class="input" id="expTotal" type="text" readonly value="${n2((Number(e.amount)||0)*(Number(e.quantity)||1))}" style="background:var(--accent-light);color:var(--accent-primary);font-family:var(--font-numbers);font-weight:700;cursor:default"></div></div><div class="field-row"><div class="field"><label>🏢 Fournisseur</label><input class="input" id="expSupplier" value="${esc(e.supplier||'')}" placeholder="Ex : Sonelgaz"></div><div class="field"><label>🔢 N° facture / Reçu</label><input class="input" id="expRef" value="${esc(e.reference||'')}" placeholder="Ex : FCT-2025-001"></div></div><div class="field"><label>📎 Pièce jointe (reçu, facture…)</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="pill-btn primary" style="cursor:pointer;margin:0">📎 ${e.attachmentName ? 'Remplacer' : 'Joindre un fichier'}<input type="file" style="display:none" onchange="onExpenseFile(this)" accept="image/*,.pdf"></label>${e.attachmentName ? '<span class="tag accent">📎 '+esc(e.attachmentName)+' <button class="mini-btn out-red" style="padding:1px 5px;font-size:9px;margin-left:4px" onclick="removeExpenseFile()">✕</button></span>' : '<span style="font-size:11.5px;color:var(--text-muted)">Aucune pièce jointe</span>'}</div></div><div class="field"><label>📝 Notes</label><textarea class="textarea" id="expNotes" style="min-height:70px" placeholder="Notes additionnelles…">${esc(e.notes||'')}</textarea></div>`;
+  window._expenseAttachment = e.attachmentKey ? { key: e.attachmentKey, name: e.attachmentName } : null;
+  const actions = `<button class="pill-btn" onclick="closeModal()">Annuler</button>${!isEdit ? '<button class="pill-btn" onclick="saveExpense(null, true)">💾 Enregistrer & nouvelle</button>' : ''}<button class="pill-btn primary" onclick="saveExpense('${isEdit ? e.id : 'new'}', false)">💾 ${isEdit ? 'Mettre à jour' : 'Enregistrer'}</button>`;
+  openModal(isEdit ? '✏️ Modifier la dépense' : '💰 Nouvelle dépense', owner.label, body, actions);
+}
+
+async function onExpenseFile(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 10 * 1024 * 1024){ toast('Fichier trop volumineux (max 10 Mo)','error'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const key = 'exp_' + uid('F') + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    try {
+      await idbFiles.put(key, { name: file.name, type: file.type || 'application/octet-stream', size: file.size, data: ev.target.result });
+      window._expenseAttachment = { key, name: file.name };
+      const currentId = document.getElementById('expenseEditingId')?.value || null;
+      closeModal();
+      setTimeout(() => openExpenseForm(currentId || null), 50);
+      toast('📎 Pièce jointe prête','success');
+    } catch(err){ console.error(err); toast('Erreur upload','error'); }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function updateExpenseTotalPreview(){
+  const a = document.getElementById('expAmount');
+  const q = document.getElementById('expQuantity');
+  const t = document.getElementById('expTotal');
+  if(!t) return;
+  const amount = a ? parseFloat(a.value) || 0 : 0;
+  const quantity = q ? parseInt(q.value, 10) || 0 : 0;
+  t.value = n2(amount * quantity);
+}
+function openExpenseCategoryManager(){
+  const list = getExpenseCategoriesList();
+  const rows = list.map(c => {
+    const inUse = (DB.expenses||[]).some(x => x.category === c.key);
+    return `<div class="list-item" style="gap:8px">
+      <input class="input" style="flex:0 0 60px;padding:6px 8px;text-align:center;font-size:16px" maxlength="4" value="${esc(c.ico||'📦')}" onchange="updateExpenseCategoryField('${jsStr(c.key)}','ico',this.value)" title="Icône">
+      <input class="input" style="flex:1;min-width:0;padding:6px 10px" value="${esc(c.label||'')}" onchange="updateExpenseCategoryField('${jsStr(c.key)}','label',this.value)" title="Libellé">
+      <button type="button" class="mini-btn ${inUse?'ghost':'out-red'}" onclick="confirmDeleteExpenseCategory('${jsStr(c.key)}', ${inUse})" title="${inUse?'Utilisée — suppression bloquée':'Supprimer'}" ${inUse?'disabled style="opacity:.55;cursor:not-allowed"':''}>🗑️</button>
+    </div>`;
+  }).join('');
+  const body = `
+    <div class="letter-amount" style="font-style:normal;margin-bottom:12px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);font-size:11.5px">
+      💡 <strong>Astuce :</strong> modifiez l'icône et le libellé directement dans les champs. Une catégorie utilisée par une dépense existante ne peut pas être supprimée (sécurité des données).
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="display:flex;gap:6px">
+        <input class="input" id="newExpCatIco" maxlength="4" placeholder="📦" value="📦" style="flex:0 0 70px;text-align:center;font-size:16px">
+        <input class="input" id="newExpCatLabel" placeholder="Nom de la nouvelle catégorie…" style="flex:1;min-width:0">
+        <button type="button" class="pill-btn primary" onclick="addExpenseCategory()">+ Ajouter</button>
+      </div>
+    </div>
+    <div style="max-height:50vh;overflow-y:auto">${rows}</div>
+  `;
+  openModal('🏷️ Gérer les catégories de dépenses', '', body,
+    `<button class="pill-btn" onclick="closeModal()">Fermer</button>`, true);
+}
+function updateExpenseCategoryField(key, field, value){
+  const list = getExpenseCategoriesList();
+  const cat = list.find(c => c.key === key);
+  if(!cat) return;
+  const v = String(value || '').trim();
+  if(!v) return;
+  cat[field] = v;
+  persistExpenseCategories();
+  toast('✓ Catégorie mise à jour','success');
+}
+function addExpenseCategory(){
+  const icoEl = document.getElementById('newExpCatIco');
+  const labelEl = document.getElementById('newExpCatLabel');
+  const ico = (icoEl?.value || '📦').trim() || '📦';
+  const label = (labelEl?.value || '').trim();
+  if(!label){ toast('Nom requis','error'); return; }
+  const list = getExpenseCategoriesList();
+  if(list.some(c => c.label.toLowerCase() === label.toLowerCase())){
+    toast('Cette catégorie existe déjà','info'); return;
+  }
+  const key = 'cat_' + uid('C').toLowerCase();
+  list.push({ key, ico, label, custom:true });
+  persistExpenseCategories();
+  closeModal();
+  setTimeout(() => openExpenseCategoryManager(), 50);
+  toast('✓ Catégorie ajoutée','success');
+}
+function confirmDeleteExpenseCategory(key, inUse){
+  if(inUse){ toast('Catégorie utilisée — suppression impossible','error'); return; }
+  const cat = getExpenseCategoriesList().find(c => c.key === key);
+  if(!cat) return;
+  openModal('🗑️ Supprimer la catégorie', cat.label, '<div style="font-size:13px;line-height:1.7">Voulez-vous vraiment supprimer cette catégorie ?</div>',
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn danger" onclick="doDeleteExpenseCategory('${jsStr(key)}')">🗑️ Supprimer</button>`);
+}
+function doDeleteExpenseCategory(key){
+  DB.expenseCategories = (DB.expenseCategories || []).filter(c => c.key !== key);
+  persistExpenseCategories();
+  closeModal();
+  setTimeout(() => openExpenseCategoryManager(), 50);
+  toast('Catégorie supprimée','info');
+}
+function removeExpenseFile(){ window._expenseAttachment = null; const currentId = document.getElementById('expenseEditingId')?.value || null; closeModal(); setTimeout(() => openExpenseForm(currentId || null), 50); toast('Pièce jointe retirée','info'); }
+
+function saveExpense(id, saveAndNew){
+  const owner = getCurrentExpenseOwner();
+  if(!owner) return;
+  const date = document.getElementById('expDate')?.value;
+  const category = document.getElementById('expCategory')?.value || 'autre';
+  const label = (document.getElementById('expLabel')?.value || '').trim();
+  const unitPrice = parseFloat(document.getElementById('expAmount')?.value) || 0;
+  const quantity = parseInt(document.getElementById('expQuantity')?.value, 10) || 1;
+  const amount = unitPrice * quantity;
+  const tva = 0;
+  const supplier = (document.getElementById('expSupplier')?.value || '').trim();
+  const reference = (document.getElementById('expRef')?.value || '').trim();
+  const notes = (document.getElementById('expNotes')?.value || '').trim();
+  const unitPriceVal = parseFloat(document.getElementById('expAmount')?.value) || 0;
+  const quantityVal = parseInt(document.getElementById('expQuantity')?.value, 10) || 1;
+  const attach = window._expenseAttachment || null;
+  if(!date){ toast('Date requise','error'); return; }
+  if(!label){ toast('Libellé requis','error'); return; }
+  if(amount <= 0){ toast('Montant > 0 requis','error'); return; }
+  if(!DB.expenses) DB.expenses = [];
+  if(id && id !== 'new'){
+    const existing = DB.expenses.find(x => x.id === id);
+    if(!existing){ toast('Dépense introuvable','error'); return; }
+    Object.assign(existing, { date, category, label, amount: unitPriceVal, quantity: quantityVal, tva: 0, supplier, reference, notes, attachmentKey: attach?.key || null, attachmentName: attach?.name || null, updatedAt: nowISO() });
+    toast('✓ Dépense mise à jour','success');
+  } else {
+    let newId = 'EXP-' + Math.random().toString(36).slice(2,7).toUpperCase();
+    let tries = 0;
+    while(DB.expenses.some(e => e.id === newId) && tries < 50){ newId = 'EXP-' + Math.random().toString(36).slice(2,7).toUpperCase(); tries++; }
+    DB.expenses.push({ id: newId, ownerType: owner.type, ownerId: owner.id, date, category, label, amount: unitPriceVal, quantity: quantityVal, tva: 0, supplier, reference, notes, attachmentKey: attach?.key || null, attachmentName: attach?.name || null, createdAt: nowISO(), updatedAt: nowISO() });
+    toast('✓ Dépense enregistrée','success');
+  }
+  saveDB();
+  window._expenseAttachment = null;
+  if(saveAndNew){ closeModal(); render(); setTimeout(() => openExpenseForm(null), 100); return; }
+  closeModal(); render();
+}
+
+function confirmDeleteExpense(id){
+  const e = (DB.expenses||[]).find(x => x.id === id);
+  if(!e) return;
+  openModal('🗑️ Supprimer la dépense', e.label + ' — ' + n2(e.amount) + ' DA', '<div style="font-size:13px;line-height:1.7">Voulez-vous vraiment supprimer cette dépense ? Action irréversible.</div>', '<button class="pill-btn" onclick="closeModal()">Annuler</button><button class="pill-btn danger" onclick="deleteExpense(\'' + id + '\')">🗑️ Supprimer</button>');
+}
+
+function deleteExpense(id){
+  const e = (DB.expenses||[]).find(x => x.id === id);
+  if(!e) return;
+  if(!_pendingDeletes.expenses) _pendingDeletes.expenses = [];
+  _pendingDeletes.expenses.push(id);
+  savePendingDeletes();
+  if(e.attachmentKey) idbFiles.del(e.attachmentKey).catch(()=>{});
+  DB.expenses = DB.expenses.filter(x => x.id !== id);
+  saveDB();
+  closeModal(); render();
+  toast('Dépense supprimée','info');
+}
+
+async function openExpenseAttachment(id){
+  const e = (DB.expenses||[]).find(x => x.id === id);
+  if(!e || !e.attachmentKey){ toast('Aucune pièce jointe','error'); return; }
+  const f = await idbFiles.get(e.attachmentKey);
+  if(!f){ toast('Fichier introuvable','error'); return; }
+  const dataURL = await arrayBufferToDataURL(f.data, f.type);
+  const isImg = (f.type||'').startsWith('image/');
+  const isPdf = (f.type||'') === 'application/pdf';
+  let html;
+  if(isImg) html = '<img src="' + dataURL + '" class="doc-view-img" alt="' + esc(e.attachmentName||'') + '">';
+  else if(isPdf) html = '<iframe src="' + dataURL + '" class="doc-view-pdf"></iframe>';
+  else html = '<div class="doc-view-other"><a href="' + dataURL + '" download="' + esc(e.attachmentName||'fichier') + '">⬇ Télécharger</a></div>';
+  openModal('📎 ' + (e.attachmentName || 'Pièce jointe'), e.label, '<div>' + html + '</div>', '<button class="pill-btn" onclick="closeModal()">Fermer</button>', true);
+}
+
+function exportExpensesCSV(){
+  const owner = getCurrentExpenseOwner();
+  if(!owner) return;
+  const f = getExpenseFilter();
+  let list = expensesFor(owner.type, owner.id);
+  list = filterExpensesByPeriod(list, f.periodType, f.month, f.year, f.startDate, f.endDate, f.dayDate);
+  if(f.category !== 'all') list = list.filter(e => e.category === f.category);
+  if(f.search){ const q = f.search.toLowerCase(); list = list.filter(e => (e.label||'').toLowerCase().includes(q) || (e.supplier||'').toLowerCase().includes(q) || (e.reference||'').toLowerCase().includes(q)); }
+  list.sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
+  const rows = [['Date','Catégorie','Libellé','Fournisseur','Référence','Montant (DA)','TVA (%)','Notes']];
+  list.forEach(e => { const cat = getExpenseCatMeta(e.category); rows.push([e.date, cat.label, e.label||'', e.supplier||'', e.reference||'', (e.amount||0).toFixed(2), e.tva||0, e.notes||'']); });
+  const csv = rows.map(r => r.map(c => { let s = String(c ?? ''); if(/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g,'""') + '"'; }).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'depenses_' + owner.type + '_' + todayISO() + '.csv'; a.click(); URL.revokeObjectURL(url);
+  toast('📤 Export CSV généré','success');
+}
+
+function printExpenses(){
+  const owner = getCurrentExpenseOwner();
+  if(!owner) return;
+  const f = getExpenseFilter();
+  let list = expensesFor(owner.type, owner.id);
+  list = filterExpensesByPeriod(list, f.periodType, f.month, f.year, f.startDate, f.endDate, f.dayDate);
+  if(f.category !== 'all') list = list.filter(e => e.category === f.category);
+  if(f.search){ const q = f.search.toLowerCase(); list = list.filter(e => (e.label||'').toLowerCase().includes(q) || (e.supplier||'').toLowerCase().includes(q) || (e.reference||'').toLowerCase().includes(q)); }
+  list.sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+  if(!list.length){ toast('Aucune dépense à imprimer','error'); return; }
+  const total = list.reduce((s,e)=>s+(Number(e.amount)||0), 0);
+  const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
+  const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const refNo = 'EXP-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
+  const periodLabel = (() => { if(f.periodType === 'all') return 'Toutes les dépenses'; if(f.periodType === 'day') return f.dayDate ? fmtDateFR(f.dayDate) : '—'; if(f.periodType === 'month') return MONTH_NAMES[f.month-1] + ' ' + f.year; if(f.periodType === 'year') return String(f.year); return (f.startDate && f.endDate) ? (fmtDateFR(f.startDate) + ' → ' + fmtDateFR(f.endDate)) : '—'; })();
+  const catTotals = {};
+  list.forEach(e => { catTotals[e.category] = (catTotals[e.category]||0) + (Number(e.amount)||0); });
+  const rows = list.map((e,i) => { const cat = getExpenseCatMeta(e.category); return '<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:center;white-space:nowrap">'+fmtDateFR(e.date)+'</td><td>'+cat.ico+' '+esc(cat.label)+'</td><td><strong>'+esc(e.label||'—')+'</strong>'+(e.notes?'<div style="font-size:9px;color:#6b7280;margin-top:2px">'+esc(e.notes)+'</div>':'')+'</td><td>'+esc(e.supplier||'—')+'</td><td style="text-align:center;font-family:\'Rubik\',sans-serif">'+esc(e.reference||'—')+'</td><td style="text-align:right;font-family:\'Rubik\',sans-serif;font-weight:700;color:#dc2626;white-space:nowrap">'+n2(e.amount)+'</td></tr>'; }).join('');
+  const catRows = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{ const cat = getExpenseCatMeta(k); const pct = total > 0 ? ((v/total)*100).toFixed(1) : 0; return '<tr><td>'+cat.ico+' '+esc(cat.label)+'</td><td style="text-align:right;font-family:\'Rubik\',sans-serif">'+n2(v)+' DA</td><td style="text-align:right;font-family:\'Rubik\',sans-serif;color:#7c3aed">'+pct+'%</td></tr>'; }).join('');
+  printHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dépenses — '+esc(owner.label)+'</title><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}@page{size:A4 portrait;margin:10mm}body{font-family:\'Inter\',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{position:relative;background:linear-gradient(135deg,#ef4444 0%,#f59e0b 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden}.cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.logo-box{display:flex;gap:14px;align-items:center}.logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}.cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:\'Playfair Display\',Georgia,serif;line-height:1.05}.cover .sub{font-size:11.5px;opacity:.94}.cover .ref{margin-top:4px;font-family:\'Rubik\',sans-serif;font-size:10.5px;opacity:.9}.date-box{background:rgba(255,255,255,.18);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}.date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}.date-box strong{display:block;font-size:13px;font-family:\'Rubik\',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize}.section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#7c2d12;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #fed7aa;margin:20px 0 12px}.section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#ef4444,#f59e0b);display:grid;place-items:center;font-size:14px}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:12px;padding:11px 12px}.kpi::after{content:\'\';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ef4444,#f59e0b)}.kpi .k-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;margin-bottom:4px}.kpi .k-val{font-family:\'Rubik\',sans-serif;font-weight:700;font-size:15px;color:#dc2626}table.data{width:100%;border-collapse:collapse;font-size:9.5px}thead th{background:#fef3c7;color:#7c2d12;font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:.3px;padding:7px 5px;text-align:left;border-bottom:1.5px solid #fed7aa}tbody td{padding:6px 5px;border-bottom:1px solid #f3f4f6}tbody tr:nth-child(even){background:#fffbeb}tfoot td{padding:8px 5px;font-weight:700;background:#fef3c7;border-top:2px solid #ef4444;font-family:\'Rubik\',sans-serif}.letter-amount{background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:10.5px;line-height:1.5;font-style:italic}.letter-amount strong{color:#dc2626;font-style:normal}.footer{margin-top:26px;padding-top:12px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;font-size:9px;color:#6b7280}</style></head><body><div class="cover"><div class="cover-top"><div class="logo-box"><div class="logo">💰</div><div><h1>Dépenses</h1><div class="sub">'+(owner.type === 'doctor' ? 'Cabinet médical' : 'Clinique')+' — '+esc(owner.label)+'</div><div class="ref">Réf. '+refNo+' · '+esc(periodLabel)+'</div></div></div><div class="date-box"><div class="lbl">Imprimé le</div><strong>'+printDate+'</strong></div></div></div><div class="section-head"><span class="ico-badge">📊</span> Synthèse — '+esc(periodLabel)+'</div><div class="kpi-grid"><div class="kpi"><div class="k-lbl">Nombre de dépenses</div><div class="k-val">'+list.length+'</div></div><div class="kpi"><div class="k-lbl">Total</div><div class="k-val">'+n2(total)+' DA</div></div><div class="kpi"><div class="k-lbl">Catégories</div><div class="k-val">'+Object.keys(catTotals).length+'</div></div><div class="kpi"><div class="k-lbl">Moyenne / dépense</div><div class="k-val">'+n2(list.length ? total/list.length : 0)+' DA</div></div></div><div class="section-head"><span class="ico-badge">📋</span> Détail des dépenses</div><table class="data"><thead><tr><th style="width:24px;text-align:center">#</th><th style="width:56px">Date</th><th style="width:110px">Catégorie</th><th>Libellé</th><th style="width:100px">Fournisseur</th><th style="width:80px;text-align:center">Référence</th><th style="width:80px;text-align:right">Montant</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="6" style="text-align:right">TOTAL :</td><td style="text-align:right;color:#dc2626">'+n2(total)+' DA</td></tr></tfoot></table><div class="section-head"><span class="ico-badge">🏷️</span> Répartition par catégorie</div><table class="data"><thead><tr><th>Catégorie</th><th style="text-align:right;width:130px">Montant</th><th style="text-align:right;width:80px">Part</th></tr></thead><tbody>'+catRows+'</tbody></table><div class="letter-amount"><strong>Arrêtée la présente liste à la somme de :</strong> '+esc(totalWords)+'</div><div class="footer">OmniMed — Document généré automatiquement le '+new Date().toLocaleString('fr-FR')+'</div></body></html>');
+  toast('🖨️ Impression générée','success');
+}
+
 Object.assign(window, {
   go, setRole, toggleDark, setLang, goHome, viewAdminAvailability,
   openAccountLogin, doAccountLogin, logoutAccount,
@@ -26168,6 +26605,17 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   openAdmissionInvoiceModal,
   printAdmissionInvoice,
   updateAdmissionFullName,
+  /* 💰 DÉPENSES */
+  viewDoctorExpenses, viewClinicExpenses, viewExpensesGeneric,
+  getExpenseFilter, filterExpensesByPeriod, computeExpenseStats,
+  openExpenseForm, saveExpense, deleteExpense, confirmDeleteExpense,
+  onExpenseFile, removeExpenseFile, openExpenseAttachment,
+  setExpensePeriod, exportExpensesCSV, printExpenses,
+  getExpenseCatMeta, getCurrentExpenseOwner, expensesFor,
+  getExpenseCategoriesList, persistExpenseCategories,
+  openExpenseCategoryManager, updateExpenseCategoryField,
+  addExpenseCategory, confirmDeleteExpenseCategory, doDeleteExpenseCategory,
+  updateExpenseTotalPreview,
 });
 </script>
 </body>
