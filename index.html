@@ -5390,6 +5390,7 @@ async function loadDB(){
         name: cp.name, price: Number(cp.price)||0,
         duration: cp.duration||30, description: cp.description||'',
         requiresDoctor: !!cp.requires_doctor,
+        showPrice: cp.show_price !== false,
         locked: !!cp.locked,
         lockedByClinic: !!cp.locked_by_clinic,
         autoLocked: !!cp.auto_locked
@@ -5419,7 +5420,8 @@ async function loadDB(){
 
       services: (servR.data||[]).filter(s=>!_pendingDeletes.services.includes(String(s.id))).map(s=>({
         id:s.id, doctorId:s.doctor_id, name:s.name,
-        price:Number(s.price)||0, description:s.description||''
+        price:Number(s.price)||0, description:s.description||'',
+        showPrice: s.show_price !== false
       })),
 
       notifications: (notifR.data||[]).map(n=>({
@@ -5769,6 +5771,7 @@ async function pushToSupabase(){
         id:String(cp.id), clinic_id:String(cp.clinicId), service_id:String(cp.serviceId),
         name:cp.name, price:cp.price||0, duration:cp.duration||30,
         description:cp.description||'', requires_doctor:!!cp.requiresDoctor,
+        show_price: cp.showPrice !== false,
         locked: !!cp.locked,
         locked_by_clinic: !!cp.lockedByClinic,
         auto_locked: !!cp.autoLocked
@@ -5791,7 +5794,8 @@ async function pushToSupabase(){
     if(syncServices && DB.services.length){
       await sb.from('services').upsert(DB.services.map(s=>({
         id:String(s.id), doctor_id:String(s.doctorId), name:s.name,
-        price:s.price, description:s.description||''
+        price:s.price, description:s.description||'',
+        show_price: s.showPrice !== false
       })));
     }
 
@@ -9672,7 +9676,7 @@ function viewClinicPublicProfile(){
                       <span class="pi-name">${esc(p.name)}</span>
                       ${locked ? `<span class="prestation-lock-chip">🔒 ${t('prestation_locked')}</span>` : ''}
                       <span class="pi-meta">${p.duration} ${t('min')}${p.requiresDoctor?' · 🧑‍⚕️':''}</span>
-                      ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
+                      ${(p.price > 0 && p.showPrice !== false) ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
                     </div>`;
                   }).join('')}
                   ${svPrestations.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);text-align:center;padding:4px">+ ${svPrestations.length - 5} …</div>` : ''}
@@ -9783,7 +9787,7 @@ function openClinicServiceModal(serviceId){
               <span class="pi-name">${esc(p.name)}</span>
               ${locked ? `<span class="prestation-lock-chip">🔒 ${t('prestation_locked')}</span>` : ''}
               <span class="pi-meta">${p.duration} ${t('min')}</span>
-              ${p.price > 0 ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
+              ${(p.price > 0 && p.showPrice !== false) ? `<span class="pi-price">${n2(p.price)} DA</span>` : ''}
               ${!locked ? `<span style="color:var(--text-muted);font-size:18px;margin-left:4px">›</span>` : ''}
             </div>
           `;
@@ -10355,7 +10359,7 @@ function openDoctorProfile(id){
       ${services.map(s=>`
         <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--glass-border);font-size:12.5px">
           <div style="min-width:0"><strong>${esc(s.name)}</strong>${s.description?`<span style="color:var(--text-muted);font-size:11px"> — ${esc(s.description)}</span>`:''}</div>
-          ${s.price > 0 ? `<span style="font-family:var(--font-numbers);font-weight:500;color:#059669;flex-shrink:0">${n2(s.price)} DA</span>` : ''}
+          ${(s.price > 0 && (state.role !== 'patient' || s.showPrice !== false)) ? `<span style="font-family:var(--font-numbers);font-weight:500;color:#059669;flex-shrink:0">${n2(s.price)} DA</span>` : ''}
         </div>
       `).join('')}
     </div>`:''}
@@ -12388,6 +12392,13 @@ function openServiceForm(doctorId, serviceId){
   openModal(isEdit?t('edit_service'):t('add_service'), '', `
     <div class="field"><label>${t('service_name')} *</label><input class="input" id="svName" value="${esc(sv.name)}"></div>
     <div class="field"><label>${t('service_price')}</label><input class="input" id="svPrice" type="number" inputmode="numeric" min="0" step="50" value="${sv.price || ''}" placeholder="Optionnel"></div>
+    <label class="service-checkbox" style="margin-bottom:12px">
+      <input type="checkbox" id="svShowPrice" ${(sv.showPrice !== false) ? 'checked' : ''}>
+      <div class="sc-info">
+        <div class="sc-name">👁️ Afficher le prix en public</div>
+        <div class="sc-desc">Le prix reste utilisé pour la facturation et la comptabilisation</div>
+      </div>
+    </label>
     <div class="field"><label>${t('service_desc')}</label><textarea class="textarea" id="svDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
   `, `<button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
      <button class="pill-btn primary" onclick="saveService('${idStr}','${jsStr(serviceId||'')}')">💾 ${t('save')}</button>`);
@@ -12396,12 +12407,13 @@ function saveService(doctorId, serviceId){
   const name = ($('#svName')?.value||'').trim();
   const price = parseInt($('#svPrice')?.value,10) || 0;
   const desc = ($('#svDesc')?.value||'').trim();
+  const showPrice = ($('#svShowPrice')?.checked !== false);
   if(!name){ toast(t('required_fields'),'error'); return; }
   if(serviceId){
     const sv = serviceById(serviceId); if(!sv) return;
-    sv.name = name; sv.price = price; sv.description = desc;
+    sv.name = name; sv.price = price; sv.description = desc; sv.showPrice = showPrice;
   } else {
-    DB.services.push({id:uid('S-'), doctorId: doctorId, name, price, description: desc});
+    DB.services.push({id:uid('S-'), doctorId: doctorId, name, price, description: desc, showPrice});
   }
   saveDB();
   openServicesManager(doctorId);
@@ -22405,6 +22417,13 @@ function openClinicPrestationForm(prestationId){
       <div class="field"><label>${t('clinic_prestation_price')}</label><input class="input" id="cpPrice" type="number" min="0" step="100" value="${p.price || ''}" placeholder="Optionnel"></div>
       <div class="field"><label>${t('clinic_prestation_duration')}</label><input class="input" id="cpDur" type="number" min="5" step="5" value="${p.duration}"></div>
     </div>
+    <label class="service-checkbox" style="margin-bottom:12px">
+      <input type="checkbox" id="cpShowPrice" ${(p.showPrice !== false) ? 'checked' : ''}>
+      <div class="sc-info">
+        <div class="sc-name">👁️ Afficher le prix en public</div>
+        <div class="sc-desc">Le prix reste utilisé pour la facturation et la comptabilisation</div>
+      </div>
+    </label>
     <div class="field"><label>${t('clinic_prestation_desc')}</label><textarea class="textarea" id="cpDesc" style="min-height:50px">${esc(p.description||'')}</textarea></div>
     <label class="service-checkbox">
       <input type="checkbox" id="cpReqDoc" ${p.requiresDoctor?'checked':''}>
@@ -22425,18 +22444,20 @@ function saveClinicPrestation(id){
   const dur = parseInt($('#cpDur')?.value,10) || 30;
   const desc = ($('#cpDesc')?.value||'').trim();
   const reqDoc = !!$('#cpReqDoc')?.checked;
+  const showPrice = ($('#cpShowPrice')?.checked !== false);
   if(!svc || !name){ toast(t('required_fields'),'error'); return; }
   if(id === 'new'){
     DB.clinicPrestations.push({
       id: uid('CP-'), clinicId: c.id, serviceId: svc,
       name, price, duration: dur, description: desc, requiresDoctor: reqDoc,
+      showPrice,
       locked: false, lockedByClinic: false, autoLocked: false
     });
   } else {
     const p = clinicPrestationById(id);
     if(!p) return;
     p.serviceId = svc; p.name = name; p.price = price;
-    p.duration = dur; p.description = desc; p.requiresDoctor = reqDoc;
+    p.duration = dur; p.description = desc; p.requiresDoctor = reqDoc; p.showPrice = showPrice;
   }
   saveDB();
   closeModal();
