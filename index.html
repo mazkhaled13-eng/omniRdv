@@ -5514,6 +5514,7 @@ async function loadDB(){
         clinicRating:a.clinic_rating||0,
         rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
         reminders:a.reminders||{h2:false},
+        transferredFrom: a.reminders?.transferredFrom || null,
         createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
       })),
 
@@ -6250,6 +6251,7 @@ if(state.role === 'doctor' && state.doctor) {
           emergencyId: a.emergency_id || null,
           rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
           reminders:a.reminders||{h2:false},
+          transferredFrom: a.reminders?.transferredFrom || null,
           createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
         }));
         return true;
@@ -10442,19 +10444,19 @@ function clinicBookConfirm(){
   const headerTitle = isCancelled ? t('status_cancelled')
                     : isConfirmed ? t('status_confirmed')
                     : isDone ? t('status_done')
-                    : t('rdv_confirmed');
+                    : 'Demande envoyée';
   const headerMsg = isCancelled
     ? 'Ce rendez-vous a été annulé par la clinique.'
     : isConfirmed
     ? '🎉 La clinique a confirmé votre rendez-vous !'
     : isDone
     ? 'Consultation terminée.'
-    : 'La clinique va valider votre demande. Vous serez notifié automatiquement.';
+    : 'La clinique va examiner votre demande. Vous serez notifié dès qu\'elle l\'aura confirmée.';
 
   return `
-    <div class="card" style="text-align:center;padding:24px">
+    <div class="card" style="text-align:center;padding:24px; background:${isCancelled ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(239,68,68,0.05) 100%)' : isConfirmed || isDone ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(16,185,129,0.05) 100%)' : 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(139,92,246,0.05) 100%)'}; border:1.5px solid ${isCancelled ? 'var(--danger-bg)' : isConfirmed || isDone ? 'var(--success-bg)' : 'rgba(139,92,246,0.2)'}; max-width:520px; margin:0 auto;">
       <div style="font-size:48px;margin-bottom:8px">${headerIco}</div>
-      <div class="card-title" style="justify-content:center;font-size:18px">${headerTitle}</div>
+      <div class="card-title" style="justify-content:center;font-size:18px;color:${isCancelled ? 'var(--danger)' : isConfirmed ? 'var(--success)' : 'var(--accent-primary)'}">${headerTitle}</div>
       <div class="card-sub" style="margin-bottom:18px">${t('rdv_code')} : <strong style="color:var(--accent-primary);font-size:14px;font-family:var(--font-numbers)">${appt.id}</strong></div>
       <div style="max-width:440px;margin:0 auto 16px;text-align:center">
         <div style="font-size:40px;margin-bottom:6px">${c.avatar||'🏥'}</div>
@@ -10471,8 +10473,10 @@ function clinicBookConfirm(){
         ${headerMsg}
       </div>
       <div style="margin-top:10px">${statusTag(appt.status)}</div>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="pill-btn success" onclick="goHome()">✓ ${t('go_home')}</button>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+        <button class="pill-btn ${isConfirmed ? 'success' : 'primary'}" onclick="goHome()" style="width:100%;max-width:280px;justify-content:center;padding:14px;font-size:15px;font-weight:700;border-radius:14px">
+          ${isConfirmed ? '✓ ' + t('go_home') : 'Fermer'}
+        </button>
       </div>
     </div>
   `;
@@ -11250,22 +11254,22 @@ function bookStep4(){
   const headerTitle = isCancelled ? t('status_cancelled')
                     : isConfirmed ? t('status_confirmed')
                     : isDone ? t('status_done')
-                    : t('rdv_confirmed');
+                    : 'Demande envoyée';
   const headerMsg = isCancelled
     ? 'Ce rendez-vous a été annulé.'
     : isConfirmed
     ? '🎉 Le médecin a confirmé votre rendez-vous !'
     : isDone
     ? 'Consultation terminée.'
-    : 'Le médecin va valider votre demande. Vous serez notifié automatiquement.';
+    : 'Le médecin va examiner votre demande. Vous serez notifié dès qu\'il l\'aura confirmée.';
 
   return `
-    <div class="card" style="text-align:center; padding:30px 20px; background:linear-gradient(180deg, var(--glass-bg) 0%, rgba(16,185,129,0.05) 100%); border:1.5px solid var(--success-bg); max-width:520px; margin:0 auto; box-shadow:0 12px 30px rgba(16,185,129,0.1)">
+    <div class="card" style="text-align:center; padding:30px 20px; background:${isCancelled ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(239,68,68,0.05) 100%)' : isConfirmed || isDone ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(16,185,129,0.05) 100%)' : 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(139,92,246,0.05) 100%)'}; border:1.5px solid ${isCancelled ? 'var(--danger-bg)' : isConfirmed || isDone ? 'var(--success-bg)' : 'rgba(139,92,246,0.2)'}; max-width:520px; margin:0 auto; box-shadow:0 12px 30px ${isCancelled ? 'rgba(239,68,68,0.1)' : isConfirmed || isDone ? 'rgba(16,185,129,0.1)' : 'rgba(139,92,246,0.1)'}">
       
       <!-- En-tête d'état -->
       <div style="margin-bottom:20px">
-        <div style="font-size:56px; margin-bottom:12px; filter:drop-shadow(0 4px 12px rgba(16,185,129,0.3))">${headerIco}</div>
-        <div style="font-size:22px; font-weight:800; color:${isCancelled ? 'var(--danger)' : isConfirmed ? 'var(--success)' : 'var(--text-main)'}; letter-spacing:-0.5px; margin-bottom:6px">${headerTitle}</div>
+        <div style="font-size:56px; margin-bottom:12px; filter:drop-shadow(0 4px 12px ${isCancelled ? 'rgba(239,68,68,0.3)' : isConfirmed || isDone ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'})">${headerIco}</div>
+        <div style="font-size:22px; font-weight:800; color:${isCancelled ? 'var(--danger)' : isConfirmed ? 'var(--success)' : 'var(--accent-primary)'}; letter-spacing:-0.5px; margin-bottom:6px">${headerTitle}</div>
         <div style="font-size:13px; color:var(--text-muted)">${headerMsg}</div>
       </div>
 
@@ -11332,8 +11336,8 @@ function bookStep4(){
       <!-- Pied de page -->
       <div style="display:flex; flex-direction:column; gap:12px; align-items:center">
         <div>${statusTag(appt.status)}</div>
-        <button class="pill-btn success" onclick="goHome()" style="width:100%; max-width:280px; justify-content:center; padding:14px; font-size:15px; font-weight:700; border-radius:14px; box-shadow:0 6px 16px rgba(16,185,129,0.3)">
-          ✓ ${t('go_home')}
+        <button class="pill-btn ${isConfirmed ? 'success' : 'primary'}" onclick="goHome()" style="width:100%; max-width:280px; justify-content:center; padding:14px; font-size:15px; font-weight:700; border-radius:14px; box-shadow:0 6px 16px ${isConfirmed ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'}">
+          ${isConfirmed ? '✓ ' + t('go_home') : 'Fermer'}
         </button>
       </div>
 
@@ -21731,9 +21735,14 @@ function saveClinicModifiedAppt(apptId){
   a.time = mod.time;
   a.updatedAt = nowISO();
   
+  /* ✅ Confirmation automatique si modifié par la clinique/médecin */
+  if(a.status === 'pending') {
+    a.status = 'confirmed';
+  }
+  
   /* Notifier le médecin et le patient */
   if(a.doctorId) pushNotif('doctor', '✏️ RDV modifié', `${a.patientName} — ${fmtDate(a.date)} ${a.time}`, a.doctorId, a.id);
-  pushNotif('patient', '✏️ RDV modifié', `Votre RDV ${a.id} : ${fmtDate(a.date)} à ${a.time}`, null, a.id);
+  pushNotif('patient', '✅ RDV confirmé', `Votre RDV ${a.id} est confirmé pour le ${fmtDate(a.date)} à ${a.time}`, null, a.id);
   
   saveDB();
   delete state._clinicModify[apptId];
@@ -24221,11 +24230,11 @@ function renderTransferApptModal(apptId){
     </button>`;
   }).join('');
 
-  const slotBtns = st.date ? slots.map(sl => {
-    const own = (a.date === st.date && a.time === sl.time);
-    const available = sl.available || own;
+  /* ✅ Uniquement les créneaux réellement disponibles pour la date choisie */
+  const availableSlots = st.date ? slots.filter(sl => sl.available) : [];
+  const slotBtns = availableSlots.length ? availableSlots.map(sl => {
     const selected = st.time === sl.time;
-    return `<button class="slot ${selected?'selected':''}" ${!available?'disabled':''} onclick="if(!this.disabled){pickTransferTime('${apptId}','${sl.time}')}">${sl.time}</button>`;
+    return `<button class="slot ${selected?'selected':''}" onclick="pickTransferTime('${apptId}','${sl.time}')">${sl.time}</button>`;
   }).join('') : '';
 
   const body = `
@@ -24260,12 +24269,15 @@ function renderTransferApptModal(apptId){
     </div>
 
     <div class="field" style="margin-top:14px">
-      <label>⏰ Nouvelle heure${st.date ? ` — ${fmtLongDate(st.date)}` : ''}</label>
+      <label>⏰ Nouvelle heure${st.date ? ` — ${fmtLongDate(st.date)}` : ''}${st.date ? ` <span style="color:var(--success);font-weight:700;font-size:11px">(${availableSlots.length} disponible${availableSlots.length>1?'s':''})</span>` : ''}</label>
       ${st.date
-        ? (slotBtns
+        ? (availableSlots.length > 0
             ? `<div class="slots" style="margin-top:8px">${slotBtns}</div>`
-            : `<div class="empty" style="padding:12px;font-size:12px">Aucun créneau disponible ce jour</div>`)
-        : `<div class="empty" style="padding:12px;font-size:12px">Sélectionnez d'abord une date</div>`}
+            : `<div class="letter-amount" style="font-style:normal;color:var(--warn);border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08);font-size:12.5px;margin-top:8px;line-height:1.65">
+                ⚠️ <strong>Aucun créneau disponible</strong> le <strong>${fmtDateFR(st.date)}</strong>.<br>
+                💡 <strong>Information :</strong> Veuillez sélectionner une autre date dans la liste ci-dessus, ou demander au patient de choisir un autre jour pour ce rendez-vous.
+              </div>`)
+        : `<div class="empty" style="padding:12px;font-size:12px">📅 Sélectionnez d'abord une date</div>`}
     </div>
   `;
 
@@ -24324,7 +24336,15 @@ function confirmTransfer(apptId){
   a.date = st.date;
   a.time = st.time;
   a.updatedAt = nowISO();
-  a.transferredFrom = { date: oldDate, time: oldTime, transferredAt: nowISO() };
+  /* ✅ Persister transferredFrom dans reminders (JSONB déjà synchronisé Supabase) */
+  a.reminders = a.reminders || { h2: false };
+  a.reminders.transferredFrom = { date: oldDate, time: oldTime, transferredAt: nowISO() };
+  a.transferredFrom = a.reminders.transferredFrom;
+  
+  /* ✅ Confirmation automatique */
+  if(a.status === 'pending') {
+    a.status = 'confirmed';
+  }
 
   /* Notification patient : mention explicite */
   const doc = a.doctorId ? docById(a.doctorId) : null;
@@ -24332,7 +24352,7 @@ function confirmTransfer(apptId){
   const whoLabel = doc ? doc.name : (clinic ? clinic.name : 'l\'établissement');
   pushNotif('patient',
     '🔄 Nouveau créneau attribué',
-    `Le créneau que vous avez demandé (${fmtDateFR(oldDate)} à ${oldTime}) est occupé. Voici votre nouveau rendez-vous avec ${whoLabel} : ${fmtDateFR(st.date)} à ${st.time}.`,
+    `Le créneau que vous avez demandé (${fmtDateFR(oldDate)} à ${oldTime}) est occupé. Votre nouveau rendez-vous avec ${whoLabel} est confirmé pour le ${fmtDateFR(st.date)} à ${st.time}.`,
     null,
     a.id
   );
@@ -27379,8 +27399,7 @@ function detectPatientChangesAndUpdate(){
     if(!p) continue;
     /* 🆕 Détecter un transfert même si le statut ne change pas */
     const appt = DB.appointments.find(x => x.id === apptId);
-    if(appt && appt.transferredFrom && (appt.transferredFrom.date !== p.date || appt.transferredFrom.time !== p.time)
-       && (p.date !== c.date || p.time !== c.time)){
+    if(appt && appt.transferredFrom && (p.date !== c.date || p.time !== c.time)){
       notifications.push({
         kind: 'appt_transferred',
         title: '🔄 Nouveau créneau attribué',
@@ -27692,7 +27711,7 @@ async function pollPatientData(){
     const ids = myAppts.map(a => a.id);
     try{
       const { data, error } = await sb.from('appointments')
-        .select('id,status,date,time,doctor_id,updated_at')
+        .select('id,status,date,time,doctor_id,updated_at,reminders')
         .in('id', ids);
       if(!error && data){
         data.forEach(row => {
@@ -27700,6 +27719,12 @@ async function pollPatientData(){
           if(existing){
             existing.status = row.status;
             existing.updatedAt = row.updated_at;
+            existing.date = row.date;
+            existing.time = row.time;
+            if(row.reminders){
+              existing.reminders = row.reminders;
+              existing.transferredFrom = row.reminders.transferredFrom || null;
+            }
           }
         });
       }
