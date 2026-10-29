@@ -11264,39 +11264,39 @@ function bookStep4(){
     : 'Le médecin va examiner votre demande. Vous serez notifié dès qu\'il l\'aura confirmée.';
 
   return `
-    <div class="card" style="text-align:center; padding:30px 20px; background:${isCancelled ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(239,68,68,0.05) 100%)' : isConfirmed || isDone ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(16,185,129,0.05) 100%)' : 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(139,92,246,0.05) 100%)'}; border:1.5px solid ${isCancelled ? 'var(--danger-bg)' : isConfirmed || isDone ? 'var(--success-bg)' : 'rgba(139,92,246,0.2)'}; max-width:520px; margin:0 auto; box-shadow:0 12px 30px ${isCancelled ? 'rgba(239,68,68,0.1)' : isConfirmed || isDone ? 'rgba(16,185,129,0.1)' : 'rgba(139,92,246,0.1)'}">
+    <div class="card" style="text-align:center; padding:20px 16px; background:${isCancelled ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(239,68,68,0.05) 100%)' : isConfirmed || isDone ? 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(16,185,129,0.05) 100%)' : 'linear-gradient(180deg, var(--glass-bg) 0%, rgba(139,92,246,0.05) 100%)'}; border:1.5px solid ${isCancelled ? 'var(--danger-bg)' : isConfirmed || isDone ? 'var(--success-bg)' : 'rgba(139,92,246,0.2)'}; max-width:440px; margin:0 auto; box-shadow:0 12px 30px ${isCancelled ? 'rgba(239,68,68,0.1)' : isConfirmed || isDone ? 'rgba(16,185,129,0.1)' : 'rgba(139,92,246,0.1)'}">
       
       <!-- En-tête d'état -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:56px; margin-bottom:12px; filter:drop-shadow(0 4px 12px ${isCancelled ? 'rgba(239,68,68,0.3)' : isConfirmed || isDone ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'})">${headerIco}</div>
-        <div style="font-size:22px; font-weight:800; color:${isCancelled ? 'var(--danger)' : isConfirmed ? 'var(--success)' : 'var(--accent-primary)'}; letter-spacing:-0.5px; margin-bottom:6px">${headerTitle}</div>
-        <div style="font-size:13px; color:var(--text-muted)">${headerMsg}</div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:48px; margin-bottom:8px; filter:drop-shadow(0 4px 12px ${isCancelled ? 'rgba(239,68,68,0.3)' : isConfirmed || isDone ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'})">${headerIco}</div>
+        <div style="font-size:20px; font-weight:800; color:${isCancelled ? 'var(--danger)' : isConfirmed ? 'var(--success)' : 'var(--accent-primary)'}; letter-spacing:-0.5px; margin-bottom:4px">${headerTitle}</div>
+        <div style="font-size:12px; color:var(--text-muted); line-height:1.4">${headerMsg}</div>
       </div>
 
       <!-- Carte de rendez-vous (Style Billet) -->
-      <div style="background:var(--glass-bg); border:1.5px dashed rgba(139,92,246,0.3); border-radius:16px; padding:20px; position:relative; margin-bottom:20px">
+      <div style="background:var(--glass-bg); border:1.5px dashed rgba(139,92,246,0.3); border-radius:14px; padding:16px; position:relative; margin-bottom:16px">
         
         <!-- Code RDV -->
-        <div style="margin-bottom:16px">
-          <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:4px">${t('rdv_code')}</div>
-          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:var(--accent-primary); letter-spacing:1.5px; background:var(--accent-light); display:inline-block; padding:4px 12px; border-radius:8px">${appt.id}</div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:4px">${t('rdv_code')}</div>
+          <div style="font-family:var(--font-numbers); font-size:16px; font-weight:800; color:var(--accent-primary); letter-spacing:1.5px; background:var(--accent-light); display:inline-block; padding:4px 12px; border-radius:8px">${appt.id}</div>
         </div>
 
         <!-- Séparateur pointillé -->
-        <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
+        <div style="border-top:1.5px dashed var(--glass-border); margin:12px -16px"></div>
 
         <!-- Médecin -->
-        <div style="margin:16px 0">
-          <div style="width:60px; height:60px; border-radius:16px; background:linear-gradient(135deg, var(--accent-light), #e0e7ff); display:grid; place-items:center; font-size:30px; margin:0 auto 10px; border:1px solid var(--glass-border)">${specialtyAvatar(doc.specialty)}</div>
-          <div style="font-weight:800; font-size:17px; color:var(--text-main)">${esc(doc.name)}</div>
-          <div style="font-size:13px; color:var(--accent-primary); font-weight:600">${esc(doc.specialty)}</div>
+        <div style="margin:12px 0">
+          <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, var(--accent-light), #e0e7ff); display:grid; place-items:center; font-size:24px; margin:0 auto 8px; border:1px solid var(--glass-border)">${specialtyAvatar(doc.specialty)}</div>
+          <div style="font-weight:800; font-size:15px; color:var(--text-main)">${esc(doc.name)}</div>
+          <div style="font-size:12px; color:var(--accent-primary); font-weight:600">${esc(doc.specialty)}</div>
         </div>
 
         <!-- Séparateur pointillé -->
-        <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
+        <div style="border-top:1.5px dashed var(--glass-border); margin:12px -16px"></div>
 
         <!-- Date, Heure, Lieu -->
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px; font-size:13.5px">
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px; font-size:12.5px">
           <div style="display:flex; align-items:center; justify-content:center; gap:8px">
             <span style="font-size:16px">📅</span> 
             <strong>${fmtLongDate(appt.date)}</strong>
@@ -11313,8 +11313,8 @@ function bookStep4(){
 
         <!-- Prestations (Si disponibles) -->
         ${appt.services && appt.services.length ? `
-          <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
-          <div style="text-align:left; margin-top:16px">
+          <div style="border-top:1.5px dashed var(--glass-border); margin:12px -16px"></div>
+          <div style="text-align:left; margin-top:12px">
             <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:8px">💉 ${t('services')}</div>
             ${appt.services.map(sv=>{
               const showPrice = sv.showPrice !== false;
@@ -11325,8 +11325,8 @@ function bookStep4(){
 
         <!-- Total -->
         ${(appt.servicesTotal > 0 && !(appt.services || []).some(sv => sv.showPrice === false)) ? `
-          <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding:10px 14px; background:rgba(16,185,129,0.08); border-radius:10px; border:1px solid rgba(16,185,129,0.2)">
+          <div style="border-top:1.5px dashed var(--glass-border); margin:12px -16px"></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding:10px 14px; background:rgba(16,185,129,0.08); border-radius:10px; border:1px solid rgba(16,185,129,0.2)">
             <span style="font-size:13px; font-weight:600; color:var(--text-muted)">${t('total_to_pay')}</span>
             <span style="font-family:var(--font-numbers); font-weight:800; font-size:16px; color:#059669">${n2(appt.servicesTotal)} DA</span>
           </div>
@@ -11334,9 +11334,15 @@ function bookStep4(){
       </div>
 
       <!-- Pied de page -->
-      <div style="display:flex; flex-direction:column; gap:12px; align-items:center">
-        <div>${statusTag(appt.status)}</div>
-        <button class="pill-btn ${isConfirmed ? 'success' : 'primary'}" onclick="goHome()" style="width:100%; max-width:280px; justify-content:center; padding:14px; font-size:15px; font-weight:700; border-radius:14px; box-shadow:0 6px 16px ${isConfirmed ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'}">
+      <div style="display:flex; flex-direction:column; gap:10px; align-items:center; margin-top:6px">
+        <!-- Badge En attente agrandi -->
+        ${!isConfirmed && !isCancelled && !isDone ? `
+          <div style="width:100%; max-width:280px; padding:12px; border-radius:12px; background:var(--warn-bg); color:#92400e; border:1.5px solid rgba(245,158,11,0.4); font-weight:800; font-size:14px; display:flex; justify-content:center; align-items:center; gap:6px">
+            <span style="font-size:16px">⏳</span> ${t('status_pending')}
+          </div>
+        ` : `<div>${statusTag(appt.status)}</div>`}
+        
+        <button class="pill-btn ${isConfirmed ? 'success' : 'primary'}" onclick="goHome()" style="width:100%; max-width:280px; justify-content:center; padding:12px; font-size:14px; font-weight:700; border-radius:12px; box-shadow:0 6px 16px ${isConfirmed ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.3)'}">
           ${isConfirmed ? '✓ ' + t('go_home') : 'Fermer'}
         </button>
       </div>
