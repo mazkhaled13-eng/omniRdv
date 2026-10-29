@@ -4877,6 +4877,8 @@ const state = {
   /* nouveaux */
   serviceModal:{serviceId:null, doctorId:null, mode:null},
   prestationLockTick: 0,
+  _apptValidation: null,
+  _transferAppt: null,
 
   dossier: {
     fileId: null,
@@ -4927,6 +4929,98 @@ const SPECIALTY_AVATARS = {
 function specialtyAvatar(specialty){
   return SPECIALTY_AVATARS[specialty] || '🩺';
 }
+
+/* ============================================================
+   💰 CONSULTATION PAR DÉFAUT (remplace le champ tarif)
+   ============================================================ */
+function ensureDoctorConsultationService(doctorId){
+  const list = servicesForDoctor(doctorId);
+  let consult = list.find(s => s.isDefault)
+             || list.find(s => (s.name||'').trim().toLowerCase() === 'consultation');
+  if(consult){
+    if(!consult.isDefault) consult.isDefault = true;
+    return consult;
+  }
+  const doc = docById(doctorId);
+  consult = {
+    id: uid('S-'),
+    doctorId: String(doctorId),
+    name: 'Consultation',
+    price: Number(doc?.fee) || 0,
+    description: 'Prestation par défaut (non supprimable)',
+    showPrice: true,
+    isDefault: true
+  };
+  DB.services.push(consult);
+  return consult;
+}
+
+function migrateDoctorsToConsultationService(){
+  let changed = false;
+  DB.doctors.forEach(d => {
+    const svcs = servicesForDoctor(d.id);
+    if(svcs.some(s => s.isDefault)) return;
+    const existing = svcs.find(s => (s.name||'').trim().toLowerCase() === 'consultation');
+    if(existing){
+      existing.isDefault = true;
+      changed = true;
+    } else {
+      DB.services.push({
+        id: uid('S-'),
+        doctorId: String(d.id),
+        name: 'Consultation',
+        price: Number(d.fee) || 0,
+        description: 'Prestation par défaut (non supprimable)',
+        showPrice: true,
+        isDefault: true
+      });
+      changed = true;
+    }
+  });
+  if(changed) saveDB();
+}
+
+function migrateAppointmentsToConsultation(){
+  let changed = false;
+  DB.appointments.forEach(a => {
+    if(a.status === 'deleted') return;
+    if(a.clinicId) return; // RDV clinique : tarification prestations clinique
+    const doc = docById(a.doctorId);
+    if(!doc) return;
+    const svcs = a.services || [];
+    const hasConsultation = svcs.some(sv =>
+      sv.isDefault || (sv.name||'').trim().toLowerCase() === 'consultation'
+    );
+    if(hasConsultation) return;
+    const fee = Number(doc.fee) || 0;
+    if(fee <= 0 && svcs.length === 0) return;
+    if(!Array.isArray(a.services)) a.services = [];
+    if(fee > 0){
+      a.services.unshift({
+        id: 'legacy-consultation-' + a.id,
+        name: 'Consultation',
+        price: fee,
+        showPrice: true,
+        isDefault: true,
+        legacy: true
+      });
+      a.servicesTotal = (Number(a.servicesTotal) || 0) + fee;
+      changed = true;
+    }
+  });
+  if(changed) saveDB();
+}
+
+function computeApptFeeSplit(a){
+  const consult = (a.services||[]).find(sv =>
+    sv.isDefault || (sv.name||'').trim().toLowerCase() === 'consultation'
+  );
+  const consultPrice = consult ? (Number(consult.price) || 0) : 0;
+  const totalPrice = Number(a.servicesTotal) || 0;
+  const otherServices = Math.max(0, totalPrice - consultPrice);
+  return { fee: consultPrice, services: otherServices, gross: totalPrice };
+}
+
 function isDoctorHiddenFromPatients(doc){
   if(!doc) return true;
   if(isSubscriptionType(doc) && !isSubscriptionActive(doc)) return true;
@@ -5193,6 +5287,7 @@ function seedData(){
     emergencies: [],
     rooms: [],
     admissions: [],
+    blocks: [],
     expenses: []
   };
 }
@@ -5218,10 +5313,11 @@ const _pendingDeletes = (() => {
       clinicPrestations: Array.isArray(raw.clinicPrestations) ? raw.clinicPrestations : [],
       doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : [],
       emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : [],
-      expenses:     Array.isArray(raw.expenses)     ? raw.expenses     : []
+      expenses:     Array.isArray(raw.expenses)     ? raw.expenses     : [],
+      blocks:       Array.isArray(raw.blocks)       ? raw.blocks       : []
     };
   } catch(e){
-    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [], expenses: [] };
+    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [], expenses: [], blocks: [] };
   }
 })();
 function savePendingDeletes(){
@@ -5259,7 +5355,8 @@ async function loadDB(){
       sb.from('emergencies').select('*').order('created_at',{ascending:false}),
       sb.from('rooms').select('*'),
       sb.from('admissions').select('*').order('created_at',{ascending:false}),
-      sb.from('expenses').select('*').order('date',{ascending:false})
+      sb.from('expenses').select('*').order('date',{ascending:false}),
+      sb.from('blocks').select('*').order('blocked_at',{ascending:false})
     ]);
 
     const unwrapOne = (r) => {
@@ -5294,6 +5391,7 @@ async function loadDB(){
     const roomR   = unwrapArr(results[18]);
     const admR    = unwrapArr(results[19]);
     const expR    = unwrapArr(results[20]);
+    const blkR    = unwrapArr(results[21]);
 
     const criticalError = docR.error || apptR.error;
     if(criticalError){
@@ -5330,7 +5428,8 @@ async function loadDB(){
         commission: s.commission ?? COMMISSION_GENERAL_DEFAULT,
         subMonthly: s.sub_monthly ?? SUB_MONTHLY_DEFAULT,
         subYearly: s.sub_yearly ?? SUB_YEARLY_DEFAULT,
-        subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT
+        subDiscount: s.sub_discount ?? SUB_DISCOUNT_DEFAULT,
+        blocage: s.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 }
       },
       medications: Array.isArray(s.medications) ? s.medications : [],
       searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
@@ -5421,7 +5520,8 @@ async function loadDB(){
       services: (servR.data||[]).filter(s=>!_pendingDeletes.services.includes(String(s.id))).map(s=>({
         id:s.id, doctorId:s.doctor_id, name:s.name,
         price:Number(s.price)||0, description:s.description||'',
-        showPrice: s.show_price !== false
+        showPrice: s.show_price !== false,
+        isDefault: !!s.is_default
       })),
 
       notifications: (notifR.data||[]).map(n=>({
@@ -5490,6 +5590,13 @@ async function loadDB(){
         supplier: e.supplier||'', reference: e.reference||'', notes: e.notes||'',
         attachmentKey: e.attachment_key||null, attachmentName: e.attachment_name||null,
         createdAt: e.created_at, updatedAt: e.updated_at
+      })),
+      blocks: (blkR.data||[]).map(b=>({
+        id: b.id, patientPhone: b.patient_phone, patientName: b.patient_name||'',
+        patientAge: b.patient_age!=null?Number(b.patient_age):null,
+        doctorId: b.doctor_id||null, clinicId: b.clinic_id||null,
+        reason: b.reason||'', cancels: Number(b.cancels)||0, absents: Number(b.absents)||0,
+        blockedAt: b.blocked_at
       }))
     };
 
@@ -5529,6 +5636,7 @@ async function loadDB(){
     if(!DB.rooms) DB.rooms = [];
     if(!DB.admissions) DB.admissions = [];
     if(!DB.expenses) DB.expenses = [];
+    if(!DB.blocks) DB.blocks = [];
     if(!DB.visits || typeof DB.visits !== 'object'){
       DB.visits = { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
     }
@@ -5630,12 +5738,13 @@ async function pushToSupabase(){
     const syncRooms                 = needsSync('rooms');
     const syncAdmissions            = needsSync('admissions');
     const syncExpenses              = needsSync('expenses', 'expenses');
+    const syncBlocks                = needsSync('blocks', 'blocks');
 
     const anyChange = syncSettings || syncVisits || syncDoctors || syncAppointments || syncServices ||
       syncNotifications || syncMessages || syncSpecialties || syncWilayas || syncCommunes ||
       syncInvoiceRegistry || syncSubInvoiceRegistry || syncClinicInvoiceRegistry ||
       syncMedicalFiles || syncClinics || syncClinicServices || syncClinicPrestations ||
-      syncDoctorClinicLinks || syncEmergencies || syncRooms || syncAdmissions || syncExpenses;
+      syncDoctorClinicLinks || syncEmergencies || syncRooms || syncAdmissions || syncExpenses || syncBlocks;
 
     if(!anyChange) return; // rien n'a changé → 0 requête réseau
 
@@ -5653,14 +5762,35 @@ async function pushToSupabase(){
         search_logs: DB.searchLogs || [],
         expense_categories: DB.expenseCategories || null,
         visits: DB.visits || {},
+        blocage: DB.settings.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 },
         updated_at: new Date().toISOString()
       };
       const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
-      if(_upsertRes && _upsertRes.error && String(_upsertRes.error.message||'').toLowerCase().includes('visits')){
-        console.warn('⚠️ Colonne "visits" absente de la table settings — ajoutez-la via SQL pour activer le compteur de visites.');
-        delete _settingsPayload.visits;
-        await sb.from('settings').upsert(_settingsPayload);
+      // 🆕 Fallback robuste : retire itérativement les colonnes manquantes jusqu'à succès
+      const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications'];
+      let _upsertTries = 0;
+      while(_upsertRes && _upsertRes.error && _upsertTries < _OPTIONAL_SETTINGS_COLS.length + 1){
+        _upsertTries++;
+        const _errMsg = String(_upsertRes.error.message || _upsertRes.error.details || '').toLowerCase();
+        let _removed = null;
+        for(const _col of _OPTIONAL_SETTINGS_COLS){
+          if(_errMsg.includes(_col) && _col in _settingsPayload){
+            delete _settingsPayload[_col];
+            _removed = _col;
+            break;
+          }
+        }
+        if(!_removed){
+          console.error('❌ Push settings échoué (colonne obligatoire manquante ?) :', _upsertRes.error);
+          toast('⚠️ Sauvegarde Supabase échouée : ' + (_upsertRes.error.message||'erreur inconnue'), 'error');
+          break;
+        }
+        console.warn('⚠️ Colonne "' + _removed + '" absente de la table settings — retirée du push. Ajoutez-la via SQL.');
+        if(_removed === 'blocage'){
+          toast('⚠️ Colonne "blocage" absente de Supabase — paramètres non persistés. Exécutez le SQL fourni.', 'error');
+        }
+        _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       }
     }
 
@@ -5708,6 +5838,10 @@ async function pushToSupabase(){
     if(_pendingDeletes.expenses && _pendingDeletes.expenses.length){
       await sb.from('expenses').delete().in('id', _pendingDeletes.expenses);
       _pendingDeletes.expenses = []; savePendingDeletes();
+    }
+    if(_pendingDeletes.blocks && _pendingDeletes.blocks.length){
+      await sb.from('blocks').delete().in('id', _pendingDeletes.blocks);
+      _pendingDeletes.blocks = []; savePendingDeletes();
     }
 
     // ---- DOCTORS ----
@@ -5792,11 +5926,25 @@ async function pushToSupabase(){
 
     // ---- SERVICES ----
     if(syncServices && DB.services.length){
-      await sb.from('services').upsert(DB.services.map(s=>({
+      const _servPayload = DB.services.map(s=>({
         id:String(s.id), doctor_id:String(s.doctorId), name:s.name,
         price:s.price, description:s.description||'',
-        show_price: s.showPrice !== false
-      })));
+        show_price: s.showPrice !== false,
+        is_default: !!s.isDefault
+      }));
+      const _servRes = await sb.from('services').upsert(_servPayload);
+      // 🆕 Fallback : si la colonne is_default n'existe pas encore côté Supabase
+      if(_servRes && _servRes.error){
+        const _msg = String(_servRes.error.message || _servRes.error.details || '').toLowerCase();
+        if(_msg.includes('is_default')){
+          console.warn('⚠️ Colonne "is_default" absente de la table services — retirée du push. Exécutez le SQL fourni.');
+          toast('⚠️ Colonne "is_default" manquante dans Supabase — exécutez le SQL fourni.', 'error');
+          const _fallback = _servPayload.map(({is_default, ...rest}) => rest);
+          await sb.from('services').upsert(_fallback);
+        } else {
+          console.error('❌ Push services échoué :', _servRes.error);
+        }
+      }
     }
 
         // ---- APPOINTMENTS (OPTIMISÉ) ----
@@ -5955,6 +6103,16 @@ async function pushToSupabase(){
       })));
     }
 
+    if(syncBlocks && DB.blocks && DB.blocks.length){
+      await sb.from('blocks').upsert(DB.blocks.map(b=>({
+        id: String(b.id), patient_phone: b.patientPhone,
+        patient_name: b.patientName||null, patient_age: b.patientAge!=null?b.patientAge:null,
+        doctor_id: b.doctorId?String(b.doctorId):null, clinic_id: b.clinicId?String(b.clinicId):null,
+        reason: b.reason||null, cancels: Number(b.cancels)||0, absents: Number(b.absents)||0,
+        blocked_at: b.blockedAt||new Date().toISOString()
+      })));
+    }
+
     _lastPushedSnapshot = current; // 📸 mémorise l'état poussé
     _lastPushTime = Date.now();
     markSyncBadge(true);
@@ -6021,7 +6179,8 @@ function snapshotDB(){
     emergencies:        JSON.stringify(DB.emergencies || []),
     rooms:              JSON.stringify(DB.rooms || []),
     admissions:         JSON.stringify(DB.admissions || []),
-    expenses:           JSON.stringify(DB.expenses || [])
+    expenses:           JSON.stringify(DB.expenses || []),
+    blocks:             JSON.stringify(DB.blocks || [])
   };
 }
 function relevantKeysForCurrentView(){
@@ -6037,16 +6196,16 @@ function relevantKeysForCurrentView(){
     if(v === 'cprof')    return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','settings'];
     if(v === 'cmessages')return ['messages','clinics','doctors','emergencies'];
     if(v === 'cdossier' || v === 'dossier') return ['medicalFiles','appointments','doctors','clinics','settings','medications'];
-    return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies'];
+    return ['appointments','clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors','services','notifications','settings','emergencies','blocks'];
   }
   if(isDoc){
-    if(v === 'ddash' || v === 'dappts' || v === 'dinternal' || v === 'dstats' || v === 'drecette' || v === 'ddepenses')
+    if(v === 'ddash' || v === 'dappts' || v === 'dinternal' || v === 'dservices' || v === 'dstats' || v === 'drecette' || v === 'ddepenses')
       return ['appointments','services','notifications','settings','medications','clinics','clinicServices','clinicPrestations','doctorClinicLinks','expenses'];
     if(v === 'dprof')    return ['doctors','settings','medications','clinics','doctorClinicLinks','clinicServices'];
     if(v === 'dclinics') return ['clinics','clinicServices','clinicPrestations','doctorClinicLinks','doctors'];
     if(v === 'ddossier' || v === 'dossier') return ['medicalFiles','doctors','appointments','settings','medications'];
     if(v === 'dmessages')return ['messages','doctors','clinics'];
-    return ['appointments','doctors','services','notifications','settings','medications','clinics','doctorClinicLinks'];
+    return ['appointments','doctors','services','notifications','settings','medications','clinics','doctorClinicLinks','blocks'];
   }
   if(v === 'home' || v === 'book')
     return ['doctors','specialties','wilayas','communes','appointments','services','clinics','clinicServices','clinicPrestations','doctorClinicLinks','emergencies'];
@@ -6060,7 +6219,7 @@ let _realtimeChannel = null;
 let _realtimeDebounce = null;
 let _realtimeStatusStableTimer = null;
 /* ⚡ Rechargement incrémental d'une seule table — remplace loadDB() (18 tables) par 1 seule requête */
-const INCREMENTAL_TABLES = ['appointments','notifications','emergencies','messages','doctors','clinics','rooms','admissions','expenses'];
+const INCREMENTAL_TABLES = ['appointments','notifications','emergencies','messages','doctors','clinics','rooms','admissions','expenses','blocks'];
 
 async function loadTable(tableName){
   const _guardAtStart = _criticalGuardUntil;   // 🆕 capture l'état du verrou
@@ -6217,6 +6376,18 @@ if(state.role === 'doctor' && state.doctor) {
         }));
         return true;
       }
+      case 'blocks': {
+        const { data, error } = await sb.from('blocks').select('*').order('blocked_at',{ascending:false});
+        if(error) return false;
+        DB.blocks = (data||[]).filter(b=>!_pendingDeletes.blocks.includes(String(b.id))).map(b=>({
+          id: b.id, patientPhone: b.patient_phone, patientName: b.patient_name||'',
+          patientAge: b.patient_age!=null?Number(b.patient_age):null,
+          doctorId: b.doctor_id||null, clinicId: b.clinic_id||null,
+          reason: b.reason||'', cancels: Number(b.cancels)||0, absents: Number(b.absents)||0,
+          blockedAt: b.blocked_at
+        }));
+        return true;
+      }
       default: return false; // → fallback full loadDB()
     }
   } catch(e){
@@ -6227,7 +6398,7 @@ if(state.role === 'doctor' && state.doctor) {
 function subscribeRealtime(){
   if(_realtimeChannel) return;
 
-  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies','expenses'];
+  const tables = ['settings','doctors','appointments','services','notifications','messages','specialties','wilayas','communes','invoice_registry','sub_invoice_registry','medical_files','clinics','clinic_services','clinic_prestations','doctor_clinic_links','clinic_invoice_registry','emergencies','expenses','blocks'];
   let chan = sb.channel('omnimed-changes');
 
   // ⚡ Le handler reçoit le payload → on sait QUELLE table a changé
@@ -6778,13 +6949,15 @@ function slotOverlapsAppt(slotTime, slotDur, appt){
 }
 
 // Cherche un conflit pour un nouveau RDV, filtré par une fonction custom
-function hasApptConflict(newDate, newTime, newDur, filterFn, excludeId){
+function hasApptConflict(newDate, newTime, newDur, filterFn, excludeId, includePending){
   const newStart = toMin(newTime);
   const newEnd = newStart + (newDur || 30);
   return DB.appointments.some(a => {
     if(excludeId && a.id === excludeId) return false;
     if(!filterFn(a)) return false;
     if(a.status === 'cancelled' || a.status === 'deleted') return false;
+    /* 🆕 Seuls les RDV confirmés ou terminés bloquent réellement un créneau */
+    if(!includePending && a.status !== 'confirmed' && a.status !== 'done') return false;
     if(a.date !== newDate) return false;
     if(!a.time) return false;
     const aStart = toMin(a.time);
@@ -6799,11 +6972,12 @@ function slotsFor(doctorId, dateISO){
   const all = generateSlots(doc.workStart, doc.workEnd, stepDur).filter(s=>!disabled.includes(s));
   
   /* 🔗 LIAISON : tous les RDV du médecin (cabinet + clinique + interne) */
+  /* 🆕 Seuls les RDV confirmés/terminés bloquent le créneau (les pending ne réservent pas) */
   const busyIntervals = [];
   DB.appointments.forEach(a => {
     if(String(a.doctorId) !== String(doctorId)) return;
     if(a.date !== dateISO) return;
-    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(a.status !== 'confirmed' && a.status !== 'done') return;
     if(!a.time) return;
     const start = toMin(a.time);
     busyIntervals.push({ start, end: start + appointmentDuration(a) });
@@ -6854,11 +7028,12 @@ function slotsForClinic(clinicId, dateISO, durationOverride){
   const all = generateSlots(c.workStart||'00:00', c.workEnd||'23:59', dur);
   
   /* 🔗 LIAISON : tous les RDV de la clinique (avec ou sans médecin) */
+  /* 🆕 Seuls les RDV confirmés/terminés bloquent le créneau (les pending ne réservent pas) */
   const busyIntervals = [];
   DB.appointments.forEach(a => {
     if(String(a.clinicId) !== String(clinicId)) return;
     if(a.date !== dateISO) return;
-    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(a.status !== 'confirmed' && a.status !== 'done') return;
     if(!a.time) return;
     const start = toMin(a.time);
     busyIntervals.push({ start, end: start + appointmentDuration(a) });
@@ -6956,7 +7131,7 @@ function slotsForClinicService(serviceId, dateISO){
   DB.appointments.forEach(a => {
     if(String(a.clinicId) !== String(service.clinicId)) return;
     if(a.date !== dateISO) return;
-    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(a.status !== 'confirmed' && a.status !== 'done') return;
     if(!a.time) return;
     const start = toMin(a.time);
     busyIntervals.push({ start, end: start + appointmentDuration(a) });
@@ -7005,11 +7180,12 @@ function slotsForDoctorInService(doctorId, serviceId, dateISO){
     .filter(s => sched.mode === 'custom' ? !disabled.includes(s) : true);
 
   /* Busy intervals = TOUS les RDV du médecin (cabinet + clinique + interne) */
+  /* 🆕 Seuls les RDV confirmés/terminés bloquent le créneau (les pending ne réservent pas) */
   const busyIntervals = [];
   DB.appointments.forEach(a => {
     if(String(a.doctorId) !== String(doctorId)) return;
     if(a.date !== dateISO) return;
-    if(a.status === 'cancelled' || a.status === 'deleted') return;
+    if(a.status !== 'confirmed' && a.status !== 'done') return;
     if(!a.time) return;
     const start = toMin(a.time);
     busyIntervals.push({ start, end: start + appointmentDuration(a) });
@@ -8005,9 +8181,12 @@ function bulkConfirmAppts(){
 function doBulkConfirm(){
   const ids = state.selectedAppts.slice();
   let count = 0;
+  let skipped = 0;
   ids.forEach(id => {
     const a = DB.appointments.find(x=>x.id===id);
     if(a && a.status === 'pending'){
+      /* 🆕 Ne pas confirmer si un autre RDV confirmé occupe déjà le créneau */
+      if(findConfirmedConflicts(a).length){ skipped++; return; }
       a.status = 'confirmed';
       const doc = docById(a.doctorId);
       pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} avec ${doc?.name||''} est confirmé`, null, a.id);
@@ -8020,7 +8199,8 @@ function doBulkConfirm(){
   state.selectedAppts = [];
   closeModal();
   render();
-  toast(t('bulk_confirmed_n').replace('{n}', count),'success');
+  if(count > 0) toast(t('bulk_confirmed_n').replace('{n}', count),'success');
+  if(skipped > 0) toast(`⚠️ ${skipped} RDV ignoré(s) : créneau déjà occupé par un RDV confirmé`, 'error');
 }
 function bulkValidateAppts(){
   const ids = state.selectedAppts.slice();
@@ -9016,19 +9196,22 @@ function docNav(){
   const internalCount = myAppts.filter(a => a.internal).length;
   const dossierCount = state.doctor ? mfGetActiveForDoctor(state.doctor.id).length : 0;
 
+  const servicesCount = state.doctor ? servicesForDoctor(state.doctor.id).length : 0;
   const items = [
     ['ddash','📊',t('ddash'), todayCount + ' RDV aujourd\'hui'],
     ['dappts','📅',t('dappts'), pendingCount + ' en attente'],
     ['dinternal','🗂️',t('dinternal'), internalCount + ' RDV interne' + (internalCount>1?'s':'')],
+    ['dservices','💉','Prestations', servicesCount + ' prestation' + (servicesCount>1?'s':'')],
     ['dclinics','🏥', t('doctor_my_clinics'), pendingInvites > 0 ? pendingInvites + ' invitation' + (pendingInvites>1?'s':'') : 'Aucune invitation', pendingInvites],
     ['ddossier','📁',t('ddossier'), dossierCount + ' dossier' + (dossierCount>1?'s':'')],
     ['dstats','📈',t('dstats'), 'Vue d\'ensemble'],
     ['drecette','💲',t('drecette'), 'Recette cabinet'],
     ['ddepenses','💰','Dépenses', 'Suivi des dépenses'],
     ['dmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
+    ['dblocage','🚫','Blocage', 'Patients bloqués'],
     ['dprof','🧑‍⚕️',t('dprof'), 'Mon profil']
   ];
-  const cols = Math.ceil(items.length / 2);
+  const cols = 6;
   return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
     ${items.map(([id,ico,lbl,info,badge])=>`
       <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
@@ -9078,9 +9261,10 @@ function clinicNav(){
     ['cdepenses','💰','Dépenses', 'Suivi des dépenses'],
     ['cfacturation','🧾','Facturation', facturesCount + ' facture' + (facturesCount>1?'s':'')],  /* 🆕 */
     ['cmessages','✉️',t('dmessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
+    ['cblocage','🚫','Blocage', 'Patients bloqués'],
     ['cprof','⚙️',t('profile'), 'Paramètres clinique']
   ];
-  const cols = Math.ceil(items.length / 2);
+  const cols = 6;
   return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
     ${items.map(([id,ico,lbl,info,badge])=>`
       <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
@@ -9114,9 +9298,10 @@ function adminNav(){
     ['adossiers','📁',t('adossiers'), dossiersCount + ' dossier' + (dossiersCount>1?'s':'')],
     ['amessages','✉️',t('amessages'), unread > 0 ? unread + ' non lu' + (unread>1?'s':'') : 'Aucun message', unread],
     ['alistes','📚',t('alistes'), 'Spécialités, wilayas…'],
+    ['ablocage','🚫','Blocage', 'Patients bloqués'],
     ['asettings','⚙️',t('asettings'), 'Système & sauvegardes']
   ];
-  const cols = Math.ceil(items.length / 2);
+  const cols = 6;
   return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
     ${items.map(([id,ico,lbl,info,badge])=>`
       <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
@@ -9143,9 +9328,9 @@ function go(view){
     state.booking = {doctorId:null,date:null,time:null,step:1,patientAge:'',editingId:null,services:[],documents:[],
       patientName:'',patientPhone:'',patientEmail:'',patientWilaya:'',patientPassword:'',motif:''};
   }
-  const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','ddepenses','dprof','dmessages','ddossier',
-    'adash','adoctors','aclinics','astats','arevenue','aappts','alistes','asettings','amessages','adossiers',
-    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cdepenses','cfacturation','cmessages','cprof',
+  const accountViews = ['ddash','dappts','dinternal','dclinics','dstats','drecette','ddepenses','dprof','dmessages','ddossier','dblocage',
+    'adash','adoctors','aclinics','astats','arevenue','aappts','alistes','asettings','amessages','adossiers','ablocage',
+    'cdash','cdoctors','cservices','cprestations','cappts','cinternal','cdossier','cstats','crecette','cdepenses','cfacturation','cmessages','cprof','cblocage',
     'clinicView','clinicBook','clinicProfile'];
   if(accountViews.includes(view) && !state.doctor && !state.admin && !state.clinic){
     openAccountLogin(); return;
@@ -9417,7 +9602,6 @@ function homeDoctorCard(d){
         ${rating.count>0?`<span class="tag rating" style="font-size:9.5px">⭐ ${rating.avg}</span>`:`<span class="tag rating-empty" style="font-size:9.5px">⭐ —</span>`}
         ${canToday?`<span class="tag success" style="font-size:9.5px">✓ Auj.</span>`:''}
       </div>
-      ${d.fee > 0 ? `<div class="hrc-price">${n2(d.fee)} DA</div>` : ''}
     </div>
   `;
 }
@@ -9543,7 +9727,6 @@ function recentDoctorRowHTML(d){
       ${closed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
       ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg}</span>`:''}
       <span class="tag ${canToday?'success':'muted'}">${canToday?'✓ '+t('today_appts'):'⏳'}</span>
-      ${d.fee > 0 ? `<span class="tag accent">${n2(d.fee)} DA</span>` : ''}
       <span class="dr-arrow">›</span>
     </button>
   `;
@@ -9599,6 +9782,7 @@ function clinicCardHTML(c){
 function openClinicPublic(clinicId){
   const c = clinicById(clinicId);
   if(!c){ toast(t('clinic_not_found'),'error'); return; }
+  try{ if(isPatientBlocked(state.myPhone || '', null, c.id)){ showPatientBlockedModal('clinic', c.name); return; } }catch(e){}
   if(isClinicHiddenFromPatients(c)){ toast('Clinique indisponible','error'); return; }
   if(state.role === 'patient') logSearch('clinic_view', String(c.id), false);
   state.clinicBooking.clinicId = clinicId;
@@ -9755,7 +9939,7 @@ function openClinicServiceModal(serviceId){
                 <div style="font-weight:600;font-size:13.5px">${esc(d.name)}</div>
                 <div style="font-size:11.5px;color:var(--accent-primary);font-weight:500">${esc(d.specialty)}${r.count>0?' · ⭐ '+r.avg:''}</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
-                  ${d.fee > 0 ? `💰 ${n2(d.fee)} DA · ` : ''}⏱️ ${d.duration} ${t('min')}
+                  ⏱️ ${d.duration} ${t('min')}
                 </div>
                 <div style="font-size:11px;color:${nextSlot?'var(--success)':'var(--danger)'};font-weight:600;margin-top:3px">
                   📅 ${t('clinic_service_next_slot')} : ${nextLabel}
@@ -9830,6 +10014,7 @@ function chooseAutoPlanForService(){
   closeModal();
   const doc = docById(slot.doctorId);
   if(!doc){ toast(t('doctor_not_found'),'error'); return; }
+  try{ if(isPatientBlocked(state.clinicBooking.patientPhone || '', doc.id, null)){ showPatientBlockedModal('doctor', doc.name); return; } }catch(e){}
   state.clinicBooking.serviceId = sm.serviceId;
   state.clinicBooking.doctorId = slot.doctorId;
   state.clinicBooking.prestationId = null;
@@ -10174,6 +10359,10 @@ async function confirmClinicBooking(){
   if(isDoctor && !doc){ toast(t('doctor_not_found'),'error'); return; }
   if(!isDoctor && !prestation){ toast(t('invalid_value'),'error'); return; }
   if(!isDoctor && effectivePrestationLocked(prestation)){ toast(t('prestation_locked_for_patients'),'error'); return; }
+  if(isPatientBlocked(phone, doc ? doc.id : null, c.id)){
+    showPatientBlockedModal('clinic', c.name);
+    return;
+  }
   const savedDocs = await saveApptDocuments(s.documents || []);
   if(isDoctor){
     /* 🔗 Conflit MÉDECIN : cabinet + toutes cliniques + interne */
@@ -10318,7 +10507,6 @@ function openDoctorProfile(id){
           <div style="color:var(--text-muted);font-size:11.5px;margin-bottom:6px">📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             ${isClosed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
-            ${d.fee > 0 ? `<span class="tag success">${n2(d.fee)} DA</span>` : ''}
             <span class="tag accent">⏱️ ${d.duration} ${t('min')}</span>
             ${rating.count > 0 ? `<span class="tag rating">⭐ ${rating.avg} · ${rating.count} ${t('reviews')}</span>` : `<span class="tag rating-empty">⭐ ${t('no_rating_yet')}</span>`}
             ${todayWork && dateHasAvail(d.id, todayISO(), '')?`<span class="tag success">✓ ${t('today_appts')}</span>`:`<span class="tag muted">⏳</span>`}
@@ -10564,7 +10752,6 @@ function docCardHTML(d, selected){
         <div class="doc-spec">${esc(d.specialty)}</div>
         <div class="doc-meta">
           <span>📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</span>
-          ${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}
           <span>⏱️ ${d.duration} ${t('min')}</span>
         </div>
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
@@ -10846,8 +11033,14 @@ function bookStep3(){
   const doc = docById(s.doctorId);
   const services = doc ? servicesForDoctor(doc.id) : [];
   const selectedServices = s.services || [];
-  const servicesTotal = services.filter(sv=>selectedServices.includes(sv.id)).reduce((sum,sv)=>sum+sv.price, 0);
-  const grandTotal = (doc?.fee || 0) + servicesTotal;
+  const defaultConsult = services.find(sv => sv.isDefault)
+                      || services.find(sv => (sv.name||'').trim().toLowerCase() === 'consultation');
+  const effectiveServices = selectedServices.length > 0
+    ? services.filter(sv => selectedServices.includes(sv.id))
+    : (defaultConsult ? [defaultConsult] : []);
+  const servicesTotal = effectiveServices.reduce((sum,sv) => sum + sv.price, 0);
+  const grandTotal = servicesTotal;
+  const pricesHidden = effectiveServices.some(sv => sv.showPrice === false);
   const docs = s.documents || [];
   return `
     <div class="card" style="margin-bottom:14px">
@@ -10903,20 +11096,20 @@ function bookStep3(){
           <label class="service-checkbox">
             <input type="checkbox" ${selectedServices.includes(sv.id)?'checked':''} onchange="toggleBookingService('${sv.id}', this.checked)">
             <div class="sc-info">
-              <div class="sc-name">${esc(sv.name)}</div>
+              <div class="sc-name">${esc(sv.name)}${sv.isDefault ? ` <span class="tag accent" style="font-size:9px;padding:1px 5px;margin-left:4px">Par défaut</span>` : ''}</div>
               ${sv.description?`<div class="sc-desc">${esc(sv.description)}</div>`:''}
             </div>
-            ${sv.price > 0 ? `<div class="sc-price">+${n2(sv.price)} DA</div>` : ''}
+            ${(sv.price > 0 && sv.showPrice !== false) ? `<div class="sc-price">+${n2(sv.price)} DA</div>` : ''}
           </label>
         `).join('')}
+        ${pricesHidden ? '' : `
         <div class="total-box">
           <div>
-            ${doc?.fee > 0 ? `<div class="tb-lbl">${t('consultation_fee')} : ${n2(doc?.fee||0)} DA</div>` : ''}
-            ${servicesTotal>0?`<div class="tb-lbl">${t('services_subtotal')} : +${n2(servicesTotal)} DA</div>`:''}
+            ${servicesTotal > 0 ? `<div class="tb-lbl">${t('services_subtotal')} : ${n2(servicesTotal)} DA</div>` : ''}
             <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">${t('total_to_pay')}</div>
           </div>
           <div class="tb-val">${n2(grandTotal)} DA</div>
-        </div>
+        </div>`}
       ` : `<div class="empty" style="padding:18px"><div class="empty-ico">💉</div>${t('no_services')}</div>`}
     </div>
     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -10945,10 +11138,28 @@ async function confirmBooking(){
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   const doc = docById(s.doctorId);
   if(!doc){ toast(t('doctor_not_found'),'error'); return; }
-  const selectedServices = (s.services||[]).map(id => {
+  if(isPatientBlocked(phone, doc.id, null)){
+    showPatientBlockedModal('doctor', doc.name);
+    return;
+  }
+  let selectedServices = (s.services||[]).map(id => {
     const sv = serviceById(id);
-    return sv ? {id:sv.id, name:sv.name, price:sv.price} : null;
+    return sv ? {id:sv.id, name:sv.name, price:sv.price, showPrice: sv.showPrice !== false, isDefault: !!sv.isDefault} : null;
   }).filter(Boolean);
+  if(selectedServices.length === 0){
+    const allSvcs = servicesForDoctor(s.doctorId);
+    const defConsult = allSvcs.find(sv => sv.isDefault)
+                    || allSvcs.find(sv => (sv.name||'').trim().toLowerCase() === 'consultation');
+    if(defConsult){
+      selectedServices = [{
+        id: defConsult.id,
+        name: defConsult.name,
+        price: defConsult.price,
+        showPrice: defConsult.showPrice !== false,
+        isDefault: true
+      }];
+    }
+  }
   const servicesTotal = selectedServices.reduce((sum,sv)=>sum+sv.price, 0);
   const savedDocs = await saveApptDocuments(s.documents || []);
 
@@ -10980,6 +11191,7 @@ async function confirmBooking(){
     a.motif = motif || 'Consultation';
     a.services = selectedServices;
     a.servicesTotal = servicesTotal;
+    a._v2 = true;
     a.documents = savedDocs;
     a.status = 'pending';
     a.updatedAt = nowISO();
@@ -11011,6 +11223,7 @@ async function confirmBooking(){
     patientPassword: hashedPatientPwd,
     date:s.date, time:s.time, motif:motif||'Consultation',
     services: selectedServices, servicesTotal: servicesTotal,
+    _v2: true,
     documents: savedDocs,
     status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:false, rating:0,
     clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
@@ -11099,16 +11312,19 @@ function bookStep4(){
           <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
           <div style="text-align:left; margin-top:16px">
             <div style="font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); font-weight:700; margin-bottom:8px">💉 ${t('services')}</div>
-            ${appt.services.map(sv=>`<div style="display:flex; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px"><span>${esc(sv.name)}</span>${sv.price > 0 ? `<span style="font-family:var(--font-numbers); color:#059669; font-weight:600">${n2(sv.price)} DA</span>` : ''}</div>`).join('')}
+            ${appt.services.map(sv=>{
+              const showPrice = sv.showPrice !== false;
+              return `<div style="display:flex; justify-content:space-between; gap:8px; padding:4px 0; font-size:12.5px"><span>${esc(sv.name)}</span>${(sv.price > 0 && showPrice) ? `<span style="font-family:var(--font-numbers); color:#059669; font-weight:600">${n2(sv.price)} DA</span>` : ''}</div>`;
+            }).join('')}
           </div>
         `:''}
 
         <!-- Total -->
-        ${appt.servicesTotal > 0 ? `
+        ${(appt.servicesTotal > 0 && !(appt.services || []).some(sv => sv.showPrice === false)) ? `
           <div style="border-top:1.5px dashed var(--glass-border); margin:16px -20px"></div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding:10px 14px; background:rgba(16,185,129,0.08); border-radius:10px; border:1px solid rgba(16,185,129,0.2)">
             <span style="font-size:13px; font-weight:600; color:var(--text-muted)">${t('total_to_pay')}</span>
-            <span style="font-family:var(--font-numbers); font-weight:800; font-size:16px; color:#059669">${n2((doc.fee||0)+appt.servicesTotal)} DA</span>
+            <span style="font-family:var(--font-numbers); font-weight:800; font-size:16px; color:#059669">${n2(appt.servicesTotal)} DA</span>
           </div>
         ` : ''}
       </div>
@@ -11198,6 +11414,7 @@ function patientApptHTML(a){
           </div>
           <div class="appt-meta">
             ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
+            ${a.transferredFrom ? `<span class="tag warn" style="font-weight:800">🔄 Transféré</span>` : ''}
             <span>${statusTag(a.status)}</span>
             ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
             ${c?`<span class="tag clinic">🏥 ${t('clinic')}</span>`:''}
@@ -11258,7 +11475,7 @@ function withinCancelWindow(a){
 function statusTag(s){
   const map = {pending:['warn','⏳ '+t('status_pending')],confirmed:['success','✓ '+t('status_confirmed')],
     cancelled:['danger','✕ '+t('status_cancelled')],postponed:['accent','🔁 '+t('status_postponed')],
-    done:['muted','✅ '+t('status_done')],deleted:['danger','🗑️ '+t('status_deleted')]};
+    done:['muted','✅ '+t('status_done')],deleted:['danger','🗑️ '+t('status_deleted')],absent:['warn','✗ Absent']};
   const [cls,lbl]=map[s]||['muted',s];
   return `<span class="tag ${cls}">${lbl}</span>`;
 }
@@ -11274,6 +11491,8 @@ function doCancel(id){
   a.status='cancelled';
   a.cancelReason = reason || '(non précisé)';
   a.cancelledAt = nowISO();
+  a.cancelledBy = 'patient';
+  try{ checkAutoBlock(a.patientPhone, a.doctorId, a.clinicId); }catch(e){}
   /* 🆕 Si RDV urgence : annuler aussi l'urgence */
   if(a.emergencyId){
     const emg = DB.emergencies.find(e => e.id === a.emergencyId);
@@ -11418,8 +11637,24 @@ function openPatientApptDetail(id){
       </div>
     </div>` : '';
 
+  /* 🆕 Bloc "transféré" si le RDV a été transféré automatiquement */
+  let transferBlock = '';
+  if(a.transferredFrom && a.status !== 'cancelled' && a.status !== 'deleted'){
+    transferBlock = `
+      <div class="letter-amount" style="font-style:normal;color:#b45309;border-color:rgba(245,158,11,.55);background:rgba(245,158,11,.1);margin-bottom:12px;font-style:normal">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px">🔄 Votre RDV a été modifié</div>
+        <div style="font-size:12.5px;line-height:1.6">
+          ⚠️ Le créneau que vous avez demandé (<strong>${fmtDateFR(a.transferredFrom.date)} à ${a.transferredFrom.time}</strong>) est <strong>occupé</strong>.<br>
+          ✅ Voici votre nouveau rendez-vous :<br>
+          📅 <strong>${fmtDateFR(a.date)}</strong> — ⏰ <strong style="font-family:var(--font-numbers)">${a.time}</strong>
+        </div>
+      </div>
+    `;
+  }
+
   const body = `
     ${heroBlock}
+    ${transferBlock}
     <div class="info-compact">
       ${c?`<div class="ic-item"><div class="ic-lbl">🏥 ${t('clinic')}</div><div class="ic-val">${esc(c.name)}</div></div>`:''}
       ${doc?`<div class="ic-item"><div class="ic-lbl">🧑‍⚕️ ${t('doctor')}</div><div class="ic-val">${esc(doc.name)}</div></div>`:''}
@@ -11443,15 +11678,19 @@ function openPatientApptDetail(id){
         <div class="ic-item">
           <div class="ic-lbl">💉 ${t('services')} <span class="tag accent" style="margin-left:4px;font-size:9px;padding:1px 6px">${a.services.length}</span></div>
           <div style="margin-top:4px">
-            ${a.services.map(sv=>`
+            ${a.services.map(sv=>{
+              const showPrice = sv.showPrice !== false;
+              return `
               <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11.5px">
                 <span>${esc(sv.name)}</span>
-                ${sv.price > 0 ? `<span style="font-family:var(--font-numbers);color:#059669;font-weight:600">${n2(sv.price)} DA</span>` : ''}
-              </div>`).join('')}
+                ${(sv.price > 0 && showPrice) ? `<span style="font-family:var(--font-numbers);color:#059669;font-weight:600">${n2(sv.price)} DA</span>` : ''}
+              </div>`;
+            }).join('')}
+            ${!(a.services || []).some(sv => sv.showPrice === false) ? `
             <div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--glass-border);font-size:12px">
               <strong>${t('total_to_pay')}</strong>
-              <span style="font-family:var(--font-numbers);color:var(--accent-primary);font-weight:800">${(((a.internal && a.clinicId) ? 0 : (doc?.fee)||0) + (a.servicesTotal||0)) > 0 ? n2(((a.internal && a.clinicId) ? 0 : (doc?.fee)||0) + (a.servicesTotal||0)) + ' DA' : '—'}</span>
-            </div>
+              <span style="font-family:var(--font-numbers);color:var(--accent-primary);font-weight:800">${(Number(a.servicesTotal) || 0) > 0 ? n2(Number(a.servicesTotal) || 0) + ' DA' : '—'}</span>
+            </div>` : ''}
           </div>
         </div>
       </div>
@@ -11592,7 +11831,7 @@ function openNotifDetail(notifId){
       <div><strong>${t('when')} :</strong> ${fmtLongDate(a.date)} — ${a.time}</div>
       <div><strong>${t('motif')} :</strong> ${esc(a.motif)}</div>
       ${a.patientWilaya?`<div><strong>${t('patient_wilaya')} :</strong> ${esc(a.patientWilaya)}</div>`:''}
-      ${a.services&&a.services.length?`<div><strong>${t('services')} :</strong> ${a.services.map(sv=>esc(sv.name)+' ('+n2(sv.price)+' DA)').join(', ')}</div>`:''}
+      ${a.services&&a.services.length?`<div><strong>${t('services')} :</strong> ${a.services.map(sv => esc(sv.name) + ((sv.price > 0 && sv.showPrice !== false) ? ' ('+n2(sv.price)+' DA)' : '')).join(', ')}</div>`:''}
       <div style="margin-top:6px"><strong>Statut :</strong> ${statusTag(a.status)}</div>
       ${docN?`<div style="margin-top:8px"><button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptDocuments('${a.id}'),50)">📎 Consulter la documentation (${docN})</button></div>`:''}
       ${a.cancelReason?`<div style="margin-top:6px;padding:6px 10px;background:var(--danger-bg);border-radius:6px;color:var(--danger);border-left:3px solid var(--danger)"><strong>❌ ${t('cancel_reason')} :</strong> ${esc(a.cancelReason)}</div>`:''}
@@ -11613,10 +11852,12 @@ function openNotifDetail(notifId){
   const invoiceBtn = (a.status === 'confirmed' || a.status === 'done') ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${a.id}'),50)">🧾 Facture</button>` : '';
   
   if(a.status==='pending'){
+    const hasConflict = findConfirmedConflicts(a).length > 0;
     actionsHTML = `
       <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
       ${emergencyActions}
       ${invoiceBtn}
+      ${hasConflict ? `<button class="pill-btn danger" onclick="closeModal();setTimeout(()=>openTransferApptModal('${a.id}'),60)">🔄 Transférer</button>` : ''}
       <button class="pill-btn danger" onclick="confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
       <button class="pill-btn success" onclick="closeModal();confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`;
   } else if(a.status==='confirmed'){
@@ -11625,7 +11866,7 @@ function openNotifDetail(notifId){
       ${invoiceBtn}
       <button class="pill-btn danger" onclick="confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
       ${eligibleValidate
-        ? `<button class="pill-btn primary" onclick="confirmDoctorAction('${a.id}','done')">✓ ${t('validate')}</button>`
+        ? `<button class="pill-btn primary" onclick="openApptValidationModal('${a.id}')">✓ ${t('validate')}</button>`
         : `<button class="pill-btn" disabled title="${esc(validationBlockedMsg(a))}">⏳ ${t('validate')}</button>`}`;
   } else {
     actionsHTML = `
@@ -12026,10 +12267,12 @@ function renderDoctorView(){
     case 'ddash': return viewDoctorDash();
     case 'dappts': return viewDoctorAppts();
     case 'dinternal': return viewDoctorInternal();
+    case 'dservices': return viewDoctorServices();
     case 'dclinics': return viewDoctorClinics();
     case 'dstats': return viewDoctorStats();
     case 'drecette': return state.recetteUnlocked ? viewDoctorRevenue() : viewRecetteLocked();
     case 'ddepenses': return viewDoctorExpenses();
+    case 'dblocage': return viewDoctorBlocage();
     case 'dprof': return viewDoctorProfile();
     case 'dmessages': return renderMessagesView();
     case 'ddossier': return viewDossierList('doctor');
@@ -12039,7 +12282,8 @@ function renderDoctorView(){
 }
 function viewDoctorDash(){
   const doc = state.doctor;
-  const all = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted');
+  // 🆕 Exclure les RDV de clinique du tableau de bord principal
+  const all = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted' && !a.clinicId);
   const today = all.filter(a=>a.date===todayISO() && a.status!=='cancelled');
   const pending = all.filter(a=>a.status==='pending');
   const confirmed = all.filter(a=>a.status==='confirmed');
@@ -12055,33 +12299,16 @@ function viewDoctorDash(){
   const clinicCount = clinicLinksForDoctor(doc.id).filter(l=>l.status==='accepted').length;
   const pendingInvites = doctorPendingInvites(doc.id).length;
   return `
-    <div class="grid grid-4" style="margin-bottom:14px">
-      <div class="stat"><div class="stat-ico">📊</div><div><div class="stat-val">${all.length}</div><div class="stat-lbl">${t('total_appts')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed.length}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending.length}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">✅</div><div><div class="stat-val">${done.length}</div><div class="stat-lbl">${t('status_done')}</div></div></div>
-    </div>
-    <div class="grid grid-3" style="margin-bottom:14px">
-      <div class="card" style="cursor:pointer" onclick="go('ddossier')">
-        <div class="card-title" style="font-size:15px">📁 ${t('dossiers_medical')} <span class="tag accent">${totalDossiers}</span></div>
-        <div class="card-sub">${t('dossier_search_ph')}</div>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="go('dappts')">
-        <div class="card-title" style="font-size:15px">📅 ${t('today_appts')} <span class="tag accent">${todaySorted.length}</span></div>
-        <div class="card-sub">${t('dappts')}</div>
-      </div>
-      <div class="card" style="cursor:pointer" onclick="go('dclinics')">
-        <div class="card-title" style="font-size:15px">🏥 ${t('doctor_my_clinics')} <span class="tag accent">${clinicCount}</span> ${pendingInvites?`<span class="badge" style="background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:9999px;font-weight:700">${pendingInvites}</span>`:''}</div>
-        <div class="card-sub">${t('doctor_clinics_sub')}</div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title" style="font-size:15px">⭐ ${t('average_rating')}</div>
-      <div class="stats-tags">
-        ${rating.count > 0
-          ? statTag(t('average_rating'), '⭐ ' + rating.avg + ' · ' + rating.count + ' ' + t('reviews'), 'rating', true)
-          : statTag(t('average_rating'), t('no_rating_yet'), 'muted', true)}
-      </div>
+    <!-- Dashboard compact — toutes les étiquettes sur une ligne -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(115px, 1fr)); gap:8px; margin-bottom:14px;">
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('dappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;">📊</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${all.length}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('total_appts')}</div></div></div>
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('dappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--success-bg);color:var(--success)">✓</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${confirmed.length}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('confirmed_c')}</div></div></div>
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('dappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--warn-bg);color:var(--warn)">⏳</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${pending.length}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('pending_c')}</div></div></div>
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('dappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--accent-light);color:var(--accent-primary)">✅</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${done.length}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('status_done')}</div></div></div>
+      <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('ddossier')"><div style="width:30px;height:30px;border-radius:8px;background:var(--accent-light);color:var(--accent-primary);display:grid;place-items:center;font-size:14px;flex-shrink:0;">📁</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${totalDossiers}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('dossiers_medical')}</div></div></div>
+      <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('dappts')"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1d4ed8;display:grid;place-items:center;font-size:14px;flex-shrink:0;">📅</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${todaySorted.length}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('today_appts')}</div></div></div>
+      <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('dclinics')"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1));color:#be185d;display:grid;place-items:center;font-size:14px;flex-shrink:0;">🏥</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${clinicCount}${pendingInvites?`<span style="background:var(--danger);color:#fff;font-size:9px;padding:1px 5px;border-radius:9999px;margin-left:4px;">${pendingInvites}</span>`:''}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('doctor_my_clinics')}</div></div></div>
+      <div class="card" style="padding:8px; min-width:0; display:flex; align-items:center; gap:6px;"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;display:grid;place-items:center;font-size:14px;flex-shrink:0;">⭐</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${rating.count > 0 ? rating.avg : '—'}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('average_rating')}</div></div></div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">📩 ${t('dnotif')} <span class="tag accent">${pendingNotifs.length}</span></div>
@@ -12098,9 +12325,72 @@ function viewDoctorDash(){
       ` : `<div class="empty" style="padding:24px"><div class="empty-ico">📩</div>${t('no_notif')}</div>`}
     </div>
     <div class="card">
-      <div class="card-title" style="font-size:15px">📅 ${t('today_appts')} <span class="tag accent">${todaySorted.length}</span></div>
-      <div style="margin-top:12px">
-        ${todaySorted.length ? todaySorted.map(a=>doctorApptHTML(a)).join('') : `<div class="empty" style="padding:24px"><div class="empty-ico">🌤️</div>${t('no_appts')}</div>`}
+      <div class="card-title" style="font-size:15px">📅 RDV aujourd'hui <span class="tag accent">${todaySorted.length}</span></div>
+      <div style="margin-top:14px">
+        ${todaySorted.length ? `
+          <style>
+            .today-slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+            .today-slot{min-height:158px;display:flex;flex-direction:column;padding:13px 14px 12px;border-radius:16px;position:relative;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.05);transition:all .25s cubic-bezier(.4,0,.2,1);cursor:pointer;min-width:0}
+            .today-slot::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:currentColor;border-radius:16px 16px 0 0}
+            .today-slot:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(139,92,246,.20);border-color:var(--accent-primary) !important}
+            .today-slot:active{transform:translateY(-1px)}
+            .today-slot .ts-time{font-family:var(--font-numbers);font-weight:800;font-size:22px;letter-spacing:-.6px;line-height:1;color:inherit}
+            .today-slot .ts-status{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;flex-shrink:0;font-weight:700}
+            .today-slot .ts-name{font-weight:700;font-size:13px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+            .today-slot .ts-meta{font-size:10.5px;color:var(--text-muted);font-weight:600;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .today-slot .ts-motif{font-size:10.5px;color:var(--text-muted);margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic}
+            .today-slot .ts-badges{margin-top:auto;padding-top:9px;display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+            .today-slot .ts-badge{display:inline-flex;align-items:center;gap:2px;padding:2px 6px;border-radius:6px;font-size:9.5px;font-weight:700;background:rgba(255,255,255,.65);border:1px solid rgba(139,92,246,.2);color:var(--text-main);font-family:var(--font-numbers);white-space:nowrap}
+            body.dark .today-slot .ts-badge{background:rgba(0,0,0,.3);border-color:rgba(255,255,255,.12)}
+            @media(max-width:640px){
+              .today-slot-grid{grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:9px}
+              .today-slot{min-height:145px;padding:11px 12px 10px;border-radius:14px}
+              .today-slot .ts-time{font-size:19px}
+              .today-slot .ts-name{font-size:12px}
+              .today-slot .ts-meta{font-size:10px}
+            }
+          </style>
+          <div class="today-slot-grid">
+            ${todaySorted.map(a => {
+              const c = a.clinicId ? clinicById(a.clinicId) : null;
+              const docN = (a.documents||[]).length;
+              const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
+              const hasDossier = !!mfGet(a.doctorId, a.patientPhone);
+              const st = {
+                pending:   { color:'#d97706', bg:'linear-gradient(150deg,rgba(245,158,11,.13),rgba(245,158,11,.03))', border:'rgba(245,158,11,.42)', ico:'⏳', badgeBg:'rgba(245,158,11,.2)' },
+                confirmed: { color:'#059669', bg:'linear-gradient(150deg,rgba(16,185,129,.13),rgba(16,185,129,.03))', border:'rgba(16,185,129,.42)', ico:'✓', badgeBg:'rgba(16,185,129,.2)' },
+                done:      { color:'var(--accent-primary)', bg:'linear-gradient(150deg,rgba(139,92,246,.13),rgba(139,92,246,.03))', border:'rgba(139,92,246,.42)', ico:'✅', badgeBg:'rgba(139,92,246,.2)' },
+                cancelled: { color:'var(--danger)', bg:'linear-gradient(150deg,rgba(239,68,68,.10),rgba(239,68,68,.02))', border:'rgba(239,68,68,.38)', ico:'✕', badgeBg:'rgba(239,68,68,.2)' },
+                absent:    { color:'#b45309', bg:'linear-gradient(150deg,rgba(245,158,11,.10),rgba(245,158,11,.02))', border:'rgba(245,158,11,.35)', ico:'✗', badgeBg:'rgba(245,158,11,.18)' },
+                postponed: { color:'#2563eb', bg:'linear-gradient(150deg,rgba(59,130,246,.12),rgba(59,130,246,.03))', border:'rgba(59,130,246,.4)', ico:'🔁', badgeBg:'rgba(59,130,246,.2)' }
+              }[a.status] || { color:'var(--accent-primary)', bg:'linear-gradient(150deg,rgba(139,92,246,.12),rgba(139,92,246,.03))', border:'rgba(139,92,246,.4)', ico:'•', badgeBg:'rgba(139,92,246,.2)' };
+              const badges = [];
+              if(a.internal) badges.push(`<span class="ts-badge" title="${t('internal_badge')}">🗂️</span>`);
+              if(c) badges.push(`<span class="ts-badge" title="${esc(c.name)}">🏥</span>`);
+              if(docN) badges.push(`<span class="ts-badge" title="${t('msg_files')}">📎${docN}</span>`);
+              if(hasDossier) badges.push(`<span class="ts-badge" title="${t('dossier')}">📁</span>`);
+              if(isEmergency) badges.push(`<span class="ts-badge" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--danger)" title="Urgence">🚨</span>`);
+              if(a.rating > 0) badges.push(`<span class="ts-badge" title="${t('your_rating')}">⭐${a.rating}</span>`);
+              const svcN = (a.services||[]).length;
+              if(svcN > 1) badges.push(`<span class="ts-badge" title="${t('services')}">💉${svcN}</span>`);
+              if((Number(a.servicesTotal)||0) > 0) badges.push(`<span class="ts-badge" style="color:#059669;border-color:rgba(16,185,129,.3)" title="Total">${n2(a.servicesTotal)} DA</span>`);
+              return `
+                <div class="today-slot" style="background:${st.bg};border:1.5px solid ${st.border};color:${st.color}" onclick="openDoctorApptFullActions('${a.id}')" title="${esc(a.patientName)}${a.patientAge?' · '+a.patientAge+' '+t('billing_years_old'):''}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:9px">
+                    <div class="ts-time">${a.time}</div>
+                    <div class="ts-status" style="background:${st.badgeBg};color:${st.color}">${st.ico}</div>
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <div class="ts-name">${esc(a.patientName)}</div>
+                    <div class="ts-meta">${a.patientAge ? `${a.patientAge} ${t('billing_years_old')}` : '—'}${specialtyAvatar ? ' · ' + specialtyAvatar((docById(a.doctorId)||{}).specialty||'') : ''}</div>
+                  </div>
+                  ${a.motif ? `<div class="ts-motif" title="${esc(a.motif)}">📝 ${esc(a.motif)}</div>` : ''}
+                  ${badges.length ? `<div class="ts-badges">${badges.join('')}</div>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : `<div class="empty" style="padding:24px"><div class="empty-ico">🌤️</div>${t('no_appts')}</div>`}
       </div>
     </div>
   `;
@@ -12109,7 +12399,8 @@ function viewDoctorAppts(){
   const doc = state.doctor;
   const f = state.filter;
   if(!f.date) f.date = todayISO();
-  let list = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted');
+  // 🆕 Exclure les RDV de clinique de la vue "Rendez-vous"
+  let list = DB.appointments.filter(a=>String(a.doctorId)===String(doc.id) && a.status!=='deleted' && !a.clinicId);
   if(f.status!=='all') list = list.filter(a=>a.status===f.status);
   if(f.date) list = list.filter(a=>a.date===f.date);
   if(f.search){
@@ -12219,12 +12510,14 @@ function doctorApptHTML(a){
         ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
         ${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁 ${t('dossier_open')}</button>
         ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')" title="Documentation médicale">📎</button>`:''}
+        ${a.status==='pending' && findConfirmedConflicts(a).length ? `<button class="mini-btn danger" onclick="openTransferApptModal('${a.id}')" title="⚠️ Ce créneau est occupé par un RDV confirmé — Transférer vers un autre créneau">🔄 Transférer</button>` : ''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
           eligibleValidate
-            ? `<button class="mini-btn purple" onclick="confirmDoctorAction('${a.id}','done')">✓ ${t('validate')}</button>`
+            ? `<button class="mini-btn purple" onclick="openApptValidationModal('${a.id}')">✓ ${t('validate')}</button>`
             : `<button class="mini-btn ghost" disabled title="${esc(validationBlockedMsg(a))}">⏳ ${t('validate')}</button>`
         ):''}
+        ${a.status==='confirmed' && eligibleValidate ? `<button class="mini-btn primary" onclick="openApptValidationModal('${a.id}')" title="Valider avec frais supplémentaires">💰</button>` : ''}
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn out-red" onclick="confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>`:''}
         ${canDelete?`<button class="mini-btn red" onclick="confirmDeleteAppt('${a.id}')">🗑️ ${t('delete')}</button>`:''}
       </div>
@@ -12262,6 +12555,14 @@ function doConfirmApptWithNotify(id){
       closeModal();
       return;
     }
+    /* 🆕 Vérifier qu'aucun autre RDV confirmé n'occupe déjà ce créneau */
+    const conflicts = findConfirmedConflicts(a);
+    if(conflicts.length){
+      toast('⚠️ Ce créneau est déjà occupé — transférez le RDV vers un autre créneau', 'error');
+      closeModal();
+      setTimeout(() => openTransferApptModal(id), 100);
+      return;
+    }
     const doc = docById(a.doctorId);
     const docName = doc ? doc.name : (clinicById(a.clinicId)?.name || 'l\'établissement');
     a.status = 'confirmed';
@@ -12295,6 +12596,12 @@ function confirmDoctorAction(id, action){
     return;
   }
   const doc = docById(a.doctorId);
+  if(action === 'done'){
+    openModal('Validation du RDV', `${a.patientName} — ${fmtLongDate(a.date)} ${a.time}`,
+      `<div style="font-size:13px;line-height:1.7"><div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div><div><strong>${t('doctor')} :</strong> ${esc(doc?.name||'—')}</div><div><strong>${t('motif')} :</strong> ${esc(a.motif||'—')}</div></div><div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);font-size:12.5px;text-align:center;margin-top:10px">Le patient s'est-il présenté au rendez-vous ?</div>`,
+      `<button class="pill-btn" onclick="closeModal()">${t('close')}</button><button class="pill-btn danger" onclick="docAction('${id}','absent')">✗ Absent</button><button class="pill-btn success" onclick="docAction('${id}','done')">✓ Présent (Terminé)</button>`);
+    return;
+  }
   const titles = {
     cancel: t('confirm_cancel_doctor'),
     done: t('confirm_validate')
@@ -12320,6 +12627,8 @@ function docAction(id, action){
     return;
   }
   if(action==='cancel'){
+    a.cancelledBy='doctor';
+    a.cancelledAt=nowISO();
     a.status='cancelled';
     pushNotif('patient','RDV annulé', `Votre RDV ${a.id} a été annulé par ${docName}`, null, a.id);
     toast('Rendez-vous annulé','info');
@@ -12327,6 +12636,11 @@ function docAction(id, action){
     a.status='done';
     pushNotif('patient','Consultation terminée', `Merci d'avoir consulté ${docName}`, null, a.id);
     toast('Rendez-vous validé - commission comptabilisée','success');
+  } else if(action==='absent'){
+    a.status='absent';
+    pushNotif('patient','Marqué absent', `Vous n'avez pas été présent au RDV ${a.id}`, null, a.id);
+    toast('Patient marqué absent','info');
+    try{ checkAutoBlock(a.patientPhone, a.doctorId, a.clinicId); }catch(e){}
   }
   clearApptNotifications(a.id); saveDB({critical:true});
   closeModal(); render();
@@ -12361,6 +12675,14 @@ function deleteAppt(id){
   closeModal(); render();
   toast(t('appt_deleted'),'info');
 }
+function _doctorServicesBack(doctorId){
+  if(state.role === 'doctor' && state.doctor && String(state.doctor.id) === String(doctorId)){
+    closeModal();
+    render();
+  } else {
+    openServicesManager(doctorId);
+  }
+}
 function openServicesManager(doctorId){
   const list = servicesForDoctor(doctorId);
   const doc = docById(doctorId);
@@ -12372,12 +12694,12 @@ function openServicesManager(doctorId){
     ${list.length ? list.map(sv=>`
       <div class="list-item">
         <div style="flex:1;min-width:0">
-          <div class="li-name">${esc(sv.name)}</div>
+          <div class="li-name">${esc(sv.name)}${sv.isDefault ? ` <span class="tag accent" style="font-size:9px;padding:1px 5px;margin-left:4px">Par défaut</span>` : ''}</div>
           ${sv.description?`<div style="font-size:11px;color:var(--text-muted)">${esc(sv.description)}</div>`:''}
         </div>
         ${sv.price > 0 ? `<span class="tag accent" style="font-family:var(--font-numbers)">${n2(sv.price)} DA</span>` : ''}
         <button class="mini-btn ghost" onclick="openServiceForm('${idStr}','${sv.id}')">✏️</button>
-        <button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${idStr}')">🗑️</button>
+        ${sv.isDefault ? '' : `<button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${idStr}')">🗑️</button>`}
       </div>
     `).join('') : `<div class="empty" style="padding:20px">${t('no_services')}</div>`}
   `;
@@ -12400,7 +12722,7 @@ function openServiceForm(doctorId, serviceId){
       </div>
     </label>
     <div class="field"><label>${t('service_desc')}</label><textarea class="textarea" id="svDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
-  `, `<button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
+  `, `<button class="pill-btn" onclick="_doctorServicesBack('${idStr}')">← ${t('back')}</button>
      <button class="pill-btn primary" onclick="saveService('${idStr}','${jsStr(serviceId||'')}')">💾 ${t('save')}</button>`);
 }
 function saveService(doctorId, serviceId){
@@ -12416,22 +12738,27 @@ function saveService(doctorId, serviceId){
     DB.services.push({id:uid('S-'), doctorId: doctorId, name, price, description: desc, showPrice});
   }
   saveDB();
-  openServicesManager(doctorId);
+  _doctorServicesBack(doctorId);
   toast(t('saved_ok'),'success');
 }
 function confirmDeleteService(serviceId, doctorId){
   const sv = serviceById(serviceId); if(!sv) return;
   const idStr = jsStr(String(doctorId));
   openModal('🗑️ '+t('delete_service'), sv.name, '', `
-    <button class="pill-btn" onclick="openServicesManager('${idStr}')">← ${t('back')}</button>
+    <button class="pill-btn" onclick="_doctorServicesBack('${idStr}')">← ${t('back')}</button>
     <button class="pill-btn danger" onclick="deleteService('${serviceId}','${idStr}')">🗑️ ${t('delete')}</button>`);
 }
 function deleteService(serviceId, doctorId){
+  const sv = serviceById(serviceId);
+  if(sv && sv.isDefault){
+    toast('La prestation par défaut ne peut pas être supprimée','error');
+    return;
+  }
   _pendingDeletes.services.push(serviceId);
   savePendingDeletes();
   DB.services = DB.services.filter(s=>s.id!==serviceId);
   saveDB();
-  openServicesManager(doctorId);
+  _doctorServicesBack(doctorId);
   toast(t('item_deleted'),'info');
 }
 function openPrintRDVModal(){
@@ -12722,7 +13049,7 @@ async function createInternalAppt(){
   const age = parseInt(f.patientAge,10);
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   if(!f.date || !f.time){ toast(t('required_fields'),'error'); return; }
-  const clash = DB.appointments.find(x=>String(x.doctorId)===String(doc.id) && x.date===f.date && x.time===f.time && x.status!=='cancelled' && x.status!=='deleted');
+  const clash = DB.appointments.find(x=>String(x.doctorId)===String(doc.id) && x.date===f.date && x.time===f.time && (x.status === 'confirmed' || x.status === 'done'));
   if(clash){ toast(t('slot_taken'),'error'); return; }
   const selectedServices = (f.services||[]).map(id=>{
     const sv = serviceById(id);
@@ -12751,13 +13078,130 @@ async function createInternalAppt(){
 }
 
 /* ============================================================
+   💉 GESTION DES PRESTATIONS (médecin) — fusionnée en menu
+   ============================================================ */
+function viewDoctorServices(){
+  const doc = state.doctor;
+  if(!doc) return '';
+  const list = servicesForDoctor(doc.id);
+  const allAppts = DB.appointments.filter(a => String(a.doctorId) === String(doc.id) && a.status !== 'deleted');
+
+  const prestaStats = {};
+  allAppts.forEach(a => {
+    (a.services || []).forEach(sv => {
+      const key = sv.id || ('name:' + (sv.name||''));
+      if(!prestaStats[key]){
+        prestaStats[key] = {
+          id: sv.id, name: sv.name || '—',
+          price: Number(sv.price) || 0,
+          showPrice: sv.showPrice !== false,
+          isDefault: !!sv.isDefault,
+          count: 0, totalRevenue: 0, dates: []
+        };
+      }
+      prestaStats[key].count++;
+      prestaStats[key].totalRevenue += Number(sv.price) || 0;
+      if(a.date) prestaStats[key].dates.push(a.date);
+    });
+  });
+
+  const statsArray = Object.values(prestaStats).sort((a,b) => b.count - a.count);
+  list.forEach(sv => {
+    const key = sv.id || ('name:' + (sv.name||''));
+    if(!prestaStats[key]){
+      statsArray.push({
+        id: sv.id, name: sv.name || '—',
+        price: Number(sv.price) || 0,
+        showPrice: sv.showPrice !== false,
+        isDefault: !!sv.isDefault,
+        count: 0, totalRevenue: 0, dates: []
+      });
+    }
+  });
+
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div class="card-title" style="font-size:16px">💉 ${t('manage_services')} <span class="tag accent">${list.length}</span></div>
+          <div class="card-sub" style="margin-bottom:0">Gérez vos prestations et consultez leur popularité</div>
+        </div>
+        <button class="pill-btn primary" onclick="openServiceForm('${jsStr(doc.id)}', null)">+ ${t('add_service')}</button>
+      </div>
+      <div style="margin-top:12px">
+        ${list.length ? list.map(sv => `
+          <div class="list-item">
+            <div style="flex:1;min-width:0">
+              <div class="li-name">${esc(sv.name)}${sv.isDefault ? ` <span class="tag accent" style="font-size:9px;padding:1px 5px;margin-left:4px">Par défaut</span>` : ''}${sv.showPrice === false ? ` <span class="tag muted" style="font-size:9px;padding:1px 5px;margin-left:4px">👁️ Masqué</span>` : ''}</div>
+              ${sv.description?`<div style="font-size:11px;color:var(--text-muted)">${esc(sv.description)}</div>`:''}
+            </div>
+            ${sv.price > 0 ? `<span class="tag accent" style="font-family:var(--font-numbers)">${n2(sv.price)} DA</span>` : ''}
+            <button class="mini-btn ghost" onclick="openServiceForm('${jsStr(doc.id)}','${sv.id}')">✏️</button>
+            ${sv.isDefault ? '' : `<button class="mini-btn out-red" onclick="confirmDeleteService('${sv.id}','${jsStr(doc.id)}')">🗑️</button>`}
+          </div>
+        `).join('') : `<div class="empty" style="padding:20px">${t('no_services')}</div>`}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="font-size:16px">🏆 Prestations les plus demandées</div>
+      <div class="card-sub">Analyse basée sur tous vos rendez-vous (hors supprimés)</div>
+      ${statsArray.length ? `
+        <div class="tbl-wrap" style="margin-top:12px">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:32px">#</th>
+                <th>Prestation</th>
+                <th style="text-align:right">Demandes</th>
+                <th>Dernière demande</th>
+                <th>Dates récentes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${statsArray.map((st, i) => {
+                const recent = st.dates.slice().sort((a,b) => b.localeCompare(a)).slice(0, 5);
+                const last = recent[0];
+                return `<tr>
+                  <td style="color:var(--text-muted);font-weight:600">${i+1}</td>
+                  <td><strong>${esc(st.name)}</strong>${st.isDefault ? ' <span class="tag accent" style="font-size:9px;padding:1px 5px;margin-left:4px">Défaut</span>' : ''}</td>
+                  <td style="text-align:right;font-family:var(--font-numbers);font-weight:700">${st.count}</td>
+                  <td style="white-space:nowrap;font-size:11.5px">${last ? fmtDateFR(last) : '—'}</td>
+                  <td>
+                    ${recent.length ? recent.map(d => `<span class="tag muted" style="font-size:10px;margin-right:3px;margin-bottom:2px;display:inline-block">${fmtDateFR(d).slice(0,5)}</span>`).join('') + (st.dates.length > 5 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px">+${st.dates.length - 5}</span>` : '') : `<span style="color:var(--text-muted)">—</span>`}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : `<div class="empty" style="padding:20px">Aucune prestation réservée pour le moment</div>`}
+    </div>
+  `;
+}
+
+/* ============================================================
    🏥 MES CLINIQUES (médecin)
    ============================================================ */
-function viewDoctorClinics(){
+function shiftDoctorClinicDate(clinicId, days) {
+  if(!state.doctorClinicApptFilter) state.doctorClinicApptFilter = {};
+  if(!state.doctorClinicApptFilter[clinicId]) state.doctorClinicApptFilter[clinicId] = { status: 'all', date: null };
+  
+  const current = state.doctorClinicApptFilter[clinicId].date || todayISO();
+  const d = new Date(current + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  state.doctorClinicApptFilter[clinicId].date = localISO(d);
+  render();
+}
+   function viewDoctorClinics(){
   const doc = state.doctor;
   const pendingInvites = doctorPendingInvites(doc.id);
   const accepted = clinicLinksForDoctor(doc.id).filter(l=>l.status==='accepted');
   const tab = state.doctorClinicsTab || 'linked';
+
+  // 🆕 Initialisation du filtre par clinique
+  if(!state.doctorClinicApptFilter) state.doctorClinicApptFilter = {};
+
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">🏥 ${t('doctor_my_clinics')}</div>
@@ -12767,6 +13211,7 @@ function viewDoctorClinics(){
         <button class="chip ${tab==='pending'?'active':''}" onclick="state.doctorClinicsTab='pending';render()">📩 ${t('doctor_clinic_pending_invites')} ${pendingInvites.length?`<span class="badge" style="background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:9999px;font-weight:700;margin-left:4px">${pendingInvites.length}</span>`:''}</button>
       </div>
     </div>
+    
     ${tab === 'pending' ? `
       ${pendingInvites.length ? pendingInvites.map(l=>{
         const c = clinicById(l.clinicId);
@@ -12791,35 +13236,98 @@ function viewDoctorClinics(){
         `;
       }).join('') : `<div class="card"><div class="empty" style="padding:30px"><div class="empty-ico">📩</div>${t('doctor_clinic_no_invites')}</div></div>`}
     ` : ''}
+    
     ${tab === 'linked' ? `
-      ${accepted.length ? `
-      <div class="grid grid-2">
-        ${accepted.map(l=>{
-          const c = clinicById(l.clinicId);
-          if(!c) return '';
-          const sv = l.serviceId ? clinicServiceById(l.serviceId) : null;
-          const todayAppts = DB.appointments.filter(a => a.clinicId === c.id && String(a.doctorId)===String(doc.id) && a.date === todayISO() && a.status !== 'deleted' && a.status !== 'cancelled');
-          return `
-            <div class="card" style="cursor:pointer" onclick="openDoctorClinicDetail('${l.id}')">
-              <div style="display:flex;gap:12px;align-items:flex-start">
-                <div class="clinic-avatar" style="width:46px;height:46px;font-size:22px">${c.avatar||'🏥'}</div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-weight:700;font-size:14px;margin-bottom:3px">${esc(c.name)}</div>
-                  <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:5px">
-                    📍 ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}
+      ${accepted.length ? accepted.map(l => {
+        const c = clinicById(l.clinicId);
+        if(!c) return '';
+        const sv = l.serviceId ? clinicServiceById(l.serviceId) : null;
+        
+        // État d'ouverture/fermeture
+        if(state.doctorClinicExpanded === undefined) state.doctorClinicExpanded = {};
+        const isExpanded = state.doctorClinicExpanded[c.id] === true;
+        
+        // Filtres combinés (statut + date)
+        if(!state.doctorClinicApptFilter) state.doctorClinicApptFilter = {};
+        const filter = state.doctorClinicApptFilter[c.id] || { status: 'all', date: null };
+        
+        let myAppts = DB.appointments.filter(a => 
+          String(a.clinicId) === String(c.id) && 
+          String(a.doctorId) === String(doc.id) && 
+          a.status !== 'deleted'
+        );
+        
+        // Filtre par statut
+        if (filter.status !== 'all') {
+          myAppts = myAppts.filter(a => a.status === filter.status);
+        }
+        
+        // Filtre par date (si une date spécifique est choisie)
+        if (filter.date) {
+          myAppts = myAppts.filter(a => a.date === filter.date);
+        }
+        
+        // Tri descendant par défaut (plus récent au plus ancien)
+        myAppts.sort((a,b) => String(b.date+b.time).localeCompare(String(a.date+a.time)));
+
+        return `
+          <div class="card" style="margin-bottom:14px; border-left: 4px solid var(--accent-primary); padding:0; overflow:hidden;">
+            
+            <!-- En-tête Clinique (Cliquable pour rétracter) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding: 14px 16px; background:var(--glass-bg-3); cursor:pointer;" onclick="state.doctorClinicExpanded['${c.id}']=!state.doctorClinicExpanded['${c.id}'];render()">
+              <div style="display:flex; gap:12px; align-items:center;">
+                <div class="clinic-avatar" style="width:44px;height:44px;font-size:22px">${c.avatar||'🏥'}</div>
+                <div>
+                  <div style="font-weight:700; font-size:15px; margin-bottom:2px; display:flex; align-items:center; gap:8px;">
+                    ${esc(c.name)}
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:normal; background:var(--glass-bg); padding:2px 6px; border-radius:4px;">
+                      ${myAppts.length} RDV
+                    </span>
                   </div>
-                  <div style="display:flex;gap:5px;flex-wrap:wrap;font-size:10.5px">
-                    ${sv ? `<span class="tag accent">🏗️ ${esc(sv.icon||'')} ${esc(sv.name)}</span>` : ''}
-                    ${todayAppts.length ? `<span class="tag success">📅 ${todayAppts.length} ${t('today_appts')}</span>` : ''}
-                    <span class="tag muted">📅 ${t('doctor_clinic_joined_at')} ${l.joinedAt?new Date(l.joinedAt).toLocaleDateString('fr-FR'):'—'}</span>
+                  <div style="font-size:11.5px; color:var(--text-muted)">
+                    📍 ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}
+                    ${sv ? ` · <span class="tag accent" style="font-size:10px">🏗️ ${esc(sv.icon||'')} ${esc(sv.name)}</span>` : ''}
                   </div>
                 </div>
               </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button class="pill-btn danger" style="padding: 6px 12px; font-size: 11px;" onclick="event.stopPropagation(); leaveClinic('${l.id}')">🚪 Quitter</button>
+                <span style="font-size:18px; color:var(--text-muted); transform:rotate(${isExpanded ? '180deg' : '0deg'}); transition:transform 0.2s;">▼</span>
+              </div>
             </div>
-          `;
-        }).join('')}
-      </div>
-      ` : `<div class="card"><div class="empty" style="padding:30px"><div class="empty-ico">🏥</div>${t('clinic_no_doctors')}</div></div>`}
+
+            <!-- Contenu rétractable -->
+            <div style="display:${isExpanded ? 'block' : 'none'}; padding: 16px;">
+              
+              <!-- Barre de filtres -->
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                
+                <!-- Filtres de statut -->
+                <div class="chips" style="margin:0;">
+                  <button class="chip ${filter.status==='all'?'active':''}" onclick="state.doctorClinicApptFilter['${c.id}'].status='all';render()">Tous</button>
+                  <button class="chip ${filter.status==='pending'?'active':''}" onclick="state.doctorClinicApptFilter['${c.id}'].status='pending';render()">⏳ En attente</button>
+                  <button class="chip ${filter.status==='confirmed'?'active':''}" onclick="state.doctorClinicApptFilter['${c.id}'].status='confirmed';render()">✓ Confirmés</button>
+                  <button class="chip ${filter.status==='done'?'active':''}" onclick="state.doctorClinicApptFilter['${c.id}'].status='done';render()">✅ Terminés</button>
+                </div>
+                
+                <!-- 🆕 Navigation par date -->
+                <div style="display:flex; gap:6px; align-items:center; background:var(--glass-bg-3); padding:4px 6px; border-radius:8px; border:1px solid var(--glass-border);">
+                  <button class="mini-btn ghost" onclick="shiftDoctorClinicDate('${c.id}', -1)" style="padding:4px 8px; font-size:14px;" title="Jour précédent">‹</button>
+                  <input type="date" class="input" style="padding:4px 8px; font-size:11.5px; width:135px; height:auto; min-height:26px; border:none; background:transparent; text-align:center;" value="${filter.date || ''}" onchange="state.doctorClinicApptFilter['${c.id}'].date = this.value || null; render()">
+                  <button class="mini-btn ghost" onclick="shiftDoctorClinicDate('${c.id}', 1)" style="padding:4px 8px; font-size:14px;" title="Jour suivant">›</button>
+                  <button class="mini-btn ${!filter.date ? 'primary' : 'ghost'}" style="padding:4px 8px; font-size:11px; font-weight:600;" onclick="state.doctorClinicApptFilter['${c.id}'].date = null; render()">Tout</button>
+                </div>
+              </div>
+
+              <!-- Liste des RDV -->
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                ${myAppts.length ? myAppts.map(a => doctorApptHTML(a)).join('') : `<div class="empty" style="padding:20px"><div class="empty-ico">📅</div>Aucun rendez-vous ne correspond à ces filtres.</div>`}
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('') : `<div class="card"><div class="empty" style="padding:30px"><div class="empty-ico">🏥</div>${t('clinic_no_doctors')}</div></div>`}
     ` : ''}
   `;
 }
@@ -12829,9 +13337,11 @@ function openDoctorClinicDetail(linkId){
   const c = clinicById(l.clinicId);
   if(!c) return;
   const sv = l.serviceId ? clinicServiceById(l.serviceId) : null;
-  const services = clinicServicesFor(c.id);
   const myAppts = DB.appointments.filter(a => String(a.clinicId)===String(c.id) && String(a.doctorId)===String(state.doctor.id) && a.status !== 'deleted');
-  const todayAppts = myAppts.filter(a => a.date === todayISO() && a.status !== 'cancelled').sort((a,b)=>a.time.localeCompare(b.time));
+  
+  // 🆕 Trier tous les RDV (du plus récent au plus ancien)
+  const sortedAppts = myAppts.sort((a,b) => String(b.date+b.time).localeCompare(String(a.date+a.time)));
+
   const body = `
     <div class="card" style="margin-bottom:12px;padding:12px">
       <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏥 ${esc(c.name)}</div>
@@ -12843,24 +13353,25 @@ function openDoctorClinicDetail(linkId){
       </div>
     </div>
     ${sv ? `<div class="letter-amount" style="font-style:normal">🏗️ <strong>${t('clinic_doctor_service')} :</strong> ${esc(sv.icon||'')} ${esc(sv.name)}</div>` : ''}
+    
     <div class="card" style="margin-top:12px">
-      <div class="card-title" style="font-size:14px">📅 ${t('today_appts')} <span class="tag accent">${todayAppts.length}</span></div>
-      <div style="margin-top:10px">
-        ${todayAppts.length ? todayAppts.map(a=>`
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--glass-border);font-size:12px">
-            <strong style="min-width:42px;color:var(--accent-primary);font-family:var(--font-numbers)">${a.time}</strong>
-            <span style="flex:1;font-weight:500">${esc(a.patientName)}</span>
-            ${statusTag(a.status)}
+      <div class="card-title" style="font-size:14px">📅 Mes rendez-vous dans cette clinique <span class="tag accent">${sortedAppts.length}</span></div>
+      <div style="margin-top:12px; max-height: 50vh; overflow-y: auto; padding-right: 4px;">
+        ${sortedAppts.length ? sortedAppts.map(a => `
+          <div style="margin-bottom: 8px;">
+            ${doctorApptHTML(a)}
           </div>
         `).join('') : `<div class="empty" style="padding:20px">${t('no_appts')}</div>`}
       </div>
     </div>
   `;
+  
   const actions = `
     <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
     <button class="pill-btn danger" onclick="leaveClinic('${l.id}')">🚪 ${t('doctor_clinic_leave')}</button>
   `;
-  openModal('🏥 ' + t('clinic_profile'), c.name, body, actions);
+  
+  openModal('🏥 ' + t('clinic_profile'), c.name, body, actions, true); // true pour ouvrir en grand
 }
 function acceptClinicInvite(linkId){
   const l = DB.doctorClinicLinks.find(x=>x.id===linkId);
@@ -14607,7 +15118,7 @@ function viewDoctorProfile(){
             <div style="font-size:18px;font-weight:700">${esc(d.name)}</div>
             <div style="color:var(--accent-primary);font-weight:500">${esc(d.specialty)}</div>
             <div style="color:var(--text-muted);font-size:12px;margin-top:4px">
-              📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''} · ${n2(d.fee)} DA · ⏱️ ${d.duration} ${t('min')}
+              📍 ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''} · ⏱️ ${d.duration} ${t('min')}
             </div>
             <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
               ${d.sessionClosed ? `<span class="tag danger">🔴 Session fermée aux patients</span>` : `<span class="tag success">🟢 Session ouverte</span>`}
@@ -14629,7 +15140,6 @@ function viewDoctorProfile(){
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-self:flex-start">
           <button class="pill-btn primary" onclick="openDoctorForm('${jsStr(d.id)}', true)">✏️ ${t('edit_my_profile')}</button>
-          <button class="pill-btn primary" onclick="openServicesManager('${jsStr(d.id)}')">💉 ${t('manage_services')}</button>
           ${d.sessionClosed
             ? `<button class="pill-btn success" onclick="toggleDoctorSession('${jsStr(d.id)}')">🟢 Ouverture session</button>`
             : `<button class="pill-btn danger" onclick="toggleDoctorSession('${jsStr(d.id)}')">🔴 Fermeture session</button>`}
@@ -14770,11 +15280,153 @@ async function checkRecettePassword(){
     toast(t('invalid_login'),'error');
   }
 }
+function getBlocageSettings(doctorId, clinicId){
+  const DEF_REASON = 'Vous avez été absent à vos rendez-vous précédents OU vous annulez trop de rendez-vous sur la plateforme.';
+  if(!DB.settings) DB.settings = {};
+  if(!DB.settings.blocage) DB.settings.blocage = { cancelThreshold:5, absentThreshold:5, periodDays:30, autoBlockReason: DEF_REASON };
+  if(!DB.settings.blocage.autoBlockReason) DB.settings.blocage.autoBlockReason = DEF_REASON;
+  return DB.settings.blocage;
+}
+function getPatientCancelStats(patientPhone, doctorId, clinicId){
+  const settings = getBlocageSettings(doctorId, clinicId);
+  const since = dateOffset(-settings.periodDays);
+  const norm = normPhone(patientPhone);
+  const list = DB.appointments.filter(a => normPhone(a.patientPhone) === norm && a.date >= since && a.status !== 'deleted' && (!doctorId || String(a.doctorId) === String(doctorId)) && (!clinicId || String(a.clinicId) === String(clinicId)));
+  const cancels = list.filter(a => a.status === 'cancelled' && a.cancelledBy === 'patient').length;
+  const absents = list.filter(a => a.status === 'absent').length;
+  return {cancels, absents, list};
+}
+function showPatientBlockedModal(entityType, entityName){
+  const isClinic = entityType === 'clinic';
+  const title = 'Vous avez était bloqué !';
+  const text = isClinic ? `Ce patient est bloqué pour la clinique <strong>${esc(entityName)}</strong>.` : `Ce patient est bloqué pour le médecin <strong>${esc(entityName)}</strong>.`;
+  
+  openModal('Accès refusé', '', `
+    <div style="text-align:center; padding:10px 0 20px">
+      <div style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg, rgba(239,68,68,.1), rgba(239,68,68,.02)); border:2px solid rgba(239,68,68,.3); display:grid; place-items:center; font-size:40px; margin:0 auto 20px; box-shadow:0 8px 24px rgba(239,68,68,.15); color:var(--danger)">
+        🚫
+      </div>
+      <h2 style="font-size:22px; font-weight:800; color:var(--text-main); margin-bottom:12px; letter-spacing:-0.5px">${title}</h2>
+      <p style="font-size:14.5px; color:var(--text-muted); line-height:1.6; max-width:560px; margin:0 auto">
+        <span style="display:block; white-space:nowrap">${text}</span>
+        <span style="display:block; white-space:nowrap; margin-top:14px">Veuillez contacter le secrétariat pour régulariser votre situation.</span>
+      </p>
+    </div>
+  `, `<button class="pill-btn primary" onclick="closeModal()" style="width:100%; justify-content:center; padding:12px; font-weight:700; border-radius:12px">Fermer</button>`);
+}
+
+function isPatientBlocked(patientPhone, doctorId, clinicId){
+  const norm = normPhone(patientPhone);
+  if(!norm) return false;
+  return (DB.blocks||[]).some(b => {
+    if(normPhone(b.patientPhone) !== norm) return false;
+    if(!b.doctorId && !b.clinicId) return true;
+    if(doctorId && b.doctorId && String(b.doctorId) === String(doctorId)) return true;
+    if(clinicId && b.clinicId && String(b.clinicId) === String(clinicId)) return true;
+    return false;
+  });
+}
+function blockPatient(patientPhone, patientName, patientAge, doctorId, clinicId, reason, cancels, absents){
+  if(!DB.blocks) DB.blocks = [];
+  const norm = normPhone(patientPhone);
+  const existing = DB.blocks.find(b => normPhone(b.patientPhone) === norm && String(b.doctorId||'') === String(doctorId||'') && String(b.clinicId||'') === String(clinicId||''));
+  if(existing){ existing.cancels = cancels; existing.absents = absents; existing.reason = reason; existing.blockedAt = nowISO(); return; }
+  DB.blocks.push({ id: uid('BLK-'), patientPhone, patientName: patientName||'', patientAge: patientAge||null, doctorId: doctorId||null, clinicId: clinicId||null, reason: reason||'auto', cancels, absents, blockedAt: nowISO() });
+}
+function checkAutoBlock(patientPhone, doctorId, clinicId){
+  if(!patientPhone) return;
+  const settings = getBlocageSettings(doctorId, clinicId);
+  const stats = getPatientCancelStats(patientPhone, doctorId, clinicId);
+  const hitCancel = stats.cancels >= settings.cancelThreshold;
+  const hitAbsent = stats.absents >= settings.absentThreshold;
+  if(hitCancel || hitAbsent){
+    const sample = stats.list[0];
+    const customReason = settings.autoBlockReason || 'Vous avez été absent à vos rendez-vous précédents OU vous annulez trop de rendez-vous sur la plateforme.';
+    const techReason = hitCancel ? stats.cancels + ' annulation(s) en ' + settings.periodDays + 'j' : stats.absents + ' absence(s) en ' + settings.periodDays + 'j';
+    const finalReason = customReason + ' (Technique : ' + techReason + ')';
+    blockPatient(patientPhone, sample ? sample.patientName : '', sample ? sample.patientAge : null, doctorId||null, clinicId||null, finalReason, stats.cancels, stats.absents);
+  }
+}
+function unblockPatient(blockId){
+  if(!DB.blocks) return;
+  if(!_pendingDeletes.blocks) _pendingDeletes.blocks = [];
+  if(!_pendingDeletes.blocks.includes(String(blockId))) _pendingDeletes.blocks.push(String(blockId));
+  savePendingDeletes();
+  DB.blocks = DB.blocks.filter(b => b.id !== blockId);
+  saveDB({critical:true});
+  render();
+  toast('🔓 Patient débloqué','success');
+}
+function openBlocageSettings(){
+  if(state.role !== 'admin') return; // 🆕 Sécurité : seul l'admin peut ouvrir
+  let s = getBlocageSettings();
+  let title = '⚙️ Paramètres de blocage — Général (Admin)';
+  let sub = 'Ces paramètres s\'appliquent à tous les médecins et cliniques.';
+  const DEF_REASON = 'Vous avez été absent à vos rendez-vous précédents OU vous annulez trop de rendez-vous sur la plateforme.';
+  const currentReason = s.autoBlockReason || DEF_REASON;
+  openModal(title, sub, `<div class="field-row-3"><div class="field"><label>Annulations max</label><input class="input" id="blkCancel" type="number" min="1" max="50" value="${s.cancelThreshold}"></div><div class="field"><label>Absences max</label><input class="input" id="blkAbsent" type="number" min="1" max="50" value="${s.absentThreshold}"></div><div class="field"><label>Période (jours)</label><input class="input" id="blkPeriod" type="number" min="1" max="365" value="${s.periodDays}"></div></div><div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">💡 Un patient qui atteint l'un des seuils sur la période est automatiquement ajouté à la liste de blocage.</div>`, `<button class="pill-btn" onclick="closeModal()">Annuler</button><button class="pill-btn primary" onclick="saveBlocageSettings()">💾 Enregistrer</button>`);
+}
+function saveBlocageSettings(){
+  const c = parseInt(document.getElementById('blkCancel').value,10);
+  const a = parseInt(document.getElementById('blkAbsent').value,10);
+  const p = parseInt(document.getElementById('blkPeriod').value,10);
+  const customReason = 'Vous avez été absent à vos rendez-vous précédents OU vous annulez trop de rendez-vous sur la plateforme.';
+  if(!c || c < 1 || !a || a < 1 || !p || p < 1){ toast('Valeurs invalides','error'); return; }
+  const newSettings = {cancelThreshold:c, absentThreshold:a, periodDays:p, autoBlockReason: customReason};
+  DB.settings = DB.settings || {};
+  DB.settings.blocage = newSettings;
+  saveDB();
+  closeModal();
+  render();
+  toast('✅ Paramètres enregistrés','success');
+  // 🆕 Vérification différée : confirme que blocage est bien persisté côté Supabase
+  setTimeout(async () => {
+    try {
+      const { data, error } = await sb.from('settings').select('blocage').eq('id',1).maybeSingle();
+      if(error){
+        console.error('[saveBlocageSettings] Erreur lecture Supabase :', error);
+        toast('⚠️ Vérif Supabase : ' + (error.message||'erreur'), 'error');
+        return;
+      }
+      const expected = DB.settings && DB.settings.blocage;
+      if(!data || !data.blocage){
+        console.error('[saveBlocageSettings] blocage absent dans Supabase. SQL manquant ?', data);
+        toast('⚠️ Paramètres non persistés — exécutez : ALTER TABLE settings ADD COLUMN blocage JSONB', 'error');
+        return;
+      }
+      if(expected && (Number(data.blocage.cancelThreshold) !== Number(expected.cancelThreshold) || Number(data.blocage.absentThreshold) !== Number(expected.absentThreshold) || Number(data.blocage.periodDays) !== Number(expected.periodDays))){
+        console.warn('[saveBlocageSettings] Incohérence valeurs Supabase vs local', {remote: data.blocage, local: expected});
+        toast('⚠️ Valeurs Supabase incohérentes — rechargez la page ou ré-enregistrez', 'error');
+        return;
+      }
+      console.log('✅ blocage confirmé côté Supabase :', data.blocage);
+    } catch(e){
+      console.error('[saveBlocageSettings] vérification :', e);
+    }
+  }, 1200);
+}
+function _renderBlocageView(mode){
+  let settings;
+  if(mode === 'doctor' && state.doctor){ settings = getBlocageSettings(state.doctor.id, null); }
+  else if(mode === 'clinic' && state.clinic){ settings = getBlocageSettings(null, state.clinic.id); }
+  else { settings = getBlocageSettings(); }
+  let blocks = (DB.blocks||[]).slice();
+  let subtitle = 'Patients bloqués pour annulations ou absences répétées';
+  if(mode === 'doctor' && state.doctor){ blocks = blocks.filter(b => String(b.doctorId) === String(state.doctor.id)); subtitle = 'Patients bloqués pour ce médecin'; }
+  else if(mode === 'clinic' && state.clinic){ blocks = blocks.filter(b => String(b.clinicId) === String(state.clinic.id)); subtitle = 'Patients bloqués pour cette clinique'; }
+  blocks.sort((a,b) => String(b.blockedAt||'').localeCompare(String(a.blockedAt||'')));
+  const adminTable = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Patient</th><th>Téléphone</th><th style="text-align:center">Âge</th><th>Médecin</th><th>Clinique</th><th style="text-align:center">Annul.</th><th style="text-align:center">Absences</th><th>Blocage</th><th>Action</th></tr></thead><tbody>${blocks.length ? blocks.map(b => { const doc = b.doctorId ? docById(b.doctorId) : null; const cl = b.clinicId ? clinicById(b.clinicId) : null; return `<tr><td><strong>${esc(b.patientName||'—')}</strong></td><td style="font-family:var(--font-numbers)">${esc(b.patientPhone||'—')}</td><td style="text-align:center">${b.patientAge||'—'}</td><td>${doc ? esc(doc.name) : '<span style="color:var(--text-muted)">—</span>'}</td><td>${cl ? esc(cl.name) : '<span style="color:var(--text-muted)">—</span>'}</td><td style="text-align:center"><span class="tag ${(b.cancels||0)>=settings.cancelThreshold?'danger':'muted'}">${b.cancels||0}</span></td><td style="text-align:center"><span class="tag ${(b.absents||0)>=settings.absentThreshold?'danger':'muted'}">${b.absents||0}</span></td><td style="font-size:11px;white-space:nowrap">${b.blockedAt ? new Date(b.blockedAt).toLocaleDateString('fr-FR') : '—'}</td><td><button class="mini-btn green" onclick="unblockPatient('${b.id}')">🔓 Débloquer</button></td></tr>`; }).join('') : '<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun patient bloqué</td></tr>'}</tbody></table></div>`;
+  const simpleList = blocks.length ? blocks.map(b => { const doc = b.doctorId ? docById(b.doctorId) : null; const cl = b.clinicId ? clinicById(b.clinicId) : null; return `<div class="appt" style="margin-bottom:8px"><div class="appt-time" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.05));color:var(--danger)"><div class="h">🚫</div><div class="d">${b.blockedAt ? new Date(b.blockedAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '—'}</div></div><div class="appt-body"><div class="appt-patient">${esc(b.patientName||'—')}${b.patientAge?' <span style="font-weight:400;color:var(--text-muted);font-size:11px">('+b.patientAge+' ans)</span>':''}</div><div class="appt-meta"><span>📞 ${esc(b.patientPhone||'—')}</span><span class="tag danger">✗ ${b.cancels||0} annulation(s)</span><span class="tag warn">✗ ${b.absents||0} absence(s)</span>${doc?`<span>🧑‍⚕️ ${esc(doc.name)}</span>`:''}${cl?`<span>🏥 ${esc(cl.name)}</span>`:''}</div></div><div class="appt-actions"><button class="mini-btn green" onclick="unblockPatient('${b.id}')">🔓 Débloquer</button></div></div>`; }).join('') : `<div class="empty" style="padding:40px"><div class="empty-ico">✅</div>Aucun patient bloqué</div>`;
+  return `<div class="card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><div class="card-title" style="font-size:17px">🚫 Blocage des patients</div><div class="card-sub" style="margin-bottom:0">${subtitle}</div></div>${mode === 'admin' ? `<button class="pill-btn primary" onclick="openBlocageSettings()">⚙️ Paramètres</button>` : ''}</div><div class="stats-tags" style="margin-top:14px">${statTag('Annulations seuil', settings.cancelThreshold, 'warn', true)}${statTag('Absences seuil', settings.absentThreshold, 'warn', true)}${statTag('Période', settings.periodDays + ' j', 'accent', true)}${statTag('Patients bloqués', blocks.length, 'danger', true)}</div></div><div class="card">${mode === 'admin' ? adminTable : simpleList}</div>`;
+}
+function viewDoctorBlocage(){ return _renderBlocageView('doctor'); }
+function viewClinicBlocage(){ return _renderBlocageView('clinic'); }
+function viewAdminBlocage(){ return _renderBlocageView('admin'); }
 function viewDoctorRevenue(){
   const doc = state.doctor;
   const today = todayISO();
   const done = DB.appointments.filter(a => String(a.doctorId)===String(doc.id) && a.status==='done' && !a.clinicId);
-  const feeFor = a => (doc.fee||0) + (a.servicesTotal||0);
+  const feeFor = a => Number(a.servicesTotal) || 0;
   const sumRange = arr => arr.reduce((s,a)=>s+feeFor(a),0);
   const todayRev = sumRange(done.filter(a=>a.date===today));
   const weekStart = dateOffset(-6);
@@ -14793,23 +15445,82 @@ function viewDoctorRevenue(){
   const years = []; for(let y=nowY; y>=nowY-5; y--) years.push(y);
   const result = computeDoctorRevenue();
   return `
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div class="card" style="margin-bottom:14px; background:linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(240,245,255,.8) 100%); border-color:var(--glass-border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap; margin-bottom:16px">
         <div>
-          <div class="card-title" style="font-size:16px">💲 ${t('drecette')}</div>
+          <div class="card-title" style="font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
+            <span style="background:linear-gradient(135deg,var(--accent-primary),#ec4899); color:#fff; width:28px; height:28px; display:grid; place-items:center; border-radius:8px; font-size:14px;">💲</span>
+            ${t('drecette')}
+          </div>
           <div class="card-sub" style="margin-bottom:0">${t('recette_preview')}</div>
         </div>
         <button class="pill-btn" onclick="state.recetteUnlocked=false;go('ddash')" title="${t('lock_revenue')}">🔒</button>
       </div>
-      <div class="stats-tags">
-        ${statTag(t('today_revenue'), fmtDA(todayRev), 'money', true)}
-        ${statTag(t('week_revenue'), fmtDA(weekRev), 'money', true)}
-        ${statTag(t('month_revenue'), fmtDA(monthRev), 'money', true)}
-        ${statTag(t('total_revenue'), fmtDA(allRev), 'money', true)}
-      </div>
-      <div class="stats-tags" style="margin-top:6px">
-        ${statTag(t('commission'), fmtDA(allComm), 'accent', true)}
-        ${statTag(t('recette_net'), fmtDA(netRev), 'success', true)}
+      
+      <!-- 🆕 Grille de KPI améliorée -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+        
+        <!-- Aujourd'hui -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #10b981; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(16,185,129,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📅</span> ${t('today_revenue')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#059669;">
+            ${n2(todayRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 7 Jours -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #3b82f6; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(59,130,246,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">🗓️</span> ${t('week_revenue')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#2563eb;">
+            ${n2(weekRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 30 Jours -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid var(--accent-primary); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(139,92,246,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📆</span> ${t('month_revenue')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:var(--accent-primary);">
+            ${n2(monthRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- Total Global -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #64748b; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(100,116,139,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">💰</span> ${t('total_revenue')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#334155;">
+            ${n2(allRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- Commission -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #ef4444; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(239,68,68,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📉</span> ${t('commission')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#dc2626;">
+            ${n2(allComm)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- Revenu Net (Mis en évidence) -->
+        <div style="background:linear-gradient(135deg, rgba(16,185,129,.1) 0%, rgba(5,150,105,.05) 100%); border:1.5px solid rgba(16,185,129,.4); border-top:3px solid #059669; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 15px rgba(5,150,105,.15); position:relative; overflow:hidden;">
+          <div style="position:absolute; top:-10px; right:-10px; font-size:40px; opacity:.1; transform:rotate(15deg);">💎</div>
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#059669; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">✨</span> ${t('recette_net')}
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#047857;">
+            ${n2(netRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
       </div>
     </div>
     <div class="card">
@@ -14881,9 +15592,10 @@ function viewDoctorRevenue(){
                 </tr></thead>
                 <tbody>
                   ${result.list.map((a,i)=>{
-                    const fee = doc.fee||0;
-                    const srv = a.servicesTotal||0;
-                    const gross = fee + srv;
+                    const split = computeApptFeeSplit(a);
+                    const fee = split.fee;
+                    const srv = split.services;
+                    const gross = split.gross;
                     const comm = apptCommission(a);
                     return `<tr>
                       <td style="color:var(--text-muted);font-weight:600">${i+1}</td>
@@ -14940,8 +15652,12 @@ function computeDoctorRevenue(){
     periodLabel = `${fmtDate(q.startDate)} → ${fmtDate(q.endDate)}`;
   }
   list.sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
-  const totalFees = list.reduce((s,a)=>s + (doc.fee||0), 0);
-  const totalServices = list.reduce((s,a)=>s + (a.servicesTotal||0), 0);
+  let totalFees = 0, totalServices = 0;
+  list.forEach(a => {
+    const split = computeApptFeeSplit(a);
+    totalFees += split.fee;
+    totalServices += split.services;
+  });
   const totalGross = totalFees + totalServices;
   const totalCommission = list.reduce((s,a)=>s + apptCommission(a), 0);
   const net = totalGross - totalCommission;
@@ -14955,9 +15671,10 @@ function printDoctorRevenue(){
   const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const refNo = 'REC-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
   const rows = list.map((a,i)=>{
-    const fee = doc.fee||0;
-    const srv = a.servicesTotal||0;
-    const gross = fee + srv;
+    const split = computeApptFeeSplit(a);
+    const fee = split.fee;
+    const srv = split.services;
+    const gross = split.gross;
     const comm = apptCommission(a);
     const servicesTxt = (a.services||[]).map(sv=>esc(sv.name)).join(', ') || '—';
     const typeTxt = a.internal ? t('rdv_internal_label') : t('rdv_app_label');
@@ -15102,6 +15819,499 @@ function printDoctorRevenue(){
   </div>
 </body></html>`);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   📊 STATISTIQUES AVANCÉES — Sections additionnelles
+   ═══════════════════════════════════════════════════════════ */
+function _computeExtraScopeStats(appts){
+  const valid = appts.filter(a => a.status !== 'deleted');
+  let internalCount = 0, appCount = 0, clinicCount = 0;
+  valid.forEach(a => {
+    if(a.internal) internalCount++;
+    else if(a.clinicId) clinicCount++;
+    else appCount++;
+  });
+  const wilayaCount = {};
+  valid.forEach(a => { if(a.patientWilaya) wilayaCount[a.patientWilaya] = (wilayaCount[a.patientWilaya]||0)+1; });
+  const topWilayas = Object.entries(wilayaCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const motifCount = {};
+  valid.forEach(a => {
+    const m = (a.motif||'').trim();
+    if(m && m.length > 1) motifCount[m] = (motifCount[m]||0)+1;
+  });
+  const topMotifs = Object.entries(motifCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const patientApptCount = {};
+  valid.forEach(a => {
+    const k = normPhone(a.patientPhone);
+    if(!k) return;
+    patientApptCount[k] = (patientApptCount[k]||0)+1;
+  });
+  const uniquePatients = Object.keys(patientApptCount).length;
+  const returningPatients = Object.values(patientApptCount).filter(n => n > 1).length;
+  const newPatients = uniquePatients - returningPatients;
+  let cancelledByPatient = 0, cancelledByDoctor = 0, cancelledByClinic = 0, cancelledOther = 0;
+  valid.forEach(a => {
+    if(a.status !== 'cancelled') return;
+    if(a.cancelledBy === 'patient') cancelledByPatient++;
+    else if(a.cancelledBy === 'doctor') cancelledByDoctor++;
+    else if(a.cancelledBy === 'clinic') cancelledByClinic++;
+    else cancelledOther++;
+  });
+  return { valid, internalCount, appCount, clinicCount, topWilayas, topMotifs,
+    uniquePatients, returningPatients, newPatients,
+    cancelledByPatient, cancelledByDoctor, cancelledByClinic, cancelledOther };
+}
+
+function renderDoctorExtraSections(appts, doc){
+  if(!doc) return '';
+  const s = _computeExtraScopeStats(appts);
+  const typeEntries = [
+    ['📱 Application', s.appCount, '#8b5cf6'],
+    ['🏥 Clinique', s.clinicCount, '#ec4899'],
+    ['🗂️ Interne', s.internalCount, '#6366f1']
+  ].filter(e => e[1] > 0);
+  const maxType = Math.max(1, ...typeEntries.map(e=>e[1]));
+
+  const files = mfAllDossiersForDoctor(doc.id);
+  let totalConsult = 0, totalPresc = 0, totalVitals = 0, totalLab = 0, totalAllergies = 0, totalDocs = 0;
+  files.forEach(f => {
+    const d = f.data || {};
+    totalConsult += (d.consultations||[]).length;
+    totalPresc += (d.prescriptions||[]).filter(p=>!p.archived).length;
+    totalVitals += (d.vitals||[]).length;
+    totalLab += (d.labTests||[]).length;
+    totalAllergies += (d.allergies||[]).length;
+    totalDocs += (d.documents||[]).length;
+  });
+
+  const meKey = `doctor_${doc.id}`;
+  const sentMsgs = DB.messages.filter(m => m.from.key === meKey).length;
+  const recvMsgs = DB.messages.filter(m => m.to.key === meKey).length;
+  const avgDuration = appts.length ? Math.round(appts.reduce((s,a)=>s+(a.duration || doc.duration || 30), 0) / appts.length) : 0;
+
+  return `
+    <div class="grid grid-2" style="margin-bottom:14px">
+      ${typeEntries.length ? `
+        <div class="card">
+          <div class="card-title">📋 Types de rendez-vous</div>
+          <div style="margin-top:8px">
+            ${typeEntries.map(([lbl,v,color]) => statBarRow(lbl, v, maxType, color)).join('')}
+          </div>
+        </div>` : ''}
+      ${(s.newPatients + s.returningPatients) > 0 ? `
+        <div class="card">
+          <div class="card-title">👥 Nouveaux vs Fidèles</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('Nouveaux patients', s.newPatients, 'accent', true)}
+            ${statTag('Patients fidèles (>1 RDV)', s.returningPatients, 'success', true)}
+            ${statTag('Total patients uniques', s.uniquePatients, 'muted', true)}
+          </div>
+        </div>` : ''}
+    </div>
+    ${renderTopListCard('🗺️ Patients par wilaya', '🗺️', s.topWilayas, '#059669')}
+    ${renderTopListCard('📝 Motifs les plus fréquents', '📝', s.topMotifs, '#ec4899')}
+    <div class="grid grid-2" style="margin-bottom:14px">
+      ${(s.cancelledByPatient + s.cancelledByDoctor + s.cancelledByClinic + s.cancelledOther) > 0 ? `
+        <div class="card">
+          <div class="card-title">❌ Annulations par origine</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('👤 Par le patient', s.cancelledByPatient, 'danger', true)}
+            ${statTag('🩺 Par moi', s.cancelledByDoctor, 'warn', true)}
+            ${s.cancelledByClinic > 0 ? statTag('🏥 Par la clinique', s.cancelledByClinic, 'warn', true) : ''}
+            ${s.cancelledOther > 0 ? statTag('Autre', s.cancelledOther, 'muted', true) : ''}
+          </div>
+        </div>` : ''}
+      ${files.length > 0 ? `
+        <div class="card">
+          <div class="card-title">📁 Dossiers médicaux <span class="tag accent">${files.length}</span></div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('📝 Consultations', totalConsult, 'accent', true)}
+            ${statTag('💊 Ordonnances', totalPresc, 'success', true)}
+            ${statTag('📊 Constantes', totalVitals, 'accent', true)}
+            ${statTag('🔬 Analyses', totalLab, 'accent', true)}
+            ${totalAllergies > 0 ? statTag('⚠️ Allergies', totalAllergies, 'danger', true) : ''}
+            ${totalDocs > 0 ? statTag('📎 Documents', totalDocs, 'muted', true) : ''}
+          </div>
+        </div>` : ''}
+    </div>
+    <div class="grid grid-2" style="margin-bottom:14px">
+      ${(sentMsgs + recvMsgs) > 0 ? `
+        <div class="card">
+          <div class="card-title">✉️ Messagerie</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('📤 Envoyés', sentMsgs, 'accent', true)}
+            ${statTag('📥 Reçus', recvMsgs, 'success', true)}
+          </div>
+        </div>` : ''}
+      ${avgDuration > 0 ? `
+        <div class="card">
+          <div class="card-title">⏱️ Durée moyenne de consultation</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('Durée moyenne', avgDuration + ' min', 'accent', true)}
+          </div>
+        </div>` : ''}
+    </div>
+  `;
+}
+
+function renderClinicExtraSections(appts, c){
+  if(!c) return '';
+  const s = _computeExtraScopeStats(appts);
+
+  /* 🚨 URGENCES */
+  const clinicEmergencies = DB.emergencies.filter(e => String(e.assignedClinicId) === String(c.id));
+  const emgTotal = clinicEmergencies.length;
+  const emgAccepted = clinicEmergencies.filter(e => e.status === 'accepted').length;
+  const emgDeclined = clinicEmergencies.filter(e => e.status === 'declined').length;
+  const emgPending = clinicEmergencies.filter(e => e.status === 'pending').length;
+  const emgCancelled = clinicEmergencies.filter(e => e.status === 'cancelled').length;
+  const emgHandled = emgAccepted + emgDeclined;
+  const emgRate = emgHandled > 0 ? Math.round((emgAccepted / emgHandled) * 100) : 0;
+  const emgTypeCount = {};
+  clinicEmergencies.forEach(e => { const ty = e.emergencyType || 'Autre'; emgTypeCount[ty] = (emgTypeCount[ty]||0)+1; });
+  const topEmgTypes = Object.entries(emgTypeCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  /* 🛏️ HOSPITALISATION */
+  const admissions = admissionsForClinic(c.id);
+  const activeAdm = admissions.filter(a => a.status === 'active');
+  const dischargedAdm = admissions.filter(a => a.status === 'discharged');
+  const totalAdmRevenue = admissions.filter(a => a.status !== 'cancelled').reduce((sum,a) => sum + computeAdmissionTotals(a).total, 0);
+  const avgStay = dischargedAdm.length ? Math.round(dischargedAdm.reduce((sum,a) => sum + admissionDaysStayed(a), 0) / dischargedAdm.length) : 0;
+  const rooms = roomsForClinic(c.id);
+  const totalBeds = rooms.reduce((sum,r)=>sum+(r.beds||0),0);
+  const occupiedBeds = rooms.reduce((sum,r)=>sum+occupiedBedCount(r.id),0);
+  const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
+
+  /* 💉 TOP PRESTATIONS */
+  const prestCount = {};
+  appts.forEach(a => {
+    if(a.prestationId){
+      const p = clinicPrestationById(a.prestationId);
+      if(p) prestCount[p.name] = (prestCount[p.name]||0)+1;
+    }
+  });
+  const topPrestations = Object.entries(prestCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  /* 📱 RDV par mode */
+  let doctorAppts = 0, prestAppts = 0, internalAppts = 0;
+  appts.forEach(a => {
+    if(a.internal) internalAppts++;
+    else if(a.prestationId && !a.doctorId) prestAppts++;
+    else if(a.doctorId) doctorAppts++;
+  });
+  const modeEntries = [
+    ['🧑‍⚕️ Avec médecin', doctorAppts, '#8b5cf6'],
+    ['💉 Prestation directe', prestAppts, '#10b981'],
+    ['🗂️ Interne', internalAppts, '#6366f1']
+  ].filter(e => e[1] > 0);
+  const maxMode = Math.max(1, ...modeEntries.map(e=>e[1]));
+
+  /* 📁 Dossiers + ✉️ messages */
+  const clinicFiles = mfAllDossiersForClinic(c.id);
+  const meKey = `clinic_${c.id}`;
+  const sentMsgs = DB.messages.filter(m => m.from.key === meKey).length;
+  const recvMsgs = DB.messages.filter(m => m.to.key === meKey).length;
+
+  return `
+    ${emgTotal > 0 ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🚨 Urgences traitées</div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('Total reçues', emgTotal, 'danger', true)}
+        ${statTag('✅ Acceptées', emgAccepted, 'success', true)}
+        ${statTag('❌ Refusées', emgDeclined, 'danger', true)}
+        ${statTag('⏳ En attente', emgPending, 'warn', true)}
+        ${statTag('✕ Annulées', emgCancelled, 'muted', true)}
+        ${statTag('Taux d\'acceptation', emgRate + '%', emgRate >= 70 ? 'success' : emgRate >= 40 ? 'warn' : 'danger', true)}
+      </div>
+      ${topEmgTypes.length ? `<div style="margin-top:12px">
+        <div class="card-sub" style="margin-bottom:6px">Types d'urgence</div>
+        ${topEmgTypes.map(([lbl,v])=>statBarRow(lbl, v, Math.max(1,...topEmgTypes.map(e=>e[1])), '#ef4444')).join('')}
+      </div>` : ''}
+    </div>` : ''}
+
+    <div class="grid grid-2" style="margin-bottom:14px">
+      ${admissions.length > 0 ? `
+        <div class="card">
+          <div class="card-title">🛏️ Hospitalisation <span class="tag accent">${admissions.length}</span></div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('🟢 En cours', activeAdm.length, 'success', true)}
+            ${statTag('✅ Sorties', dischargedAdm.length, 'muted', true)}
+            ${statTag('⏱️ Durée moy.', avgStay + ' j', 'accent', true)}
+            ${statTag('💰 Recette totale', fmtDA(totalAdmRevenue), 'money', true)}
+          </div>
+        </div>` : ''}
+      ${rooms.length > 0 ? `
+        <div class="card">
+          <div class="card-title">🛏️ Occupation des lits</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('Lits totaux', totalBeds, 'accent', true)}
+            ${statTag('Occupés', occupiedBeds, occupiedBeds > 0 ? 'danger' : 'success', true)}
+            ${statTag('Taux d\'occupation', occupancyRate + '%', occupancyRate >= 80 ? 'danger' : occupancyRate >= 50 ? 'warn' : 'success', true)}
+          </div>
+        </div>` : ''}
+    </div>
+
+    ${modeEntries.length ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">📋 Types de RDV clinique</div>
+      <div style="margin-top:8px">
+        ${modeEntries.map(([lbl,v,color]) => statBarRow(lbl, v, maxMode, color)).join('')}
+      </div>
+    </div>` : ''}
+
+    ${renderTopListCard('💉 Prestations les plus demandées', '💉', topPrestations, '#10b981')}
+    ${renderTopListCard('🗺️ Patients par wilaya', '🗺️', s.topWilayas, '#059669')}
+    ${renderTopListCard('📝 Motifs les plus fréquents', '📝', s.topMotifs, '#ec4899')}
+
+    <div class="grid grid-2" style="margin-bottom:14px">
+      ${(s.cancelledByPatient + s.cancelledByClinic + s.cancelledByDoctor + s.cancelledOther) > 0 ? `
+        <div class="card">
+          <div class="card-title">❌ Annulations par origine</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('👤 Patient', s.cancelledByPatient, 'danger', true)}
+            ${statTag('🏥 Clinique', s.cancelledByClinic, 'warn', true)}
+            ${s.cancelledByDoctor > 0 ? statTag('🩺 Médecin', s.cancelledByDoctor, 'warn', true) : ''}
+            ${s.cancelledOther > 0 ? statTag('Autre', s.cancelledOther, 'muted', true) : ''}
+          </div>
+        </div>` : ''}
+      ${clinicFiles.length > 0 ? `
+        <div class="card">
+          <div class="card-title">📁 Dossiers médicaux</div>
+          <div class="stats-tags" style="margin-top:10px">
+            ${statTag('Dossiers actifs', clinicFiles.filter(f=>!f.data.archived).length, 'accent', true)}
+            ${statTag('Archivés', clinicFiles.filter(f=>f.data.archived).length, 'muted', true)}
+          </div>
+        </div>` : ''}
+    </div>
+
+    ${(sentMsgs + recvMsgs) > 0 ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">✉️ Messagerie</div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('📤 Envoyés', sentMsgs, 'accent', true)}
+        ${statTag('📥 Reçus', recvMsgs, 'success', true)}
+      </div>
+    </div>` : ''}
+  `;
+}
+
+function computeAdminExtraStats(appts){
+  const valid = appts.filter(a => a.status !== 'deleted');
+  let internalCount = 0, appCount = 0, clinicCount = 0;
+  valid.forEach(a => {
+    if(a.internal) internalCount++;
+    else if(a.clinicId) clinicCount++;
+    else appCount++;
+  });
+
+  const emergencies = DB.emergencies || [];
+  const emgTotal = emergencies.length;
+  const emgPending = emergencies.filter(e => e.status === 'pending').length;
+  const emgAccepted = emergencies.filter(e => e.status === 'accepted').length;
+  const emgDeclined = emergencies.filter(e => e.status === 'declined').length;
+  const emgCancelled = emergencies.filter(e => e.status === 'cancelled').length;
+  const emgHandled = emgAccepted + emgDeclined;
+  const emgRate = emgHandled > 0 ? Math.round((emgAccepted / emgHandled) * 100) : 0;
+
+  const totalMessages = (DB.messages || []).length;
+  const messagesWithFiles = (DB.messages || []).filter(m => (m.files||[]).length > 0).length;
+
+  const files = DB.medicalFiles || [];
+  let totalAllergyCount = 0, totalPrescCount = 0;
+  files.forEach(f => {
+    const d = f.data || {};
+    totalAllergyCount += (d.allergies||[]).length;
+    totalPrescCount += (d.prescriptions||[]).filter(p=>!p.archived).length;
+  });
+
+  const blocks = DB.blocks || [];
+  const totalBlocks = blocks.length;
+  const blockByReason = {};
+  blocks.forEach(b => {
+    const r = (b.reason||'Autre').split('(')[0].trim().substring(0,60);
+    blockByReason[r] = (blockByReason[r]||0)+1;
+  });
+  const topBlockReasons = Object.entries(blockByReason).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  const expenses = DB.expenses || [];
+  const totalExpenses = expenses.reduce((s,e) => s + (Number(e.amount)||0), 0);
+  const expenseByOwner = {
+    doctor: expenses.filter(e => e.ownerType === 'doctor').reduce((s,e) => s + (Number(e.amount)||0), 0),
+    clinic: expenses.filter(e => e.ownerType === 'clinic').reduce((s,e) => s + (Number(e.amount)||0), 0)
+  };
+
+  const externalDoctors = DB.doctors.filter(d => !d.isClinicLocal && !d.ownedByClinic);
+  const subDoctors = externalDoctors.filter(d => isSubscriptionType(d));
+  const subDoctorsActive = subDoctors.filter(d => isSubscriptionActive(d)).length;
+  const subDoctorsExpired = subDoctors.length - subDoctorsActive;
+  const subClinics = DB.clinics.filter(c => isClinicSubscriptionType(c));
+  const subClinicsActive = subClinics.filter(c => isClinicSubscriptionActive(c)).length;
+  const subClinicsExpired = subClinics.length - subClinicsActive;
+
+  const visits = DB.visits || { total:0, byDay:{}, byMonth:{}, byYear:{} };
+
+  const ratings = valid.filter(a => a.rating > 0 && a.status === 'done').map(a => a.rating);
+  const ratingDist = {1:0,2:0,3:0,4:0,5:0};
+  ratings.forEach(r => { if(r >= 1 && r <= 5) ratingDist[r]++; });
+  const avgRating = ratings.length ? Math.round((ratings.reduce((s,r)=>s+r,0)/ratings.length)*10)/10 : 0;
+
+  const clinicRatings = valid.filter(a => a.clinicRating > 0 && a.status === 'done').map(a => a.clinicRating);
+  const avgClinicRating = clinicRatings.length ? Math.round((clinicRatings.reduce((s,r)=>s+r,0)/clinicRatings.length)*10)/10 : 0;
+
+  const externalDoctorIds = new Set(externalDoctors.map(d => String(d.id)));
+  const apptsByExternalDocs = valid.filter(a => a.doctorId && externalDoctorIds.has(String(a.doctorId)) && !a.clinicId);
+  const avgApptsPerDoctor = externalDoctors.length > 0 ? Math.round(apptsByExternalDocs.length / externalDoctors.length * 10) / 10 : 0;
+  const apptsByClinics = valid.filter(a => a.clinicId);
+  const avgApptsPerClinic = DB.clinics.length > 0 ? Math.round(apptsByClinics.length / DB.clinics.length * 10) / 10 : 0;
+
+  const totalNotifs = (DB.notifications || []).length;
+
+  return {
+    internalCount, appCount, clinicCount,
+    emgTotal, emgPending, emgAccepted, emgDeclined, emgCancelled, emgRate,
+    totalMessages, messagesWithFiles,
+    filesCount: files.length, totalAllergyCount, totalPrescCount,
+    totalBlocks, topBlockReasons,
+    totalExpenses, expenseByOwner,
+    subDoctorsCount: subDoctors.length, subDoctorsActive, subDoctorsExpired,
+    subClinicsCount: subClinics.length, subClinicsActive, subClinicsExpired,
+    visits,
+    ratingDist, ratingsCount: ratings.length, avgRating,
+    clinicRatingsCount: clinicRatings.length, avgClinicRating,
+    avgApptsPerDoctor, avgApptsPerClinic,
+    totalNotifs
+  };
+}
+
+function renderAdminExtraSections(appts){
+  const s = computeAdminExtraStats(appts);
+
+  const typeEntries = [
+    ['📱 Application', s.appCount, '#8b5cf6'],
+    ['🏥 Clinique', s.clinicCount, '#ec4899'],
+    ['🗂️ Interne', s.internalCount, '#6366f1']
+  ].filter(e => e[1] > 0);
+  const maxType = Math.max(1, ...typeEntries.map(e=>e[1]));
+
+  const _v = s.visits || {};
+  const _today = todayISO();
+  const _visitsToday = _v.byDay?.[_today] || 0;
+  const _visitsMonth = _v.byMonth?.[_today.slice(0,7)] || 0;
+  const _visitsYear = _v.byYear?.[String(currentYear())] || 0;
+
+  const ratingEntries = [1,2,3,4,5].map(n => [`${n} étoile${n>1?'s':''}`, s.ratingDist[n]]);
+  const maxRating = Math.max(1, ...ratingEntries.map(e=>e[1]));
+
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">📋 Types de rendez-vous (plateforme)</div>
+      <div style="margin-top:8px">
+        ${typeEntries.map(([lbl,v,color]) => statBarRow(lbl, v, maxType, color)).join('')}
+      </div>
+    </div>
+
+    ${s.emgTotal > 0 ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">🚨 Urgences plateforme</div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('Total', s.emgTotal, 'danger', true)}
+        ${statTag('⏳ En attente', s.emgPending, 'warn', true)}
+        ${statTag('✅ Acceptées', s.emgAccepted, 'success', true)}
+        ${statTag('❌ Refusées', s.emgDeclined, 'danger', true)}
+        ${statTag('✕ Annulées', s.emgCancelled, 'muted', true)}
+        ${statTag('Taux accept.', s.emgRate + '%', s.emgRate >= 70 ? 'success' : s.emgRate >= 40 ? 'warn' : 'danger', true)}
+      </div>
+    </div>` : ''}
+
+    <div class="grid grid-2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="card-title">✉️ Messagerie plateforme</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('Total messages', s.totalMessages, 'accent', true)}
+          ${statTag('Avec pièces jointes', s.messagesWithFiles, 'muted', true)}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📁 Dossiers médicaux</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('Dossiers', s.filesCount, 'accent', true)}
+          ${statTag('💊 Ordonnances', s.totalPrescCount, 'success', true)}
+          ${s.totalAllergyCount > 0 ? statTag('⚠️ Allergies', s.totalAllergyCount, 'danger', true) : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="card-title">🚫 Patients bloqués</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('Total', s.totalBlocks, s.totalBlocks > 0 ? 'danger' : 'muted', true)}
+        </div>
+        ${s.topBlockReasons.length ? `<div style="margin-top:10px">
+          ${s.topBlockReasons.map(([lbl,v]) => statBarRow(lbl, v, Math.max(1, ...s.topBlockReasons.map(e=>e[1])), '#ef4444')).join('')}
+        </div>` : ''}
+      </div>
+      <div class="card">
+        <div class="card-title">💰 Dépenses (tous comptes)</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('Total', fmtDA(s.totalExpenses), 'money', true)}
+          ${statTag('🩺 Médecins', fmtDA(s.expenseByOwner.doctor), 'warn', true)}
+          ${statTag('🏥 Cliniques', fmtDA(s.expenseByOwner.clinic), 'warn', true)}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">💳 Abonnements actifs</div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('🩺 Médecins (actif/expiré)', s.subDoctorsActive + ' / ' + s.subDoctorsExpired, s.subDoctorsExpired > 0 ? 'warn' : 'success', true)}
+        ${statTag('🏥 Cliniques (actif/expiré)', s.subClinicsActive + ' / ' + s.subClinicsExpired, s.subClinicsExpired > 0 ? 'warn' : 'success', true)}
+        ${statTag('Total médecins abonnés', s.subDoctorsCount, 'accent', true)}
+        ${statTag('Total cliniques abonnées', s.subClinicsCount, 'accent', true)}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">👁️ Compteur de visites</div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('Total depuis lancement', (_v.total||0).toLocaleString('fr-FR'), 'success', true)}
+        ${statTag('Aujourd\'hui', _visitsToday, 'accent', true)}
+        ${statTag('Ce mois', _visitsMonth, 'accent', true)}
+        ${statTag('Cette année', _visitsYear, 'accent', true)}
+      </div>
+    </div>
+
+    ${s.ratingsCount > 0 ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">⭐ Distribution des notes médecins <span class="tag rating" style="margin-left:6px">${s.avgRating} / 5</span></div>
+      <div class="stats-tags" style="margin-top:10px">
+        ${statTag('Total notes', s.ratingsCount, 'accent', true)}
+        ${s.clinicRatingsCount > 0 ? statTag('Notes cliniques', s.clinicRatingsCount + ' · moy. ' + s.avgClinicRating, 'clinic', true) : ''}
+      </div>
+      <div style="margin-top:10px">
+        ${ratingEntries.map(([lbl,v]) => statBarRow(lbl, v, maxRating, '#f59e0b')).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="grid grid-2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="card-title">📊 Moyennes par entité</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('RDV / médecin externe', s.avgApptsPerDoctor, 'accent', true)}
+          ${statTag('RDV / clinique', s.avgApptsPerClinic, 'accent', true)}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 Notifications</div>
+        <div class="stats-tags" style="margin-top:10px">
+          ${statTag('Total notifications', s.totalNotifs, 'accent', true)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function viewDoctorStats(){
   const doc = state.doctor;
   const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
@@ -15201,6 +16411,7 @@ function viewDoctorStats(){
     </div>
     ${renderMonthlySection(s.monthly)}
     ${renderTopListCard(t('stats_top_patients'), '👥', topPatientsRows.map(p=>[p.name, p.n]), 'var(--accent-primary)')}
+    ${renderDoctorExtraSections(appts, doc)}
   `;
 }
 function printDoctorStats(){
@@ -15456,6 +16667,7 @@ function renderAdminView(){
     case 'arevenue': return viewAdminRevenue();
     case 'aappts': return viewAdminAppts();
     case 'alistes': return viewAdminListes();
+    case 'ablocage': return viewAdminBlocage();
     case 'asettings': return viewAdminSettings();
     case 'amessages': return renderMessagesView();
     case 'adossiers': return viewDossierList('admin');
@@ -15481,22 +16693,43 @@ function viewAdminDash(){
   const commission = getGeneralCommission();
   const totalDossiers = DB.medicalFiles.length;
   return `
-    <div class="grid grid-4" style="margin-bottom:14px">
-      <div class="stat"><div class="stat-ico">🧑‍⚕️</div><div><div class="stat-val">${totalDocs}</div><div class="stat-lbl">${t('total_doctors')}</div></div></div>
-      <div class="stat" style="cursor:pointer" onclick="go('aclinics')"><div class="stat-ico" style="background:linear-gradient(135deg,rgba(236,72,153,.18),rgba(139,92,246,.12));color:#be185d">🏥</div><div><div class="stat-val">${totalClinics}</div><div class="stat-lbl">${t('clinics')}</div></div></div>
-      <div class="stat"><div class="stat-ico">👥</div><div><div class="stat-val">${patients}</div><div class="stat-lbl">${t('total_patients')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">📅</div><div><div class="stat-val">${totalAppts}</div><div class="stat-lbl">${t('total_appts')}</div></div></div>
+    <style>
+      .admin-kpi-grid-1 { display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:8px; margin-bottom:10px; }
+      .admin-kpi-grid-2 { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; margin-bottom:14px; }
+      @media(max-width: 1200px) {
+        .admin-kpi-grid-1 { grid-template-columns:repeat(3, minmax(0,1fr)); }
+        .admin-kpi-grid-2 { grid-template-columns:repeat(3, minmax(0,1fr)); }
+      }
+      @media(max-width: 768px) {
+        .admin-kpi-grid-1 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+        .admin-kpi-grid-2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+      }
+    </style>
+    
+    <div class="admin-kpi-grid-1">
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('adoctors')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;">🧑‍⚕️</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${totalDocs}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('total_doctors')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('aclinics')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:linear-gradient(135deg,rgba(236,72,153,.18),rgba(139,92,246,.12));color:#be185d">🏥</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${totalClinics}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('clinics')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0;"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;">👥</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${patients}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('total_patients')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0;"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--success-bg);color:var(--success)">📅</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${totalAppts}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('total_appts')}</div></div></div>
+      
+      <div class="stat money" style="padding:8px; gap:6px; min-width:0;"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;">💰</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fmtDA(todayRev)}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('today_revenue')}</div></div></div>
+      
+      <div class="stat money" style="padding:8px; gap:6px; min-width:0;"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;">📊</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fmtDA(totalRev)}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('total_revenue')}</div></div></div>
     </div>
-    <div class="grid grid-3" style="margin-bottom:14px">
-      <div class="stat money"><div class="stat-ico">💰</div><div><div class="stat-val">${fmtDA(todayRev)}</div><div class="stat-lbl">${t('today_revenue')}</div></div></div>
-      <div class="stat money"><div class="stat-ico">📊</div><div><div class="stat-val">${fmtDA(totalRev)}</div><div class="stat-lbl">${t('total_revenue')}</div></div></div>
-      <div class="stat" style="cursor:pointer" onclick="go('adossiers')"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">📁</div><div><div class="stat-val">${totalDossiers}</div><div class="stat-lbl">${t('dossiers_medical')}</div></div></div>
-    </div>
-    <div class="grid grid-4" style="margin-bottom:14px">
-      <div class="stat"><div class="stat-ico" style="background:var(--warn-bg);color:var(--warn)">⏳</div><div><div class="stat-val">${pending}</div><div class="stat-lbl">${t('pending_c')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--success-bg);color:var(--success)">✓</div><div><div class="stat-val">${confirmed}</div><div class="stat-lbl">${t('confirmed_c')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--accent-light);color:var(--accent-primary)">✅</div><div><div class="stat-val">${done}</div><div class="stat-lbl">${t('status_done')}</div></div></div>
-      <div class="stat"><div class="stat-ico" style="background:var(--danger-bg);color:var(--danger)">✕</div><div><div class="stat-val">${cancelled}</div><div class="stat-lbl">${t('cancelled_c')}</div></div></div>
+
+    <div class="admin-kpi-grid-2">
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('adossiers')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--accent-light);color:var(--accent-primary)">📁</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${totalDossiers}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('dossiers_medical')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('aappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--warn-bg);color:var(--warn)">⏳</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${pending}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('pending_c')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('aappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--success-bg);color:var(--success)">✓</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${confirmed}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('confirmed_c')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('aappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--accent-light);color:var(--accent-primary)">✅</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${done}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('status_done')}</div></div></div>
+      
+      <div class="stat" style="padding:8px; gap:6px; min-width:0; cursor:pointer;" onclick="go('aappts')"><div class="stat-ico" style="width:30px;height:30px;font-size:14px;background:var(--danger-bg);color:var(--danger)">✕</div><div style="min-width:0;"><div class="stat-val" style="font-size:16px;">${cancelled}</div><div class="stat-lbl" style="font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('cancelled_c')}</div></div></div>
     </div>
 
     <div class="grid grid-2">
@@ -15747,11 +16980,9 @@ function openDoctorForm(id, isSelf, ownedByClinicId){
       <div class="field"><label>${t('phone')}</label><input class="input" id="fPhone" type="tel" value="${esc(d.phone)}" placeholder="+2136…"></div>
       <div class="field"><label>${t('email')} *</label><input class="input" id="fEmail" type="email" value="${esc(d.email)}" placeholder="medecin@exemple.com"></div>
     </div>
-    <div class="field-row">
-      <div class="field"><label>${t('fee')} (DA)</label><input class="input" id="fFee" type="number" inputmode="numeric" min="0" step="100" value="${d.fee}"></div>
-      <div class="field"><label>${t('duration')} (${t('min')})</label>
-        <input class="input" id="fDur" type="number" inputmode="numeric" min="5" step="5" value="${d.duration}" oninput="updateSlotPreview()">
-      </div>
+    <div class="field">
+      <label>${t('duration')} (${t('min')})</label>
+      <input class="input" id="fDur" type="number" inputmode="numeric" min="5" step="5" value="${d.duration}" oninput="updateSlotPreview()">
     </div>
     <div class="sep"></div>
     ${billingSectionHTML}
@@ -15903,8 +17134,6 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   const address = ($('#fAddr')?.value||'').trim();
   const phone = ($('#fPhone')?.value||'').trim();
   const email = ($('#fEmail')?.value||'').trim();
-  const feeInput = $('#fFee');
-  const fee = feeInput ? (parseInt(feeInput.value,10)||0) : (docById(id)?.fee || 0);
   const duration = parseInt($('#fDur')?.value,10)||30;
   let pwd, recettePwd, pwdPlain = '', recettePwdPlain = '';
   const pwdRaw = ($('#fPwd')?.value||'').trim();
@@ -15960,8 +17189,9 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   if(isSelf){
     if(id){
       const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
-      Object.assign(d, commonFields, {fee: Number(fee) || 0, duration: Number(duration) || 30});
+      Object.assign(d, commonFields, {duration: Number(duration) || 30});
       d.passwordPlain = pwdPlain;
+      ensureDoctorConsultationService(id);
       if(state.doctor && String(state.doctor.id)===String(id)) state.doctor = d;
     }
     saveDB(); closeModal(); render();
@@ -16010,9 +17240,10 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     if(oldId !== newId && DB.doctors.some(x=>String(x.id)===newId && String(x.id)!==String(oldId))){
       toast('Un médecin avec cet email existe déjà','error'); return;
     }
-    Object.assign(d, commonFields, {fee, duration, recettePassword: recettePwd,
+    Object.assign(d, commonFields, {duration, recettePassword: recettePwd,
       passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
       id: newId}, billingFields);
+    ensureDoctorConsultationService(newId);
     if(oldId !== newId){
       DB.services.forEach(s=>{ if(String(s.doctorId)===String(oldId)) s.doctorId = newId; });
       DB.appointments.forEach(a=>{ if(String(a.doctorId)===String(oldId)) a.doctorId = newId; });
@@ -16039,7 +17270,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   } else {
     if(DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
     const newDoc = {
-      id: email, name, specialty, wilaya, commune, address, phone, email, fee, duration,
+      id: email, name, specialty, wilaya, commune, address, phone, email, fee: 0, duration,
       password: pwd, recettePassword: recettePwd,
       passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
       bio, workDays, workStart, workEnd,
@@ -16049,6 +17280,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
       ...billingFields
     };
     DB.doctors.push(newDoc);
+    if(!isClinicLocal) ensureDoctorConsultationService(newDoc.id);
     if(isClinicLocal){
       /* Créer automatiquement le lien médecin-clinique */
       const link = {
@@ -16787,8 +18019,21 @@ function viewAdminAvailability() {
     const lastSeen = account.updatedAt ? new Date(account.updatedAt).getTime() : 0;
     const diff = now - lastSeen;
     if(diff < ONLINE_THRESHOLD) return { online: true, text: 'En ligne', color: 'var(--success)', bg: 'var(--success-bg)' };
-    const mins = Math.floor(diff / 60000);
-    return { online: false, text: `Hors ligne depuis ${mins} min`, color: 'var(--text-muted)', bg: 'var(--glass-bg-3)' };
+    
+    const diffMin = Math.floor(diff / 60000);
+    let timeText = '';
+    
+    if (diffMin < 60) {
+      timeText = `${diffMin} min`;
+    } else if (diffMin < 1440) {
+      const hours = Math.floor(diffMin / 60);
+      timeText = `${hours} heure${hours > 1 ? 's' : ''}`;
+    } else {
+      const days = Math.floor(diffMin / 1440);
+      timeText = `${days} jour${days > 1 ? 's' : ''}`;
+    }
+    
+    return { online: false, text: `Hors ligne depuis ${timeText}`, color: 'var(--text-muted)', bg: 'var(--glass-bg-3)' };
   };
 
   const doctors = DB.doctors.filter(d => !d.isClinicLocal && !d.ownedByClinic);
@@ -16962,6 +18207,7 @@ function viewAdminStats(){
     </div>
     ${renderMonthlySection(s.monthly)}
     ${renderSearchStatsSection()}
+    ${renderAdminExtraSections(appts)}
   `;
 }
 function renderAgeSection(ageRanges, titleOverride){
@@ -19985,6 +21231,7 @@ function renderClinicView(){
     case 'cdepenses': return viewClinicExpenses();
     case 'cfacturation': return viewClinicFacturation();   /* 🆕 */
     case 'cmessages': return renderMessagesView();
+    case 'cblocage': return viewClinicBlocage();
     case 'cprof': return viewClinicProfile();
     default: return viewClinicDash();
   }
@@ -22591,12 +23838,14 @@ function clinicApptRow(a){
         ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🏥</button>` : ''}
         ${(a.status === 'confirmed' || a.status === 'done') ? `<button class="mini-btn primary" onclick="event.stopPropagation();openApptInvoiceModal('${a.id}')" title="Voir la facture">🧾</button>` : ''}
         ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🏥</button>` : ''}
+        ${a.status==='pending' && findConfirmedConflicts(a).length ? `<button class="mini-btn danger" onclick="openTransferApptModal('${a.id}')" title="⚠️ Ce créneau est occupé par un RDV confirmé — Transférer vers un autre créneau">🔄 Transférer</button>` : ''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="clinicConfirmAppt('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
           eligibleValidate
-            ? `<button class="mini-btn purple" onclick="clinicValidateAppt('${a.id}')">✓ ${t('validate')}</button>`
+            ? `<button class="mini-btn purple" onclick="openApptValidationModal('${a.id}')">✓ ${t('validate')}</button>`
             : `<button class="mini-btn ghost" disabled title="${esc(validationBlockedMsg(a))}">⏳ ${t('validate')}</button>`
         ):''}
+        ${a.status==='confirmed' && eligibleValidate ? `<button class="mini-btn primary" onclick="openApptValidationModal('${a.id}')" title="Valider avec frais supplémentaires">💰</button>` : ''}
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn out-red" onclick="clinicCancelAppt('${a.id}')">✕ ${t('cancel')}</button>`:''}
         ${canDelete?`<button class="mini-btn red" onclick="confirmDeleteAppt('${a.id}')">🗑️</button>`:''}
       </div>
@@ -22606,6 +23855,13 @@ function clinicApptRow(a){
 function clinicConfirmAppt(id){
   const a = DB.appointments.find(x => x.id === id);
   if(!a) return;
+  /* 🆕 Vérifier qu'aucun autre RDV confirmé n'occupe déjà ce créneau */
+  const conflicts = findConfirmedConflicts(a);
+  if(conflicts.length){
+    toast('⚠️ Ce créneau est déjà occupé — transférez le RDV vers un autre créneau', 'error');
+    setTimeout(() => openTransferApptModal(id), 100);
+    return;
+  }
   a.status = 'confirmed';
   if(a.doctorId) pushNotif('doctor','RDV confirmé', `RDV ${a.id} confirmé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','RDV confirmé', `Votre RDV ${a.id} est confirmé`, null, a.id);
@@ -22618,13 +23874,638 @@ function clinicValidateAppt(id){
   const a = DB.appointments.find(x => x.id === id);
   if(!a) return;
   if(!canValidateAppt(a)){ toast(validationBlockedMsg(a),'error'); return; }
+  const doc = docById(a.doctorId);
+  openModal('Validation du RDV', `${a.patientName} — ${fmtLongDate(a.date)} ${a.time}`,
+    `<div style="font-size:13px;line-height:1.7"><div><strong>${t('patient')} :</strong> ${esc(a.patientName)}</div>${doc?`<div><strong>${t('doctor')} :</strong> ${esc(doc.name)}</div>`:''}<div><strong>${t('motif')} :</strong> ${esc(a.motif||'—')}</div></div><div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);font-size:12.5px;text-align:center;margin-top:10px">Le patient s'est-il présenté au rendez-vous ?</div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button><button class="pill-btn danger" onclick="clinicMarkAbsent('${id}')">✗ Absent</button><button class="pill-btn success" onclick="clinicMarkPresent('${id}')">✓ Présent (Terminé)</button>`);
+}
+function clinicMarkPresent(id){
+  const a = DB.appointments.find(x => x.id === id);
+  if(!a) return;
   a.status = 'done';
   if(a.doctorId) pushNotif('doctor','Consultation terminée', `RDV ${a.id} validé par la clinique`, a.doctorId, a.id);
   pushNotif('patient','Consultation terminée', `Merci d'avoir consulté`, null, a.id);
   clearApptNotifications(a.id);
-  saveDB({critical:true});
-  render();
+  saveDB({critical:true}); closeModal(); render();
   toast('Rendez-vous validé','success');
+}
+function clinicMarkAbsent(id){
+  const a = DB.appointments.find(x => x.id === id);
+  if(!a) return;
+  a.status = 'absent';
+  if(a.doctorId) pushNotif('doctor','Patient absent', `Le patient ne s'est pas présenté au RDV ${a.id}`, a.doctorId, a.id);
+  pushNotif('patient','Marqué absent', `Vous n'avez pas été présent au RDV ${a.id}`, null, a.id);
+  clearApptNotifications(a.id);
+  try{ checkAutoBlock(a.patientPhone, a.doctorId, a.clinicId); }catch(e){}
+  saveDB({critical:true}); closeModal(); render();
+  toast('Patient marqué absent','info');
+}
+/* ============================================================
+   ✅ VALIDATION RDV AVEC FRAIS SUPPLÉMENTAIRES
+   ============================================================ */
+function openApptValidationModal(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a) { toast('RDV introuvable', 'error'); return; }
+  if (a.status === 'done') { toast('RDV déjà validé', 'error'); return; }
+  if (a.status === 'cancelled' || a.status === 'deleted') { toast('RDV annulé ou supprimé', 'error'); return; }
+  if (a.status !== 'confirmed') { toast('Seuls les RDV confirmés peuvent être validés', 'error'); return; }
+  if (!canValidateAppt(a)) { toast(validationBlockedMsg(a), 'error'); return; }
+
+  state._apptValidation = {
+    apptId: apptId,
+    selectedServices: [],
+    freeFees: [],
+    currentFreeName: '',
+    currentFreePrice: 0
+  };
+
+  renderApptValidationModal(apptId);
+}
+
+function renderApptValidationModal(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a) return;
+  const doc = docById(a.doctorId);
+  const clinic = a.clinicId ? clinicById(a.clinicId) : null;
+  const st = state._apptValidation;
+  if (!st) return;
+
+  const existingServices = a.services || [];
+  const existingIds = existingServices.map(s => String(s.id));
+
+  let availableServices = [];
+  if (doc) {
+    availableServices = servicesForDoctor(doc.id).filter(s =>
+      !existingIds.includes(String(s.id)) && !s.isDefault
+    ).map(s => ({ id: s.id, name: s.name, price: s.price, showPrice: s.showPrice }));
+  }
+  if (clinic) {
+    clinicPrestationsFor(clinic.id).forEach(p => {
+      if (!existingIds.includes(String(p.id)) && !effectivePrestationLocked(p)) {
+        availableServices.push({ id: p.id, name: p.name, price: p.price });
+      }
+    });
+  }
+
+  const existingTotal = existingServices.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+  const newServicesTotal = st.selectedServices.reduce((sum, sId) => {
+    const found = availableServices.find(x => String(x.id) === String(sId));
+    return sum + (found ? Number(found.price) || 0 : 0);
+  }, 0);
+  const freeFeesTotal = st.freeFees.reduce((sum, f) => sum + (Number(f.price) || 0), 0);
+  const grandTotal = existingTotal + newServicesTotal + freeFeesTotal;
+
+  const body = `
+    <style>
+      .vf-info-row{display:grid;grid-template-columns:1.3fr 1fr 1.4fr 1.4fr;background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04));border:1.5px solid rgba(139,92,246,.25);border-radius:14px;margin-bottom:14px;overflow:hidden}
+      .vf-info-cell{padding:11px 14px;min-width:0;border-right:1px solid rgba(139,92,246,.14)}
+      .vf-info-cell:last-child{border-right:none}
+      .vf-info-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:800;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+      .vf-info-val{font-weight:700;font-size:12.5px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+      .vf-info-val.num{font-family:var(--font-numbers)}
+      .vf-info-val.accent{color:var(--accent-primary)}
+      @media(max-width:640px){
+        .vf-info-row{grid-template-columns:1fr 1fr}
+        .vf-info-cell:nth-child(2){border-right:none}
+        .vf-info-cell:nth-child(1),
+        .vf-info-cell:nth-child(2){border-bottom:1px solid rgba(139,92,246,.14)}
+        .vf-info-cell{padding:9px 12px}
+      }
+    </style>
+    <div class="vf-info-row">
+      <div class="vf-info-cell">
+        <div class="vf-info-lbl">👤 ${t('patient')}</div>
+        <div class="vf-info-val">${esc(a.patientName)}${a.patientAge ? ' · ' + a.patientAge + ' ' + t('billing_years_old') : ''}</div>
+      </div>
+      <div class="vf-info-cell">
+        <div class="vf-info-lbl">📞 ${t('phone')}</div>
+        <div class="vf-info-val num">${esc(a.patientPhone)}</div>
+      </div>
+      <div class="vf-info-cell">
+        <div class="vf-info-lbl">📅 ${t('when')}</div>
+        <div class="vf-info-val accent">${fmtDateFR(a.date)} — <strong class="num" style="color:var(--text-main)">${a.time}</strong></div>
+      </div>
+      <div class="vf-info-cell">
+        <div class="vf-info-lbl">📝 ${t('motif')}</div>
+        <div class="vf-info-val">${esc(a.motif || '—')}</div>
+      </div>
+    </div>
+
+    <div class="section-title">✅ Prestations déjà incluses (non modifiables)</div>
+    ${existingServices.length ? existingServices.map(s => `
+      <label class="service-checkbox" style="opacity:.7;cursor:not-allowed">
+        <input type="checkbox" checked disabled>
+        <div class="sc-info">
+          <div class="sc-name">${esc(s.name)}${s.isDefault ? ' <span class="tag accent" style="font-size:9px;padding:1px 5px">Défaut</span>' : ''}</div>
+        </div>
+        ${(Number(s.price) || 0) > 0 && s.showPrice !== false ? `<div class="sc-price">${n2(s.price)} DA</div>` : ''}
+      </label>
+    `).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:8px">Aucune prestation incluse</div>'}
+
+    ${availableServices.length ? `
+    <div class="sep"></div>
+    <div class="section-title">➕ Prestations supplémentaires disponibles</div>
+    ${availableServices.map(s => `
+      <label class="service-checkbox">
+        <input type="checkbox" ${st.selectedServices.includes(String(s.id)) ? 'checked' : ''} onchange="toggleValidationService('${s.id}', this.checked)">
+        <div class="sc-info"><div class="sc-name">${esc(s.name)}</div></div>
+        ${(Number(s.price) || 0) > 0 ? `<div class="sc-price">+${n2(s.price)} DA</div>` : ''}
+      </label>
+    `).join('')}
+    ` : ''}
+
+    <div class="sep"></div>
+    <div class="section-title">💰 Frais supplémentaires libres</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+      <div class="field" style="flex:2;min-width:150px;margin-bottom:0">
+        <label>Désignation</label>
+        <input class="input" id="vfFreeName" placeholder="Ex : Pansement, Acte médical..." value="${esc(st.currentFreeName || '')}" oninput="state._apptValidation.currentFreeName=this.value">
+      </div>
+      <div class="field" style="flex:1;min-width:100px;margin-bottom:0">
+        <label>Montant (DA)</label>
+        <input class="input" id="vfFreePrice" type="number" min="0" step="50" value="${st.currentFreePrice || ''}" oninput="state._apptValidation.currentFreePrice=this.value">
+      </div>
+      <button type="button" class="pill-btn primary" onclick="addValidationFreeFee()" style="height:42px;white-space:nowrap">+ Ajouter</button>
+    </div>
+    ${st.freeFees.length ? st.freeFees.map((f, i) => `
+      <div class="list-item">
+        <span class="li-name">${esc(f.name)}</span>
+        <span class="tag money">${n2(f.price)} DA</span>
+        <button class="mini-btn out-red" onclick="removeValidationFreeFee(${i})">✕</button>
+      </div>
+    `).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:8px">Aucun frais libre ajouté</div>'}
+
+    <div class="total-box" style="margin-top:14px">
+      <div>
+        <div class="tb-lbl">Prestations incluses : ${n2(existingTotal)} DA</div>
+        ${newServicesTotal > 0 ? `<div class="tb-lbl" style="color:var(--accent-primary)">+ Prestations ajoutées : ${n2(newServicesTotal)} DA</div>` : ''}
+        ${freeFeesTotal > 0 ? `<div class="tb-lbl" style="color:#059669">+ Frais libres : ${n2(freeFeesTotal)} DA</div>` : ''}
+        <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">TOTAL À PAYER</div>
+      </div>
+      <div class="tb-val">${n2(grandTotal)} DA</div>
+    </div>
+  `;
+
+  const actions = `
+    <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+    <button class="pill-btn danger" onclick="doMarkAbsent('${apptId}')">✗ Absent</button>
+    <button class="pill-btn success" onclick="doValidateApptWithFees('${apptId}')">✓ ${t('validate')} & ${t('save')}</button>
+  `;
+
+  openModal('✅ Validation du rendez-vous', `${a.patientName} — ${a.id}`, body, actions, true);
+}
+
+function toggleValidationService(serviceId, checked) {
+  if (!state._apptValidation) return;
+  const sid = String(serviceId);
+  const idx = state._apptValidation.selectedServices.indexOf(sid);
+  if (checked && idx < 0) state._apptValidation.selectedServices.push(sid);
+  else if (!checked && idx >= 0) state._apptValidation.selectedServices.splice(idx, 1);
+  renderApptValidationModal(state._apptValidation.apptId);
+}
+
+function addValidationFreeFee() {
+  if (!state._apptValidation) return;
+  const name = (state._apptValidation.currentFreeName || '').trim();
+  const price = parseFloat(state._apptValidation.currentFreePrice) || 0;
+  if (!name) { toast('Désignation requise', 'error'); return; }
+  if (price <= 0) { toast('Montant > 0 requis', 'error'); return; }
+  state._apptValidation.freeFees.push({ id: 'free-' + uid('F'), name, price });
+  state._apptValidation.currentFreeName = '';
+  state._apptValidation.currentFreePrice = 0;
+  renderApptValidationModal(state._apptValidation.apptId);
+}
+
+function removeValidationFreeFee(index) {
+  if (!state._apptValidation) return;
+  state._apptValidation.freeFees.splice(index, 1);
+  renderApptValidationModal(state._apptValidation.apptId);
+}
+
+function doValidateApptWithFees(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a || !state._apptValidation) return;
+  if (a.status !== 'confirmed') { toast('Seuls les RDV confirmés peuvent être validés', 'error'); return; }
+
+  const doc = docById(a.doctorId);
+  const clinic = a.clinicId ? clinicById(a.clinicId) : null;
+
+  let availableServices = [];
+  if (doc) availableServices = servicesForDoctor(doc.id);
+  if (clinic) clinicPrestationsFor(clinic.id).forEach(p => availableServices.push(p));
+
+  const finalServices = [...(a.services || [])];
+
+  state._apptValidation.selectedServices.forEach(sid => {
+    const sv = availableServices.find(x => String(x.id) === String(sid));
+    if (sv) {
+      finalServices.push({
+        id: sv.id,
+        name: sv.name,
+        price: Number(sv.price) || 0,
+        showPrice: sv.showPrice !== false
+      });
+    }
+  });
+
+  state._apptValidation.freeFees.forEach(f => {
+    finalServices.push({
+      id: f.id,
+      name: f.name,
+      price: Number(f.price) || 0,
+      isFree: true
+    });
+  });
+
+  a.services = finalServices;
+  a.servicesTotal = finalServices.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+  a.status = 'done';
+  a.updatedAt = nowISO();
+
+  const docName = doc ? doc.name : (clinic ? clinic.name : 'l\'établissement');
+  pushNotif('patient', 'Consultation terminée', `Merci d'avoir consulté ${docName}`, null, a.id);
+
+  clearApptNotifications(a.id);
+  saveDB({ critical: true });
+  state._apptValidation = null;
+  closeModal();
+  render();
+  toast('✓ RDV validé', 'success');
+}
+
+function doMarkAbsent(apptId) {
+  const a = DB.appointments.find(x => x.id === apptId);
+  if (!a) return;
+  a.status = 'absent';
+  if (a.doctorId) pushNotif('doctor', 'Patient absent', `Le patient ne s'est pas présenté au RDV ${a.id}`, a.doctorId, a.id);
+  pushNotif('patient', 'Marqué absent', `Vous n'avez pas été présent au RDV ${a.id}`, null, a.id);
+  clearApptNotifications(a.id);
+  try { checkAutoBlock(a.patientPhone, a.doctorId, a.clinicId); } catch(e) {}
+  saveDB({ critical: true });
+  state._apptValidation = null;
+  closeModal();
+  render();
+  toast('Patient marqué absent', 'info');
+}
+/* ============================================================
+   📅 POPUP COMPLÈTE D'UN RDV (vue Médecin)
+   Toutes les opérations accessibles depuis les tuiles « RDV aujourd'hui »
+   ============================================================ */
+/* ============================================================
+   🔄 TRANSFERT D'UN RDV PENDING VERS UN AUTRE CRÉNEAU
+   Utilisé quand le créneau demandé est déjà occupé par un RDV confirmé
+   ============================================================ */
+function findConfirmedConflicts(a){
+  if(!a || !a.date || !a.time) return [];
+  const dur = appointmentDuration(a);
+  const start = toMin(a.time);
+  const end = start + dur;
+  return DB.appointments.filter(x => {
+    if(x.id === a.id) return false;
+    if(x.status !== 'confirmed' && x.status !== 'done') return false;
+    if(x.date !== a.date) return false;
+    if(!x.time) return false;
+    const sameDoctor = a.doctorId && String(x.doctorId) === String(a.doctorId);
+    const sameClinic = a.clinicId && String(x.clinicId) === String(a.clinicId);
+    if(!sameDoctor && !sameClinic) return false;
+    const xs = toMin(x.time);
+    const xe = xs + appointmentDuration(x);
+    return start < xe && end > xs;
+  });
+}
+
+function openTransferApptModal(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  if(!a){ toast('RDV introuvable', 'error'); return; }
+  if(a.status === 'done' || a.status === 'deleted' || a.status === 'cancelled'){
+    toast('Impossible de transférer ce RDV', 'error'); return;
+  }
+  if(!a.doctorId && !a.clinicId){
+    toast('RDV invalide', 'error'); return;
+  }
+  if(!state._transferAppt) state._transferAppt = {};
+  state._transferAppt[apptId] = { date: null, time: null };
+  renderTransferApptModal(apptId);
+}
+
+function renderTransferApptModal(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  if(!a) return;
+  const st = state._transferAppt?.[apptId];
+  if(!st) return;
+
+  const doc = a.doctorId ? docById(a.doctorId) : null;
+  const clinic = a.clinicId ? clinicById(a.clinicId) : null;
+  const conflicts = findConfirmedConflicts(a);
+
+  let availDays = [];
+  let slots = [];
+  if(doc){
+    availDays = availableDaysFor(doc, 30);
+    if(st.date) slots = slotsFor(doc.id, st.date);
+  } else if(clinic){
+    const dur = appointmentDuration(a);
+    availDays = availableDaysForClinic(clinic, 30, dur);
+    if(st.date) slots = slotsForClinic(clinic.id, st.date, dur);
+  }
+
+  const dateChips = availDays.slice(0, 20).map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    const day = dt.toLocaleDateString('fr-FR', { weekday:'short' }).slice(0, 3);
+    const mon = dt.toLocaleDateString('fr-FR', { month:'short' });
+    const selected = st.date === d;
+    return `<button class="date-chip ${selected?'selected':''}" onclick="pickTransferDate('${apptId}','${d}')">
+      <div class="d-day">${day}</div>
+      <div class="d-num">${dt.getDate()}</div>
+      <div class="d-mon">${mon}</div>
+    </button>`;
+  }).join('');
+
+  const slotBtns = st.date ? slots.map(sl => {
+    const own = (a.date === st.date && a.time === sl.time);
+    const available = sl.available || own;
+    const selected = st.time === sl.time;
+    return `<button class="slot ${selected?'selected':''}" ${!available?'disabled':''} onclick="if(!this.disabled){pickTransferTime('${apptId}','${sl.time}')}">${sl.time}</button>`;
+  }).join('') : '';
+
+  const body = `
+    <div class="letter-amount" style="font-style:normal;color:var(--warn);border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08);margin-bottom:14px">
+      ⚠️ <strong>Créneau occupé</strong><br>
+      ${conflicts.length
+        ? `Le créneau actuel (<strong>${fmtDateFR(a.date)} à ${a.time}</strong>) est occupé par un autre RDV confirmé. Sélectionnez un nouveau créneau pour ce patient.`
+        : `Le créneau actuel (<strong>${fmtDateFR(a.date)} à ${a.time}</strong>) doit être transféré. Sélectionnez un nouveau créneau pour ce patient.`}
+      <br><span style="font-size:11.5px">Le patient recevra une notification : « le créneau que vous avez demandé est occupé, voici votre nouveau rendez-vous ».</span>
+    </div>
+
+    <div class="info-compact one-col" style="margin-bottom:12px">
+      <div class="ic-item">
+        <div class="ic-lbl">👤 ${t('patient')}</div>
+        <div class="ic-val"><strong>${esc(a.patientName)}</strong>${a.patientAge?' · '+a.patientAge+' '+t('billing_years_old'):''} — 🆔 ${a.id}</div>
+      </div>
+      <div class="ic-item">
+        <div class="ic-lbl">📍 Créneau actuel (à transférer)</div>
+        <div class="ic-val" style="color:var(--warn)">${fmtDateFR(a.date)} — <strong style="font-family:var(--font-numbers)">${a.time}</strong></div>
+      </div>
+            ${conflicts.length ? `<div class="ic-item" style="background:var(--danger-bg);border-color:rgba(239,68,68,.3)">
+        <div class="ic-lbl" style="color:var(--danger)">⚠️ Conflit avec</div>
+        <div class="ic-val" style="color:var(--danger)">${conflicts.map(c => esc(c.patientName) + ' (' + c.time + ')').join(' · ')}</div>
+      </div>` : ''}
+    </div>
+
+    <div class="field">
+      <label>📅 Nouvelle date</label>
+      ${availDays.length
+        ? `<div class="dates" style="margin-top:8px">${dateChips}</div>`
+        : `<div class="empty" style="padding:20px"><div class="empty-ico">📅</div>${t('no_slots')}</div>`}
+    </div>
+
+    <div class="field" style="margin-top:14px">
+      <label>⏰ Nouvelle heure${st.date ? ` — ${fmtLongDate(st.date)}` : ''}</label>
+      ${st.date
+        ? (slotBtns
+            ? `<div class="slots" style="margin-top:8px">${slotBtns}</div>`
+            : `<div class="empty" style="padding:12px;font-size:12px">Aucun créneau disponible ce jour</div>`)
+        : `<div class="empty" style="padding:12px;font-size:12px">Sélectionnez d'abord une date</div>`}
+    </div>
+  `;
+
+  const actions = `
+    <button class="pill-btn" onclick="cancelTransfer('${apptId}')">${t('cancel')}</button>
+    <button class="pill-btn primary" ${!st.time ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''} onclick="confirmTransfer('${apptId}')">✓ Transférer le RDV</button>
+  `;
+
+  openModal('🔄 Transférer le rendez-vous', `${a.patientName} — ${a.id}`, body, actions, true);
+}
+
+function pickTransferDate(apptId, date){
+  if(!state._transferAppt || !state._transferAppt[apptId]) return;
+  state._transferAppt[apptId].date = date;
+  state._transferAppt[apptId].time = null;
+  renderTransferApptModal(apptId);
+}
+
+function pickTransferTime(apptId, time){
+  if(!state._transferAppt || !state._transferAppt[apptId]) return;
+  state._transferAppt[apptId].time = time;
+  renderTransferApptModal(apptId);
+}
+
+function cancelTransfer(apptId){
+  if(state._transferAppt) delete state._transferAppt[apptId];
+  closeModal();
+}
+
+function confirmTransfer(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  const st = state._transferAppt?.[apptId];
+  if(!a || !st || !st.date || !st.time){ toast(t('required_fields'), 'error'); return; }
+
+  const oldDate = a.date;
+  const oldTime = a.time;
+
+  /* Double vérification de conflit avant sauvegarde */
+  const dur = appointmentDuration(a);
+  const conflict = DB.appointments.some(x => {
+    if(x.id === a.id) return false;
+    if(x.status !== 'confirmed' && x.status !== 'done') return false;
+    if(x.date !== st.date) return false;
+    const sameDoctor = a.doctorId && String(x.doctorId) === String(a.doctorId);
+    const sameClinic = a.clinicId && String(x.clinicId) === String(a.clinicId);
+    if(!sameDoctor && !sameClinic) return false;
+    const xs = toMin(x.time);
+    const xe = xs + appointmentDuration(x);
+    const ns = toMin(st.time);
+    const ne = ns + dur;
+    return ns < xe && ne > xs;
+  });
+  if(conflict){ toast(t('slot_taken'), 'error'); return; }
+
+  /* Mise à jour du RDV */
+  a.date = st.date;
+  a.time = st.time;
+  a.updatedAt = nowISO();
+  a.transferredFrom = { date: oldDate, time: oldTime, transferredAt: nowISO() };
+
+  /* Notification patient : mention explicite */
+  const doc = a.doctorId ? docById(a.doctorId) : null;
+  const clinic = a.clinicId ? clinicById(a.clinicId) : null;
+  const whoLabel = doc ? doc.name : (clinic ? clinic.name : 'l\'établissement');
+  pushNotif('patient',
+    '🔄 Nouveau créneau attribué',
+    `Le créneau que vous avez demandé (${fmtDateFR(oldDate)} à ${oldTime}) est occupé. Voici votre nouveau rendez-vous avec ${whoLabel} : ${fmtDateFR(st.date)} à ${st.time}.`,
+    null,
+    a.id
+  );
+
+  /* Notifier le médecin et/ou la clinique */
+  if(a.doctorId){
+    pushNotif('doctor', '🔄 RDV transféré',
+      `${a.patientName} — nouveau créneau : ${fmtDateFR(st.date)} à ${st.time} (ancien : ${fmtDateFR(oldDate)} à ${oldTime})`,
+      a.doctorId, a.id);
+  }
+  if(a.clinicId){
+    pushClinicNotif('🔄 RDV transféré',
+      `${a.patientName} — nouveau créneau : ${fmtDateFR(st.date)} à ${st.time}`,
+      a.clinicId, a.id);
+  }
+
+  saveDB({ critical: true });
+  delete state._transferAppt[apptId];
+  closeModal();
+  render();
+  toast('✅ RDV transféré — le patient a été notifié', 'success');
+}
+
+   function openDoctorApptFullActions(apptId){
+  const a = DB.appointments.find(x => x.id === apptId);
+  if(!a){ toast(t('appt_not_found'), 'error'); return; }
+
+  const doc = docById(a.doctorId);
+  const c = a.clinicId ? clinicById(a.clinicId) : null;
+  const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
+  const docN = (a.documents || []).length;
+  const hasDossier = !!mfGet(a.doctorId, a.patientPhone);
+  const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
+  const eligibleValidate = canValidateAppt(a);
+  const services = a.services || [];
+  const total = Number(a.servicesTotal) || 0;
+
+  const statusCfg = {
+    pending:   { ico:'⏳', lbl:t('status_pending'),   cls:'warn' },
+    confirmed: { ico:'✓',  lbl:t('status_confirmed'), cls:'success' },
+    done:      { ico:'✅', lbl:t('status_done'),      cls:'muted' },
+    cancelled: { ico:'✕',  lbl:t('status_cancelled'), cls:'danger' },
+    absent:    { ico:'✗',  lbl:'Absent',              cls:'warn' },
+    postponed: { ico:'🔁', lbl:t('status_postponed'), cls:'accent' }
+  }[a.status] || { ico:'•', lbl:a.status, cls:'muted' };
+
+  const patientIco = a.patientAge && a.patientAge < 15 ? '🧒' : (a.patientAge && a.patientAge > 60 ? '🧓' : '👤');
+
+  const body = `
+    <!-- HERO HEADER -->
+    <div style="background:linear-gradient(135deg,rgba(139,92,246,.09),rgba(236,72,153,.05));border:1.5px solid rgba(139,92,246,.28);border-radius:16px;padding:16px 18px;margin-bottom:14px;position:relative;overflow:hidden">
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div style="width:58px;height:58px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,.22),rgba(236,72,153,.14));border:1.5px solid rgba(139,92,246,.38);display:grid;place-items:center;font-size:28px;flex-shrink:0">${patientIco}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-.4px;color:var(--text-main);margin-bottom:3px;line-height:1.15">
+            ${esc(a.patientName)}${a.patientAge ? ` <span style="font-size:13px;font-weight:500;color:var(--text-muted)">· ${a.patientAge} ${t('billing_years_old')}</span>` : ''}
+          </div>
+          <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6">
+            📞 ${esc(a.patientPhone)}${a.patientWilaya ? ` · 🗺️ ${esc(a.patientWilaya)}` : ''}
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+            <span class="tag ${statusCfg.cls}" style="font-weight:700">${statusCfg.ico} ${statusCfg.lbl}</span>
+            ${a.internal ? `<span class="tag internal">🗂️ ${t('internal_badge')}</span>` : ''}
+            ${c ? `<span class="tag clinic">🏥 ${esc(c.name)}</span>` : ''}
+            ${isEmergency ? `<span class="tag danger" style="font-weight:800">🚨 URGENCE</span>` : ''}
+            <span class="tag accent" style="font-family:var(--font-numbers)">🆔 ${esc(a.id)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUAND -->
+    <div style="background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(236,72,153,.04));border:1.5px solid rgba(139,92,246,.25);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);font-weight:800;margin-bottom:3px">🕒 ${t('when')}</div>
+        <div style="font-weight:700;font-size:14px;color:var(--text-main)">${fmtLongDate(a.date)}</div>
+      </div>
+      <div style="font-family:var(--font-numbers);font-weight:800;font-size:24px;color:var(--accent-primary);letter-spacing:-.6px">${a.time}</div>
+    </div>
+
+    <!-- INFO GRID -->
+    <div class="info-compact one-col" style="margin-bottom:12px">
+      ${doc ? `<div class="ic-item"><div class="ic-lbl">🧑‍⚕️ ${t('doctor')}</div><div class="ic-val">${specialtyAvatar(doc.specialty)} ${esc(doc.name)} — ${esc(doc.specialty)}</div></div>` : ''}
+      ${prest ? `<div class="ic-item"><div class="ic-lbl">💉 ${t('clinic_prestation')}</div><div class="ic-val">${esc(prest.name)}</div></div>` : ''}
+      <div class="ic-item"><div class="ic-lbl">📝 ${t('motif')}</div><div class="ic-val wrap">${esc(a.motif || '—')}</div></div>
+      ${a.cancelReason ? `<div class="ic-item" style="background:var(--danger-bg);border-color:rgba(239,68,68,.3)"><div class="ic-lbl" style="color:var(--danger)">❌ ${t('cancel_reason')}</div><div class="ic-val" style="color:var(--danger);font-weight:600">${esc(a.cancelReason)}</div></div>` : ''}
+      ${a.rating > 0 ? `<div class="ic-item" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(251,191,36,.05));border-color:rgba(245,158,11,.35)"><div class="ic-lbl" style="color:#b45309">⭐ ${t('your_rating')}</div><div class="ic-val">${renderStars(a.rating, 16)} <strong style="margin-left:4px">${a.rating}/5</strong></div></div>` : ''}
+    </div>
+
+    <!-- SERVICES -->
+    ${services.length ? `
+    <div class="card" style="padding:12px 14px;margin-bottom:12px;background:var(--glass-bg-3);border:1px solid var(--glass-border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-primary)">💉 ${t('services')} <span class="tag accent" style="margin-left:4px;font-size:10px;padding:1px 7px">${services.length}</span></div>
+        ${total > 0 ? `<div style="font-family:var(--font-numbers);font-weight:800;font-size:16px;color:#059669">${n2(total)} DA</div>` : ''}
+      </div>
+      ${services.map(s => `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--glass-border);font-size:12px;align-items:center">
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${esc(s.name)}
+            ${s.isDefault ? ' <span class="tag accent" style="font-size:9px;padding:1px 6px;margin-left:2px">Défaut</span>' : ''}
+            ${s.isFree ? ' <span class="tag money" style="font-size:9px;padding:1px 6px;margin-left:2px">Libre</span>' : ''}
+          </span>
+          ${(Number(s.price) || 0) > 0 && s.showPrice !== false ? `<span style="font-family:var(--font-numbers);color:#059669;font-weight:700;white-space:nowrap">${n2(s.price)} DA</span>` : ''}
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <!-- DOCUMENTS -->
+    ${docN ? `
+    <button class="pill-btn primary" style="width:100%;justify-content:center;margin-bottom:12px;padding:11px" onclick="closeModal();setTimeout(()=>openApptDocuments('${a.id}'),50)">
+      📎 ${t('msg_files')} (${docN})
+    </button>` : ''}
+
+    <!-- DOSSIER MÉDICAL -->
+    ${hasDossier ? `
+    <button class="pill-btn" style="width:100%;justify-content:center;margin-bottom:12px;padding:11px;background:var(--accent-light);color:var(--accent-primary);border-color:rgba(139,92,246,.4)" onclick="closeModal();mfOpenDossierFromAppt('${a.id}')">
+      📁 ${t('dossier_open')}
+    </button>` : ''}
+  `;
+
+  /* ═══════ ACTIONS selon le statut ═══════ */
+  let actionsHTML = '';
+
+  if(a.status === 'pending'){
+    const hasConflict = findConfirmedConflicts(a).length > 0;
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${isEmergency ? `<button class="pill-btn danger" onclick="closeModal();showEmergencyDetails('${a.emergencyId}')">🚨</button>` : ''}
+      <button class="pill-btn ghost" onclick="closeModal();confirmDeleteAppt('${a.id}')" title="${t('delete')}">🗑️</button>
+      ${hasConflict ? `<button class="pill-btn danger" onclick="closeModal();setTimeout(()=>openTransferApptModal('${a.id}'),60)">🔄 Transférer</button>` : ''}
+      <button class="pill-btn danger" onclick="closeModal();confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
+      <button class="pill-btn success" onclick="closeModal();confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>
+    `;
+  } else if(a.status === 'confirmed'){
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${isEmergency ? `<button class="pill-btn danger" onclick="closeModal();showEmergencyDetails('${a.emergencyId}')">🚨</button>` : ''}
+      <button class="pill-btn purple" onclick="closeModal();printApptTicket('${a.id}')" title="${t('print_rdv')}">🎫</button>
+      <button class="pill-btn ghost" onclick="closeModal();confirmDeleteAppt('${a.id}')" title="${t('delete')}">🗑️</button>
+      <button class="pill-btn danger" onclick="closeModal();confirmDoctorAction('${a.id}','cancel')">✕ ${t('cancel')}</button>
+      ${eligibleValidate
+        ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptValidationModal('${a.id}'),60)">✓ ${t('validate')}</button>`
+        : `<button class="pill-btn" disabled title="${esc(validationBlockedMsg(a))}">⏳ ${t('validate')}</button>`
+      }
+    `;
+  } else if(a.status === 'done'){
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      <button class="pill-btn purple" onclick="closeModal();printApptTicket('${a.id}')">🎫 ${t('print_rdv')}</button>
+      <button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${a.id}'),60)">🧾 Facture</button>
+    `;
+  } else if(a.status === 'cancelled' || a.status === 'absent'){
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      <button class="pill-btn purple" onclick="closeModal();printApptTicket('${a.id}')">🎫</button>
+      <button class="pill-btn ghost" onclick="closeModal();confirmDeleteAppt('${a.id}')">🗑️ ${t('delete')}</button>
+    `;
+  } else {
+    actionsHTML = `
+      <button class="pill-btn" onclick="closeModal()">${t('close')}</button>
+      ${hasDossier ? `<button class="pill-btn" onclick="closeModal();mfOpenDossierFromAppt('${a.id}')">📁</button>` : ''}
+      <button class="pill-btn ghost" onclick="closeModal();confirmDeleteAppt('${a.id}')">🗑️ ${t('delete')}</button>
+    `;
+  }
+
+  openModal(
+    `📅 RDV ${a.time}`,
+    `${fmtDateFR(a.date)} · ${esc(a.patientName)}`,
+    body,
+    actionsHTML,
+    true
+  );
 }
 function clinicCancelAppt(id){
   const a = DB.appointments.find(x => x.id === id);
@@ -22640,6 +24521,7 @@ function clinicDoCancel(id){
   const reason = $('#clCancelReason')?.value || '';
   a.status = 'cancelled';
   a.cancelReason = reason || '(annulé par la clinique)';
+  a.cancelledBy = 'clinic';
   /* 🆕 Si RDV urgence : décliner l'urgence */
   if(a.emergencyId){
     const emg = DB.emergencies.find(e => e.id === a.emergencyId);
@@ -23053,6 +24935,7 @@ function viewClinicStats(){
       ${renderHourSection(s.sortedHours)}
     </div>
     ${renderMonthlySection(s.monthly)}
+    ${renderClinicExtraSections(appts, c)}
   `;
 }
 function printClinicStats(){
@@ -24071,9 +25954,9 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   const svc = appt.clinicServiceId ? clinicServiceById(appt.clinicServiceId) : null;
   const prest = appt.prestationId ? clinicPrestationById(appt.prestationId) : null;
   /* 🏥 Clinique : prestations uniquement, le tarif cabinet ne s'applique pas */
-  const fee = appt.internal ? 0 : (doc ? (doc.fee || 0) : 0);
-  const servicesTotal = appt.servicesTotal || 0;
-  const total = fee + servicesTotal;
+  const fee = 0;
+  const servicesTotal = Number(appt.servicesTotal) || 0;
+  const total = servicesTotal;
   const totalWords = numberToFrenchWords(total) + ' ' + t('dinars');
   
   const statusStr = appt.status === 'done' ? 'Terminé' : appt.status === 'confirmed' ? 'Confirmé' : 'En attente';
@@ -24119,11 +26002,6 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
           </tr>
         </thead>
         <tbody>
-          ${(!appt.internal && fee > 0) ? `
-          <tr>
-            <td style="padding:6px;border-bottom:1px solid #eee;">🩺 Consultation (Frais médecin)</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${n2(fee)} DA</td>
-          </tr>` : ''}
           ${servicesLines}
         </tbody>
         <tfoot>
@@ -24188,7 +26066,6 @@ function buildSingleApptInvoiceHTML(appt, isPrint = false) {
   <table>
     <thead><tr><th>Désignation</th><th style="text-align:right">Montant</th></tr></thead>
     <tbody>
-      ${(!appt.internal && fee > 0) ? `<tr><td>🩺 Consultation</td><td style="text-align:right">${n2(fee)} DA</td></tr>` : ''}
       ${(appt.services||[]).map(s => `<tr><td>💉 ${esc(s.name)}</td><td style="text-align:right">${n2(s.price)} DA</td></tr>`).join('')}
     </tbody>
     <tfoot><tr><td style="text-align:right">TOTAL :</td><td style="text-align:right;color:#059669;font-size:14px">${n2(total)} DA</td></tr></tfoot>
@@ -25500,6 +27377,17 @@ function detectPatientChangesAndUpdate(){
     const c = curr.appts[apptId];
     const p = prev.appts[apptId];
     if(!p) continue;
+    /* 🆕 Détecter un transfert même si le statut ne change pas */
+    const appt = DB.appointments.find(x => x.id === apptId);
+    if(appt && appt.transferredFrom && (appt.transferredFrom.date !== p.date || appt.transferredFrom.time !== p.time)
+       && (p.date !== c.date || p.time !== c.time)){
+      notifications.push({
+        kind: 'appt_transferred',
+        title: '🔄 Nouveau créneau attribué',
+        message: `Le créneau demandé (${fmtDateFR(appt.transferredFrom.date)} à ${appt.transferredFrom.time}) est occupé. Votre nouveau RDV : ${fmtDateFR(c.date)} à ${c.time}.`,
+        apptId: apptId
+      });
+    }
     if(p.status === c.status) continue;
 
     if(p.status === 'pending' && c.status === 'confirmed'){
@@ -25575,9 +27463,9 @@ function applyPatientNotifications(list){
 // Toast patient renforcé (plus gros, plus long, avec son)
 function showPatientStatusToast(n){
   const el = document.createElement('div');
-  const cls = n.kind === 'appt_cancelled' ? 'error' : 'success';
+  const cls = n.kind === 'appt_cancelled' ? 'error' : (n.kind === 'appt_transferred' ? 'info' : 'success');
   el.className = 'toast ' + cls;
-  const icons = { appt_confirmed:'✅', appt_done:'🎉', appt_cancelled:'❌' };
+  const icons = { appt_confirmed:'✅', appt_done:'🎉', appt_cancelled:'❌', appt_transferred:'🔄' };
   el.innerHTML = `
     <span style="font-size:24px;flex-shrink:0">${icons[n.kind] || 'ℹ️'}</span>
     <div style="min-width:0">
@@ -25878,6 +27766,9 @@ function logVisit(){
 async function init(){
   try{ await idb.open(); }catch(e){}
   await loadDB();
+  /* 💰 Migration : créer la prestation "Consultation" par défaut et convertir les anciens RDV */
+  try { migrateDoctorsToConsultationService(); } catch(e){ console.warn('[migration doctors]', e); }
+  try { migrateAppointmentsToConsultation(); } catch(e){ console.warn('[migration appts]', e); }
   logVisit();
   state.filter.date = todayISO();
   if(!state.billing.month) state.billing.month = currentMonth();
@@ -26476,6 +28367,7 @@ Object.assign(window, {
   go, setRole, toggleDark, setLang, goHome, viewAdminAvailability,
   openAccountLogin, doAccountLogin, logoutAccount,
   openRecettePasswordModal, checkRecettePassword,
+  viewDoctorBlocage, viewClinicBlocage, viewAdminBlocage, openBlocageSettings, saveBlocageSettings, unblockPatient, checkAutoBlock, isPatientBlocked, getBlocageSettings, clinicMarkPresent, clinicMarkAbsent,
   openClinicRecettePasswordModal, checkClinicRecettePassword,
   confirmBooking, resetBooking, lookupPhone, patientCancel, doCancel,
   hidePatientAppt, openPatientApptDetail,
@@ -26485,7 +28377,11 @@ Object.assign(window, {
   openChangeSessionPwdModal, saveSessionPwd,
   openDoctorProfile, startBookingWith, modifyAppt,
   openServicesManager, openServiceForm, saveService, confirmDeleteService, deleteService,
+  showPatientBlockedModal,
   confirmApptWithNotify, doConfirmApptWithNotify, toggleBookingService,
+  openApptValidationModal, toggleValidationService, addValidationFreeFee, removeValidationFreeFee, doValidateApptWithFees, doMarkAbsent,
+  findConfirmedConflicts, openTransferApptModal, renderTransferApptModal, pickTransferDate, pickTransferTime, cancelTransfer, confirmTransfer,
+  openDoctorApptFullActions,
   openDoctorForm, saveDoctor, confirmDeleteDoctor, deleteDoctor, toggleDoctorLock, toggleDoctorSession,
   exportSection, importSection, doImportSection,
   openCommissionRateModal, saveCommissionRate,
