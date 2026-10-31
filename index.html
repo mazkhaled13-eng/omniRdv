@@ -2750,6 +2750,68 @@ body.dark .clinic-notif-mini.emergency .cnm-name{ color:#fca5a5; }
   body{padding-top:0 !important;padding-bottom:0 !important;padding-left:0 !important;padding-right:0 !important}
   .app{height:100vh !important;height:100dvh !important;border-radius:0 !important;margin:0 !important}
 }
+/* ============================================================
+   🔐 ADMIN READ-ONLY MODE
+   ============================================================ */
+.admin-readonly-banner{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px; margin-bottom:14px;
+  background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.06));
+  border:1.5px solid rgba(245,158,11,.5);
+  border-radius:var(--radius-md);
+  color:#b45309; font-size:13px; font-weight:600; line-height:1.5;
+}
+.admin-readonly-banner .admin-ro-ico{font-size:24px;flex-shrink:0}
+.admin-readonly-banner .admin-ro-body{min-width:0}
+.admin-readonly-banner .admin-ro-title{font-weight:800;margin-bottom:2px}
+.admin-readonly-banner .admin-ro-sub{font-size:12px;opacity:.85;font-weight:500}
+
+body.admin-readonly [onclick*="openDoctorForm"],
+body.admin-readonly [onclick*="confirmDeleteDoctor"],
+body.admin-readonly [onclick*="toggleDoctorLock"],
+body.admin-readonly [onclick*="toggleDoctorSession"],
+body.admin-readonly [onclick*="openClinicForm"],
+body.admin-readonly [onclick*="confirmDeleteClinic"],
+body.admin-readonly [onclick*="toggleClinicLock"],
+body.admin-readonly [onclick*="openClinicServicesManagerFromAdmin"],
+body.admin-readonly [onclick*="openServicesManager"],
+body.admin-readonly [onclick*="addSpecialtyAdmin"],
+body.admin-readonly [onclick*="addWilayaAdmin"],
+body.admin-readonly [onclick*="addCommuneAdmin"],
+body.admin-readonly [onclick*="deleteSpecialty("],
+body.admin-readonly [onclick*="deleteWilaya("],
+body.admin-readonly [onclick*="deleteCommune("],
+body.admin-readonly [onclick*="unblockPatient("],
+body.admin-readonly [onclick*="openBlocageSettings"],
+body.admin-readonly [onclick*="saveBlocageSettings"],
+body.admin-readonly [onclick*="openCommissionRateModal"],
+body.admin-readonly [onclick*="saveCommissionRate"],
+body.admin-readonly [onclick*="openBillingModal"],
+body.admin-readonly [onclick*="openCleaningModal"],
+body.admin-readonly [onclick*="askCleanOldAppointments"],
+body.admin-readonly [onclick*="confirmApptWithNotify("],
+body.admin-readonly [onclick*="confirmDoctorAction("],
+body.admin-readonly [onclick*="confirmDeleteAppt("],
+body.admin-readonly [onclick*="openApptValidationModal("],
+body.admin-readonly [onclick*="openTransferApptModal("],
+body.admin-readonly [onclick*="doBulkConfirm"],
+body.admin-readonly [onclick*="doBulkValidate"],
+body.admin-readonly [onclick*="doBulkCancel"],
+body.admin-readonly [onclick*="doBulkDelete"],
+body.admin-readonly [onclick*="openMedicationForm"],
+body.admin-readonly [onclick*="confirmDeleteMedication"],
+body.admin-readonly [onclick*="openClinicServiceFormAdmin"],
+body.admin-readonly [onclick*="deleteClinicServiceAdmin"],
+body.admin-readonly [onclick*="openAdminProfileForm"],
+body.admin-readonly [onclick*="openChangeAdminPwdModal"],
+body.admin-readonly [onclick*="confirmDeleteAdminProfile"],
+body.admin-readonly [onclick*="openExpenseForm"],
+body.admin-readonly [onclick*="confirmDeleteExpense"],
+body.admin-readonly [onclick*="deleteExpense("],
+body.admin-readonly .bulk-toolbar .bt-right,
+body.admin-readonly .appt-checkbox-wrap{
+  display:none !important;
+}
 </style>
 </head>
 <body>
@@ -2884,6 +2946,76 @@ const DEFAULT_CLINIC_SERVICES = [
   { name:'Dentaire', icon:'🦷', description:'Soins dentaires et chirurgie dentaire' },
   { name:'Ophtalmologie', icon:'👁️', description:'Examens et soins ophtalmologiques' }
 ];
+/* ============================================================
+   🔐 ADMIN PROFILS — Constantes & Helpers
+   ============================================================ */
+const ADMIN_VIEW_KEYS = [
+  'adash','adoctors','aclinics','aavailability','astats','arevenue',
+  'aappts','adossiers','amessages','alistes','ablocage','asettings'
+];
+const ADMIN_VIEW_META = {
+  adash:        { ico:'📊', label:'Tableau de bord' },
+  adoctors:     { ico:'🧑‍⚕️', label:'Médecins' },
+  aclinics:     { ico:'🏥', label:'Cliniques' },
+  aavailability:{ ico:'📡', label:'Disponibilité' },
+  astats:       { ico:'📈', label:'Statistiques' },
+  arevenue:     { ico:'💲', label:'Finance' },
+  aappts:       { ico:'📅', label:'Rendez-vous' },
+  adossiers:    { ico:'📁', label:'Dossiers patients' },
+  amessages:    { ico:'✉️', label:'Messagerie' },
+  alistes:      { ico:'📚', label:'Listes' },
+  ablocage:     { ico:'🚫', label:'Blocage' },
+  asettings:    { ico:'⚙️', label:'Paramètres' }
+};
+
+function getAdminProfileAllowedViews(prof){
+  if(!prof || !prof.permissions) return ADMIN_VIEW_KEYS.slice();
+  return ADMIN_VIEW_KEYS.filter(k => prof.permissions[k] && prof.permissions[k] !== 'none');
+}
+function getAdminProfilePermission(view){
+  if(!state.adminProfile) return 'write'; // admin principal = tous droits
+  if(!state.adminProfile.permissions) return 'read';
+  return state.adminProfile.permissions[view] || 'none';
+}
+function adminCanAccess(view){
+  return getAdminProfilePermission(view) !== 'none';
+}
+function adminCanWrite(view){
+  return getAdminProfilePermission(view) === 'write';
+}
+function isCurrentAdminViewReadOnly(){
+  if(state.role !== 'admin' || !state.adminProfile) return false;
+  return getAdminProfilePermission(state.view) === 'read';
+}
+function _adminWriteGuard(view){
+  if(!state.adminProfile) return true;
+  if(adminCanWrite(view || state.view)) return true;
+  toast('🔒 Mode lecture seule — action non autorisée', 'error');
+  return false;
+}
+function _adminProfileGuard(){
+  if(!state.adminProfile) return true;
+  toast('🔒 Seul l\'administrateur principal peut gérer les profils', 'error');
+  return false;
+}
+async function _tryAdminLogin(identLower, pwd){
+  // Admin principal
+  if(identLower === DB.admin.username.toLowerCase()){
+    if(await verifyPassword(pwd, DB.admin.password)){
+      return { type: 'main', profile: null };
+    }
+  }
+  // Profils (username identique OU custom)
+  for(const prof of (DB.adminProfiles || [])){
+    const profUsername = String(prof.username || DB.admin.username).toLowerCase();
+    if(profUsername === identLower){
+      if(await verifyPassword(pwd, prof.password)){
+        return { type: 'profile', profile: prof };
+      }
+    }
+  }
+  return null;
+}
 const EMERGENCY_TYPES = ['Chirurgicale','Cardiologique','Neurologique','Traumatologique','Respiratoire','Intoxication','Obstétrique','Pédiatrique','Psychiatrique','Autre'];
 const DAY_NAMES_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
 const DAY_NAMES_LONG  = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
@@ -2940,6 +3072,10 @@ function numberToFrenchWords(n){
 const T = {
   fr:{brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',nav_clinic:'Espace Clinique',
     home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dinternal:'RDV interne',dstats:'Statistiques',dprof:'Mon profil',
+    home_greeting:'Bonjour', home_greeting_sub:'Comment allez-vous aujourd\'hui ?',
+    find_doctor:'Trouver un médecin', advanced_filters:'Filtres avancés', reset:'Réinitialiser', see_all:'Voir tout', check_services:'Cochez les prestations souhaitées',
+    home_greeting:'Bonjour', home_greeting_sub:'Comment allez-vous aujourd\'hui ?',
+    find_doctor:'Trouver un médecin', advanced_filters:'Filtres avancés', reset:'Réinitialiser', see_all:'Voir tout', check_services:'Cochez les prestations souhaitées',
     ddossier:'Dossiers patients',
     drecette:'Finance',dmessages:'Messagerie',
     adash:'Tableau de bord',adoctors:'Médecins',aappts:'Rendez-vous',astats:'Statistiques',arevenue:'Finance',alistes:'Listes',asettings:'Paramètres',amessages:'Messagerie',
@@ -3590,6 +3726,8 @@ const T = {
   },
   en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',nav_clinic:'Clinic Area',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
+    home_greeting:'Hello', home_greeting_sub:'How are you today?',
+    find_doctor:'Find a doctor', advanced_filters:'Advanced filters', reset:'Reset', see_all:'See all', check_services:'Check the desired services',
     ddossier:'Patient files',
     drecette:'Finance',dmessages:'Messages',
     adash:'Dashboard',adoctors:'Doctors',aappts:'Appointments',astats:'Statistics',arevenue:'Finance',alistes:'Lists',asettings:'Settings',amessages:'Messages',
@@ -4184,6 +4322,8 @@ const T = {
   },
   ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',nav_clinic:'فضاء العيادة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
+    home_greeting:'مرحبًا', home_greeting_sub:'كيف حالك اليوم؟',
+    find_doctor:'ابحث عن طبيب', advanced_filters:'فلاتر متقدمة', reset:'إعادة تعيين', see_all:'عرض الكل', check_services:'حدد الخدمات المطلوبة',
     ddossier:'ملفات المرضى',
     drecette:'المالية',dmessages:'الرسائل',
     adash:'لوحة التحكم',adoctors:'الأطباء',aappts:'المواعيد',astats:'إحصائيات',arevenue:'المالية',alistes:'القوائم',asettings:'الإعدادات',amessages:'الرسائل',
@@ -4810,7 +4950,7 @@ const idbFiles = {
 const LS_KEY = 'omnimed_data';
 const LS_HIDDEN = 'omnimed_hidden_appts';
 const state = {
-  lang:'fr', dark:false, role:'patient', doctor:null, admin:null, clinic:null, view:'home',
+  lang:'fr', dark:false, role:'patient', doctor:null, admin:null, adminProfile:null, clinic:null, view:'home',
   search:{q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'},
   booking:{doctorId:null,date:null,time:null,step:1,patientAge:'',editingId:null,services:[],documents:[],
     patientName:'',patientPhone:'',patientEmail:'',patientWilaya:'',patientPassword:'',motif:''},
@@ -5010,7 +5150,45 @@ function migrateAppointmentsToConsultation(){
   });
   if(changed) saveDB();
 }
-
+/* 🆕 Migration : forcer MAJUSCULES sur toutes les prestations existantes */
+function migratePrestationsToUppercase(){
+  let changed = false;
+  /* 1. Prestations médecin */
+  if(DB.services){
+    DB.services.forEach(sv => {
+      if(sv.name && sv.name !== sv.name.toUpperCase()){
+        sv.name = sv.name.toUpperCase();
+        changed = true;
+      }
+    });
+  }
+  /* 2. Prestations clinique */
+  if(DB.clinicPrestations){
+    DB.clinicPrestations.forEach(p => {
+      if(p.name && p.name !== p.name.toUpperCase()){
+        p.name = p.name.toUpperCase();
+        changed = true;
+      }
+    });
+  }
+  /* 3. Prestations déjà figées dans les RDV (snapshot) */
+  if(DB.appointments){
+    DB.appointments.forEach(a => {
+      if(Array.isArray(a.services)){
+        a.services.forEach(sv => {
+          if(sv.name && sv.name !== sv.name.toUpperCase()){
+            sv.name = sv.name.toUpperCase();
+            changed = true;
+          }
+        });
+      }
+    });
+  }
+  if(changed){
+    saveDB();
+    console.log('✅ Prestations migrées en MAJUSCULES');
+  }
+}
 function computeApptFeeSplit(a){
   const consult = (a.services||[]).find(sv =>
     sv.isDefault || (sv.name||'').trim().toLowerCase() === 'consultation'
@@ -5266,6 +5444,7 @@ function seedData(){
     wilayas:[...WILAYAS],
     communes: JSON.parse(JSON.stringify(COMMUNES)),
     admin:{username:'admin', password:DEFAULT_PWD},
+    adminProfiles: [],
     settings:{
       commission: COMMISSION_GENERAL_DEFAULT,
       subMonthly: SUB_MONTHLY_DEFAULT,
@@ -5424,6 +5603,7 @@ async function loadDB(){
       wilayas: (wilR.data||[]).map(r=>r.name),
       communes: {},
       admin: { username: s.admin_username || 'admin', password: s.admin_password || DEFAULT_PWD },
+      adminProfiles: Array.isArray(s.admin_profiles) ? s.admin_profiles : [],
       settings: {
         commission: s.commission ?? COMMISSION_GENERAL_DEFAULT,
         subMonthly: s.sub_monthly ?? SUB_MONTHLY_DEFAULT,
@@ -5719,6 +5899,7 @@ async function pushToSupabase(){
 
     const syncSettings              = needsSync('settings');
     const syncVisits                = needsSync('visits');
+    const syncAdminProfiles         = needsSync('adminProfiles');
     const syncDoctors               = needsSync('doctors', 'doctors');
     const syncAppointments          = needsSync('appointments', 'appointments');
     const syncServices              = needsSync('services', 'services');
@@ -5741,7 +5922,7 @@ async function pushToSupabase(){
     const syncExpenses              = needsSync('expenses', 'expenses');
     const syncBlocks                = needsSync('blocks', 'blocks');
 
-    const anyChange = syncSettings || syncVisits || syncDoctors || syncAppointments || syncServices ||
+    const anyChange = syncSettings || syncVisits || syncAdminProfiles || syncDoctors || syncAppointments || syncServices ||
       syncNotifications || syncMessages || syncSpecialties || syncWilayas || syncCommunes ||
       syncInvoiceRegistry || syncSubInvoiceRegistry || syncClinicInvoiceRegistry ||
       syncMedicalFiles || syncClinics || syncClinicServices || syncClinicPrestations ||
@@ -5750,7 +5931,7 @@ async function pushToSupabase(){
     if(!anyChange) return; // rien n'a changé → 0 requête réseau
 
     // ---- SETTINGS ----
-    if(syncSettings || syncVisits){
+    if(syncSettings || syncVisits || syncAdminProfiles){
       const _settingsPayload = {
         id: 1,
         commission: DB.settings.commission,
@@ -5759,6 +5940,7 @@ async function pushToSupabase(){
         sub_discount: DB.settings.subDiscount,
         admin_username: DB.admin.username,
         admin_password: DB.admin.password,
+        admin_profiles: DB.adminProfiles || [],
         medications: DB.medications || [],
         search_logs: DB.searchLogs || [],
         expense_categories: DB.expenseCategories || null,
@@ -5769,7 +5951,7 @@ async function pushToSupabase(){
       const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
       // 🆕 Fallback robuste : retire itérativement les colonnes manquantes jusqu'à succès
-      const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications'];
+      const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications','admin_profiles'];
       let _upsertTries = 0;
       while(_upsertRes && _upsertRes.error && _upsertTries < _OPTIONAL_SETTINGS_COLS.length + 1){
         _upsertTries++;
@@ -5790,6 +5972,9 @@ async function pushToSupabase(){
         console.warn('⚠️ Colonne "' + _removed + '" absente de la table settings — retirée du push. Ajoutez-la via SQL.');
         if(_removed === 'blocage'){
           toast('⚠️ Colonne "blocage" absente de Supabase — paramètres non persistés. Exécutez le SQL fourni.', 'error');
+        }
+        if(_removed === 'admin_profiles'){
+          toast('⚠️ Colonne "admin_profiles" absente de Supabase — profils admin non persistés. Exécutez le SQL fourni.', 'error');
         }
         _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       }
@@ -6167,12 +6352,14 @@ function snapshotDB(){
     services:       JSON.stringify(DB.services),
     notifications:  JSON.stringify(DB.notifications),
     messages:       JSON.stringify(DB.messages),
+    admin:          JSON.stringify(DB.admin),           /* 🆕 FIX : suivi du mot de passe admin */
     settings:       JSON.stringify(DB.settings),
     specialties:    JSON.stringify(DB.specialties),
     wilayas:        JSON.stringify(DB.wilayas),
     communes:       JSON.stringify(DB.communes),
     invoiceRegistry:    JSON.stringify(DB.invoiceRegistry),
     subInvoiceRegistry: JSON.stringify(DB.subInvoiceRegistry),
+    adminProfiles:      JSON.stringify(DB.adminProfiles || []),
     clinicInvoiceRegistry: JSON.stringify(DB.clinicInvoiceRegistry),
     medicalFiles:       JSON.stringify(DB.medicalFiles),
     medications:        JSON.stringify(DB.medications || []),
@@ -6633,6 +6820,41 @@ function renderStars(value, size){
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* 🆕 Forçage automatique 1ère lettre de chaque mot en MAJ (temps réel) */
+function forceFirstUpper(str){
+  if(str == null) return str;
+  return String(str).replace(/(^|[\s\-'’])([a-zà-öø-ÿ])/g, function(m, sep, letter){
+    return sep + letter.toUpperCase();
+  });
+}
+function forceCapitalize(el){
+  if(!el) return '';
+  const pos = el.selectionStart;
+  const before = el.value;
+  const after = forceFirstUpper(before);
+  if(after !== before){
+    el.value = after;
+    try { el.setSelectionRange(pos, pos); } catch(e){}
+  }
+  return after;
+}
+/* 🆕 Forçage TOTAL en MAJUSCULES pour les prestations */
+function forceUpperStr(str){
+  if(str == null) return str;
+  return String(str).toUpperCase();
+}
+function forceUppercaseInput(el){
+  if(!el) return '';
+  const pos = el.selectionStart;          /* ✅ FIX : selectionStart (pas startSelection) */
+  const before = el.value;
+  const after = before.toUpperCase();
+  if(after !== before){
+    el.value = after;
+    try { el.setSelectionRange(pos, pos); } catch(e){}
+  }
+  return after;
+}
 /* ═══════════════════════════════════════════════════════════
    📄 EN-TÊTE / PIED DE PAGE CLINIQUE — Helpers impression
    ═══════════════════════════════════════════════════════════ */
@@ -8181,6 +8403,7 @@ function bulkConfirmAppts(){
      <button class="pill-btn success" onclick="doBulkConfirm()">✓ ${t('bulk_confirm')}</button>`);
 }
 function doBulkConfirm(){
+    if(!_adminWriteGuard('aappts')) return;
   const ids = state.selectedAppts.slice();
   let count = 0;
   let skipped = 0;
@@ -8222,6 +8445,7 @@ function bulkValidateAppts(){
      <button class="pill-btn primary" onclick="doBulkValidate()">✓ ${t('validate')}</button>`);
 }
 function doBulkValidate(){
+    if(!_adminWriteGuard('aappts')) return;
   const ids = state.selectedAppts.slice();
   let count = 0; let skipped = 0;
   ids.forEach(id => {
@@ -8253,6 +8477,7 @@ function bulkCancelAppts(){
      <button class="pill-btn danger" onclick="doBulkCancel()">✕ ${t('cancel')}</button>`);
 }
 function doBulkCancel(){
+   if(!_adminWriteGuard('aappts')) return; 
   const ids = state.selectedAppts.slice();
   let count = 0;
   ids.forEach(id => {
@@ -8283,6 +8508,7 @@ function bulkDeleteAppts(){
      <button class="pill-btn danger" onclick="doBulkDelete()">🗑️ ${t('delete')}</button>`);
 }
 function doBulkDelete(){
+    if(!_adminWriteGuard('aappts')) return;
   const ids = state.selectedAppts.slice();
   let count = 0;
   ids.forEach(id => {
@@ -8860,7 +9086,17 @@ function render(){
   const isClinic = state.role==='clinic';
   const isAccount = isDoc || isAdmin || isClinic;
   const nav = isAdmin ? adminNav() : isClinic ? clinicNav() : isDoc ? docNav() : patientNav();
-  const content = isAdmin ? renderAdminView() : isClinic ? renderClinicView() : isDoc ? renderDoctorView() : renderPatientView();
+  let content = isAdmin ? renderAdminView() : isClinic ? renderClinicView() : isDoc ? renderDoctorView() : renderPatientView();
+  if(isAdmin && isCurrentAdminViewReadOnly()){
+    const _vMeta = ADMIN_VIEW_META[state.view] || { ico:'🔒', label:'' };
+    content = `<div class="admin-readonly-banner">
+      <span class="admin-ro-ico">🔒</span>
+      <div class="admin-ro-body">
+        <div class="admin-ro-title">Mode lecture seule — ${esc(_vMeta.label)}</div>
+        <div class="admin-ro-sub">Vous pouvez consulter cette section mais pas la modifier.</div>
+      </div>
+    </div>` + content;
+  }
   const navCls = isAccount ? 'app-nav stack' : 'app-nav';
   app.innerHTML = `
     <header class="app-top">
@@ -8875,7 +9111,7 @@ function render(){
         <span class="sync-badge ${state.realtimeConnected?'online':'offline'}" id="syncBadge">${state.realtimeConnected?'🟢 En ligne':'🔴 Hors-ligne'}</span>
         ${isDoc && state.doctor ? `<span class="tag accent">🧑‍⚕️ ${esc(state.doctor.name)}</span>`:''}
         ${isClinic && state.clinic ? `<span class="tag clinic">🏥 ${esc(state.clinic.name)}</span>`:''}
-        ${isAdmin && state.admin ? `<span class="tag accent">🔐 ${t('admin_you')}</span>`:''}
+        ${isAdmin && state.admin ? `<span class="tag accent" title="Session : ${esc(state.admin.username)}">🔐 ${state.adminProfile ? esc(state.adminProfile.name) : esc(state.admin.username)}</span>`:''}
         ${isAccount ? `<button class="pill-btn" onclick="logoutAccount()">🚪 ${t('logout')}</button>`:''}
       </div>
     </header>
@@ -8905,6 +9141,11 @@ function render(){
     <main class="content-wrap" id="content">${content}</main>
   `;
   applyDir();
+  if(state.role === 'admin'){
+    document.body.classList.toggle('admin-readonly', isCurrentAdminViewReadOnly());
+  } else {
+    document.body.classList.remove('admin-readonly');
+  }
   const newCW = document.getElementById('content');
   if(newCW && scrollTop > 0){ newCW.scrollTop = scrollTop; }
   if(activeId){
@@ -8934,7 +9175,16 @@ function applyDir(){
 function openAccountLogin(){
   if(state.admin || state.doctor || state.clinic){
     state.role = state.admin ? 'admin' : state.clinic ? 'clinic' : 'doctor';
-    state.view = state.admin ? 'adash' : state.clinic ? 'cdash' : 'ddash';
+    if(state.admin){
+      if(state.adminProfile){
+        const allowed = getAdminProfileAllowedViews(state.adminProfile);
+        state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+      } else {
+        state.view = 'adash';
+      }
+    } else {
+      state.view = state.clinic ? 'cdash' : 'ddash';
+    }
     render(); return;
   }
   state.view = 'login';
@@ -9003,31 +9253,57 @@ async function doAccountLogin(){
   const identLower = ident.toLowerCase();
   if(!ident || !pwd){ toast(t('required_fields'),'error'); return; }
 
-  /* 1. Admin */
-  if(identLower === DB.admin.username.toLowerCase() && await verifyPassword(pwd, DB.admin.password)){
-    if(!/^[0-9a-f]{64}$/i.test(DB.admin.password)){
-      DB.admin.password = await hashPassword(pwd);
+  /* 1. Admin principal OU sous-admin (profil) */
+  const adminAttempt = await _tryAdminLogin(identLower, pwd);
+  if(adminAttempt){
+    if(adminAttempt.type === 'main'){
+      if(!/^[0-9a-f]{64}$/i.test(DB.admin.password)){
+        DB.admin.password = await hashPassword(pwd);
+      }
+      state.admin = {username: DB.admin.username};
+      state.adminProfile = null;
+      state.doctor = null;
+      state.clinic = null;
+      state.role = 'admin';
+      state.view = 'adash';
+      state.recetteUnlocked = false;
+      state.clinicRecetteUnlocked = false;
+      state.msgTab = 'inbox'; state.msgOpenId = null;
+      state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
+      state.msgSelected = [];
+      state.selectedAppts = [];
+      hideSubscriptionExpiredModal();
+      saveLocalSession('admin', 'admin', pwd);
+      saveDB();
+      render();
+      toast(t('account_admin_welcome') + ' ✓','success');
+      return;
+    } else {
+      /* Profil sous-admin */
+      const prof = adminAttempt.profile;
+      if(!/^[0-9a-f]{64}$/i.test(prof.password)){
+        prof.password = await hashPassword(pwd);
+        saveDB();
+      }
+      state.admin = {username: prof.username || DB.admin.username};
+      state.adminProfile = prof;
+      state.doctor = null;
+      state.clinic = null;
+      state.role = 'admin';
+      const allowed = getAdminProfileAllowedViews(prof);
+      state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+      state.recetteUnlocked = false;
+      state.clinicRecetteUnlocked = false;
+      state.msgTab = 'inbox'; state.msgOpenId = null;
+      state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
+      state.msgSelected = [];
+      state.selectedAppts = [];
+      hideSubscriptionExpiredModal();
+      saveLocalSession('admin', 'admin_profile_' + prof.id, pwd);
+      render();
+      toast('👋 Bienvenue ' + (prof.name || 'Admin'), 'success');
+      return;
     }
-    state.admin = {username: DB.admin.username};
-    state.doctor = null;
-    state.clinic = null;
-    state.role = 'admin';
-    state.view = 'adash';
-    state.recetteUnlocked = false;
-    state.clinicRecetteUnlocked = false;
-    state.msgTab = 'inbox'; state.msgOpenId = null;
-    state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-    state.msgSelected = [];
-    state.selectedAppts = [];
-    hideSubscriptionExpiredModal();
-    
-    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Admin)
-    saveLocalSession('admin', 'admin', pwd);
-    
-    saveDB();
-    render();
-    toast(t('account_admin_welcome') + ' ✓','success');
-    return;
   }
 
   /* 2. Clinique */
@@ -9127,9 +9403,11 @@ async function doAccountLogin(){
 function logoutAccount(){
   clearLocalSession();
   state.admin = null;
+  state.adminProfile = null;
   state.doctor = null;
   state.clinic = null;
   _prevDoctorApptsSnap = null;
+  document.body.classList.remove('admin-readonly');
   state.role = 'patient';
   state.view = 'home';
   state.recetteUnlocked = false;
@@ -9213,9 +9491,12 @@ function docNav(){
     ['dblocage','🚫','Blocage', 'Patients bloqués'],
     ['dprof','🧑‍⚕️',t('dprof'), 'Mon profil']
   ];
+  const visibleItems = state.adminProfile
+    ? items.filter(([id]) => adminCanAccess(id))
+    : items;
   const cols = 6;
   return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
-    ${items.map(([id,ico,lbl,info,badge])=>`
+    ${visibleItems.map(([id,ico,lbl,info,badge])=>`
       <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
         ${badge ? `<span class="nit-badge">${badge}</span>` : ''}
         <div class="nit-ico">${ico}</div>
@@ -9303,9 +9584,12 @@ function adminNav(){
     ['ablocage','🚫','Blocage', 'Patients bloqués'],
     ['asettings','⚙️',t('asettings'), 'Système & sauvegardes']
   ];
+  const visibleItems = state.adminProfile
+    ? items.filter(([id]) => adminCanAccess(id))
+    : items;
   const cols = 6;
   return `<div class="nav-tag-grid" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">
-    ${items.map(([id,ico,lbl,info,badge])=>`
+    ${visibleItems.map(([id,ico,lbl,info,badge])=>`
       <button class="nav-item-tag ${v===id?'active':''}" onclick="go('${id}')">
         ${badge ? `<span class="nit-badge">${badge}</span>` : ''}
         <div class="nit-ico">${ico}</div>
@@ -9372,7 +9656,16 @@ function setRole(role){
   }
   else {
     if(!state.doctor && !state.admin && !state.clinic){ openAccountLogin(); return; }
-    state.view = state.admin ? 'adash' : state.clinic ? 'cdash' : 'ddash';
+    if(state.admin){
+      if(state.adminProfile){
+        const allowed = getAdminProfileAllowedViews(state.adminProfile);
+        state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+      } else {
+        state.view = 'adash';
+      }
+    } else {
+      state.view = state.clinic ? 'cdash' : 'ddash';
+    }
   }
   state.role = role;
   render();
@@ -9444,8 +9737,8 @@ function viewHome(){
         <div class="home-hero-greet">
           <div class="home-hero-emoji">👋</div>
           <div>
-            <div class="home-hero-title">Bonjour</div>
-            <div class="home-hero-sub">Comment allez-vous aujourd'hui ?</div>
+            <div class="home-hero-title">${t('home_greeting')}</div>
+            <div class="home-hero-sub">${t('home_greeting_sub')}</div>
           </div>
         </div>
         <div class="home-hero-search-wrap">
@@ -9453,9 +9746,9 @@ function viewHome(){
           <input class="home-hero-search" id="homeSearchQ" placeholder="${t('search_ph')}" value="${esc(q)}" oninput="onHomeSearchInput(this.value)">
         </div>
         <div class="home-mode-toggle">
-          <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()">📋 Tout</button>
-          <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()">🧑‍⚕️ Médecins</button>
-          <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()">🏥 Cliniques</button>
+          <button class="${mode==='all'?'active':''}" onclick="state.search.mode='all';render()">📋 ${t('filter_all')}</button>
+          <button class="${mode==='doctors'?'active':''}" onclick="state.search.mode='doctors';render()">🧑‍⚕️ ${t('total_doctors')}</button>
+          <button class="${mode==='clinics'?'active':''}" onclick="state.search.mode='clinics';render()">🏥 ${t('clinics')}</button>
         </div>
       </div>
     </div>
@@ -9466,14 +9759,14 @@ function viewHome(){
         <div class="hac-ico">📅</div>
         <div class="hac-body">
           <div class="hac-title">${t('book_now')}</div>
-          <div class="hac-sub">Trouver un médecin</div>
+          <div class="hac-sub">${t('find_doctor')}</div>
         </div>
       </div>
       <div class="home-action-card" onclick="go('my')">
         <div class="hac-ico">📋</div>
         <div class="hac-body">
           <div class="hac-title">${t('my')}</div>
-          <div class="hac-sub">Consulter mes RDV</div>
+          <div class="hac-sub">${t('my_rdv')}</div>
         </div>
       </div>
       <div class="home-action-card" onclick="showAllClinics()">
@@ -9487,7 +9780,7 @@ function viewHome(){
         <div class="hac-ico">🚨</div>
         <div class="hac-body">
           <div class="hac-title">${t('emergency_btn')}</div>
-          <div class="hac-sub">Aide immédiate</div>
+          <div class="hac-sub">${t('emergency')}</div>
         </div>
       </div>
     </div>
@@ -9495,7 +9788,7 @@ function viewHome(){
     <!-- 🔎 FILTRES REPLIABLES -->
     <div class="home-filters-wrap">
       <button class="home-filters-toggle" onclick="state.homeFiltersOpen=!state.homeFiltersOpen;render()">
-        <span>🔎 Filtres avancés</span>
+        <span>🔎 ${t('advanced_filters')}</span>
         ${activeFiltersCount > 0 ? `<span class="home-filters-badge">${activeFiltersCount}</span>` : ''}
         <span class="home-filters-arrow">${filtersOpen ? '▲' : '▼'}</span>
       </button>
@@ -9526,7 +9819,7 @@ function viewHome(){
         </div>` : ''}
         ${(q || spec || wilaya || commune) ? `
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
-          <button class="mini-btn ghost" onclick="state.search={q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'};render()">✕ Réinitialiser</button>
+          <button class="mini-btn ghost" onclick="state.search={q:'',specialty:'',wilaya:'',commune:'',date:'',period:'',mode:'all'};render()">✕ ${t('reset')}</button>
         </div>` : ''}
       </div>` : ''}
     </div>
@@ -9556,7 +9849,7 @@ function viewHome(){
       <div class="home-section">
         <div class="home-section-head">
           <div class="home-section-title"><span style="background:var(--accent-light);color:var(--accent-primary);width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:14px">🩺</span>${t('recently_added')}</div>
-          <button class="home-see-all" onclick="showAllDoctors()">Voir tous →</button>
+          <button class="home-see-all" onclick="showAllDoctors()">${t('see_all')} →</button>
         </div>
         <div class="home-recent-scroll">
           ${allRecentDocs.map(d=>homeDoctorCard(d)).join('')}
@@ -9567,7 +9860,7 @@ function viewHome(){
       <div class="home-section">
         <div class="home-section-head">
           <div class="home-section-title"><span style="background:rgba(236,72,153,.15);color:#be185d;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:14px">🏥</span>${t('recently_added_clinics')}</div>
-          <button class="home-see-all" onclick="showAllClinics()">Voir toutes →</button>
+          <button class="home-see-all" onclick="showAllClinics()">${t('see_all')} →</button>
         </div>
         <div class="home-recent-scroll">
           ${allRecentClinics.map(c=>homeClinicCard(c)).join('')}
@@ -10284,7 +10577,7 @@ function clinicBookStep4(){
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">📝 ${t('your_info')}</div>
       <div class="field-row-3">
-        <div class="field"><label>${t('fullname')}</label><input class="input" id="cpName" value="${esc(s.patientName||'')}" oninput="state.clinicBooking.patientName=this.value" required></div>
+        <div class="field"><label>${t('fullname')}</label><input class="input" id="cpName" value="${esc(s.patientName||'')}" oninput="state.clinicBooking.patientName=forceCapitalize(this)" required></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" id="cpWilaya" onchange="state.clinicBooking.patientWilaya=this.value">
             <option value="">${t('patient_wilaya_ph')}</option>
@@ -10344,7 +10637,7 @@ function clinicBookStep4(){
 }
 async function confirmClinicBooking(){
   const s = state.clinicBooking;
-  const name = ($('#cpName')?.value||'').trim();
+  const name = forceFirstUpper(($('#cpName')?.value||'').trim());
   const age = parseInt($('#cpAge')?.value,10);
   const phone = ($('#cpPhone')?.value||'').trim();
   const email = ($('#cpEmail')?.value||'').trim();
@@ -11050,7 +11343,7 @@ function bookStep3(){
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">${isEdit ? '✏️ ' + t('modify_appt') : '📝 ' + t('your_info')}</div>
       <div class="field-row-3">
-        <div class="field"><label>${t('fullname')}</label><input class="input" id="pName" value="${esc(s.patientName||'')}" oninput="state.booking.patientName=this.value" required></div>
+        <div class="field"><label>${t('fullname')}</label><input class="input" id="pName" value="${esc(s.patientName||'')}" oninput="state.booking.patientName=forceCapitalize(this)" required></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" id="pWilaya" onchange="state.booking.patientWilaya=this.value">
             <option value="">${t('patient_wilaya_ph')}</option>
@@ -11095,7 +11388,7 @@ function bookStep3(){
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">💉 ${t('extra_services')}</div>
       ${services.length ? `
-        <div class="card-sub">Cochez les prestations souhaitées</div>
+        <div class="card-sub">${t('check_services')}</div>
         ${services.map(sv=>`
           <label class="service-checkbox">
             <input type="checkbox" ${selectedServices.includes(sv.id)?'checked':''} onchange="toggleBookingService('${sv.id}', this.checked)">
@@ -11131,7 +11424,7 @@ function toggleBookingService(serviceId, checked){
 }
 async function confirmBooking(){
   const s = state.booking;
-  const name = ($('#pName')?.value||'').trim();
+  const name = forceFirstUpper(($('#pName')?.value||'').trim());
   const age = parseInt($('#pAge')?.value,10);
   const phone = ($('#pPhone')?.value||'').trim();
   const email = ($('#pEmail')?.value||'').trim();
@@ -12722,7 +13015,7 @@ function openServiceForm(doctorId, serviceId){
   if(!sv) return;
   const idStr = jsStr(String(doctorId));
   openModal(isEdit?t('edit_service'):t('add_service'), '', `
-    <div class="field"><label>${t('service_name')} *</label><input class="input" id="svName" value="${esc(sv.name)}"></div>
+    <div class="field"><label>${t('service_name')} *</label><input class="input" id="svName" value="${esc(sv.name)}" oninput="forceUppercaseInput(this)"></div>
     <div class="field"><label>${t('service_price')}</label><input class="input" id="svPrice" type="number" inputmode="numeric" min="0" step="50" value="${sv.price || ''}" placeholder="Optionnel"></div>
     <label class="service-checkbox" style="margin-bottom:12px">
       <input type="checkbox" id="svShowPrice" ${(sv.showPrice !== false) ? 'checked' : ''}>
@@ -12736,7 +13029,7 @@ function openServiceForm(doctorId, serviceId){
      <button class="pill-btn primary" onclick="saveService('${idStr}','${jsStr(serviceId||'')}')">💾 ${t('save')}</button>`);
 }
 function saveService(doctorId, serviceId){
-  const name = ($('#svName')?.value||'').trim();
+  const name = forceUpperStr(($('#svName')?.value||'').trim());
   const price = parseInt($('#svPrice')?.value,10) || 0;
   const desc = ($('#svDesc')?.value||'').trim();
   const showPrice = ($('#svShowPrice')?.checked !== false);
@@ -12964,7 +13257,7 @@ function viewDoctorInternal(){
       <div class="card-sub">${t('internal_sub')}</div>
       <div class="field-row-3">
         <div class="field"><label>${t('fullname')} *</label>
-          <input class="input" id="intName" value="${esc(f.patientName)}" placeholder="${t('internal_name_ph')}" oninput="state.internalForm.patientName=this.value"></div>
+  <input class="input" id="intName" value="${esc(f.patientName)}" placeholder="${t('internal_name_ph')}" oninput="state.internalForm.patientName=forceCapitalize(this)"></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" id="intWilaya" onchange="state.internalForm.patientWilaya=this.value">
             <option value="">${t('patient_wilaya_ph')}</option>
@@ -13054,7 +13347,7 @@ function toggleInternalService(serviceId, checked){
 async function createInternalAppt(){
   const doc = state.doctor;
   const f = state.internalForm;
-  const name = (f.patientName||'').trim();
+  const name = forceFirstUpper((f.patientName||'').trim());
   const phone = (f.patientPhone||'').trim();
   const age = parseInt(f.patientAge,10);
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
@@ -15358,6 +15651,7 @@ function checkAutoBlock(patientPhone, doctorId, clinicId){
   }
 }
 function unblockPatient(blockId){
+    if(!_adminWriteGuard('ablocage')) return;
   if(!DB.blocks) return;
   if(!_pendingDeletes.blocks) _pendingDeletes.blocks = [];
   if(!_pendingDeletes.blocks.includes(String(blockId))) _pendingDeletes.blocks.push(String(blockId));
@@ -15377,6 +15671,7 @@ function openBlocageSettings(){
   openModal(title, sub, `<div class="field-row-3"><div class="field"><label>Annulations max</label><input class="input" id="blkCancel" type="number" min="1" max="50" value="${s.cancelThreshold}"></div><div class="field"><label>Absences max</label><input class="input" id="blkAbsent" type="number" min="1" max="50" value="${s.absentThreshold}"></div><div class="field"><label>Période (jours)</label><input class="input" id="blkPeriod" type="number" min="1" max="365" value="${s.periodDays}"></div></div><div class="letter-amount" style="font-style:normal;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">💡 Un patient qui atteint l'un des seuils sur la période est automatiquement ajouté à la liste de blocage.</div>`, `<button class="pill-btn" onclick="closeModal()">Annuler</button><button class="pill-btn primary" onclick="saveBlocageSettings()">💾 Enregistrer</button>`);
 }
 function saveBlocageSettings(){
+    if(!_adminWriteGuard('ablocage')) return;
   const c = parseInt(document.getElementById('blkCancel').value,10);
   const a = parseInt(document.getElementById('blkAbsent').value,10);
   const p = parseInt(document.getElementById('blkPeriod').value,10);
@@ -16668,6 +16963,11 @@ function printDoctorStats(){
    VUES ADMIN (partie 1)
    ============================================================ */
 function renderAdminView(){
+  // Blocage des vues non autorisées
+  if(state.adminProfile && !adminCanAccess(state.view)){
+    const allowed = getAdminProfileAllowedViews(state.adminProfile);
+    state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+  }
   switch(state.view){
     case 'adash': return viewAdminDash();
     case 'adoctors': return viewAdminDoctors();
@@ -16960,7 +17260,7 @@ function openDoctorForm(id, isSelf, ownedByClinicId){
     </div>`:''}
     <div class="section-title">👤 ${t('profile')}</div>
     <div class="field-row">
-      <div class="field"><label>${t('fullname')} *</label><input class="input" id="fName" value="${esc(d.name)}"></div>
+      <div class="field"><label>${t('fullname')} *</label><input class="input" id="fName" value="${esc(d.name)}" oninput="forceCapitalize(this)"></div>
       <div class="field">
         <label>${t('specialty')} *</label>
         <select class="select" id="fSpec">
@@ -17137,7 +17437,7 @@ function togglePreviewSlot(time){
 async function saveDoctor(id, isSelf, ownedByClinicId){
   isSelf = !!isSelf;
   const isClinicLocal = !!ownedByClinicId;
-  const name = ($('#fName')?.value||'').trim();
+  const name = forceFirstUpper(($('#fName')?.value||'').trim());
   const specialty = ($('#fSpec')?.value||'').trim();
   const wilaya = ($('#fWilaya')?.value||'').trim();
   const commune = ($('#fCommune')?.value||'').trim();
@@ -17349,6 +17649,7 @@ function toggleDoctorLock(id){
   toast(d.locked ? '🔒 Session verrouillée' : '🔓 Session ouverte', d.locked ? 'info' : 'success');
 }
 function deleteDoctor(id){
+  if(!_adminWriteGuard('adoctors')) return;
   const d = docById(id); if(!d) return;
   _pendingDeletes.doctors.push(id);
   clinicLinksForDoctor(id).forEach(l => _pendingDeletes.doctorClinicLinks.push(l.id));
@@ -17536,7 +17837,7 @@ function openClinicForm(id, isSelf){
   const body = `
     <div class="section-title">🏥 ${t('clinic')}</div>
     <div class="field-row">
-      <div class="field"><label>${t('clinic_name')} *</label><input class="input" id="cfName" value="${esc(c.name)}"></div>
+      <div class="field"><label>${t('clinic_name')} *</label><input class="input" id="cfName" value="${esc(c.name)}" oninput="forceCapitalize(this)"></div>
       <div class="field"><label>${t('clinic_avatar')}</label><input class="input" id="cfAvatar" maxlength="4" value="${esc(c.avatar||'🏥')}"></div>
     </div>
     <div class="field-row">
@@ -17668,7 +17969,7 @@ function toggleClinicWorkDay(day, btn){
   else { window._clinicWorkDays.push(day); btn.classList.add('on'); }
 }
 async function saveClinic(id){
-  const name = ($('#cfName')?.value||'').trim();
+  const name = forceFirstUpper(($('#cfName')?.value||'').trim());
   const avatar = ($('#cfAvatar')?.value||'🏥').trim() || '🏥';
   const wilaya = ($('#cfWilaya')?.value||'').trim();
   const commune = ($('#cfCommune')?.value||'').trim();
@@ -17804,6 +18105,7 @@ function confirmDeleteClinic(id){
      <button class="pill-btn danger" onclick="deleteClinic('${jsStr(String(id))}')">🗑️ ${t('clinic_delete')}</button>`);
 }
 function deleteClinic(id){
+  if(!_adminWriteGuard('aclinics')) return;
   const c = clinicById(id);
   if(!c) return;
   _pendingDeletes.clinics.push(id);
@@ -17909,7 +18211,7 @@ function openClinicServiceFormAdmin(clinicId, serviceId){
   if(!sv) return;
   openModal(isEdit?t('clinic_service_edit'):t('clinic_service_add'), '', `
     <div class="field-row">
-      <div class="field"><label>${t('clinic_service_name')} *</label><input class="input" id="csvAName" value="${esc(sv.name)}"></div>
+      <div class="field"><label>${t('clinic_service_name')} *</label><input class="input" id="csvAName" value="${esc(sv.name)}" oninput="forceCapitalize(this)"></div>
       <div class="field"><label>${t('clinic_service_icon')}</label><input class="input" id="csvAIcon" maxlength="4" value="${esc(sv.icon||'🩺')}"></div>
     </div>
     <div class="field"><label>${t('clinic_service_desc')}</label><textarea class="textarea" id="csvADesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
@@ -17918,7 +18220,7 @@ function openClinicServiceFormAdmin(clinicId, serviceId){
    <button class="pill-btn primary" onclick="saveClinicServiceAdmin('${jsStr(clinicId)}','${isEdit?sv.id:'new'}')">💾 ${t('save')}</button>`);
 }
 function saveClinicServiceAdmin(clinicId, id){
-  const name = ($('#csvAName')?.value||'').trim();
+  const name = forceFirstUpper(($('#csvAName')?.value||'').trim());
   const icon = ($('#csvAIcon')?.value||'🩺').trim() || '🩺';
   const desc = ($('#csvADesc')?.value||'').trim();
   if(!name){ toast(t('required_fields'),'error'); return; }
@@ -20487,6 +20789,7 @@ function openCommissionRateModal(){
      <button class="pill-btn primary" onclick="saveCommissionRate()">${t('save')}</button>`);
 }
 function saveCommissionRate(){
+    if(!_adminWriteGuard('asettings')) return;
   const v = parseInt($('#commRate').value,10);
   const m = parseInt($('#subMonthly').value,10);
   const y = parseInt($('#subYearly').value,10);
@@ -20501,6 +20804,188 @@ function saveCommissionRate(){
   DB.settings.subYearly = y;
   DB.settings.subDiscount = d;
   saveDB(); closeModal(); render(); toast(t('revenue_rate_updated'),'success');
+}
+/* ============================================================
+   🔐 ADMIN PROFILS — Formulaire & CRUD
+   ============================================================ */
+function openChangeAdminPwdModal(){
+  if(state.adminProfile){ toast('Seul l\'administrateur principal peut changer ce mot de passe','error'); return; }
+  openModal('🔑 Changer le mot de passe admin', 'Mot de passe de l\'administrateur principal', `
+    <div class="field">
+      <label>Mot de passe actuel *</label>
+      <input class="input" id="curAdminPwd" type="password" placeholder="••••" autocomplete="current-password">
+    </div>
+    <div class="field">
+      <label>Nouveau mot de passe *</label>
+      <input class="input" id="newAdminPwd" type="password" placeholder="••••" autocomplete="new-password">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 4 caractères</div>
+    </div>
+    <div class="field">
+      <label>Confirmer *</label>
+      <input class="input" id="confirmAdminPwd" type="password" placeholder="••••" autocomplete="new-password">
+    </div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="saveAdminMainPwd()">💾 ${t('save')}</button>`);
+  setTimeout(()=>{ const el=document.getElementById('curAdminPwd'); if(el) el.focus(); }, 40);
+}
+async function saveAdminMainPwd(){
+  if(state.adminProfile){ toast('Action réservée à l\'admin principal','error'); return; }
+  const cur = ($('#curAdminPwd')?.value||'');
+  const nw  = ($('#newAdminPwd')?.value||'');
+  const cf  = ($('#confirmAdminPwd')?.value||'');
+  if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
+  if(nw.length < 4){ toast('4 caractères minimum','error'); return; }
+  if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
+  const ok = await verifyPassword(cur, DB.admin.password);
+  if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
+  DB.admin.password = await hashPassword(nw);
+  saveDB({critical:true});
+  closeModal();
+  render();
+  toast(t('password_updated'),'success');
+}
+
+function openAdminProfileForm(profileId){
+  if(!_adminProfileGuard()) return;
+  const isEdit = !!profileId;
+  const existing = isEdit ? (DB.adminProfiles || []).find(p => String(p.id) === String(profileId)) : null;
+  if(isEdit && !existing){ toast('Profil introuvable','error'); return; }
+  const prof = existing || {
+    id: null,
+    name: '',
+    username: DB.admin.username,
+    password: DEFAULT_PWD,
+    passwordPlain: DEFAULT_PWD,
+    permissions: Object.fromEntries(ADMIN_VIEW_KEYS.map(k => [k, 'read']))
+  };
+  // S'assurer que toutes les vues ont une entrée
+  window._profilePerms = {};
+  ADMIN_VIEW_KEYS.forEach(k => {
+    window._profilePerms[k] = prof.permissions?.[k] || 'read';
+  });
+  const permRows = ADMIN_VIEW_KEYS.map(k => {
+    const meta = ADMIN_VIEW_META[k];
+    const val = window._profilePerms[k];
+    return `<div class="list-item" style="gap:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden">
+        <span style="font-size:18px;flex-shrink:0">${meta.ico}</span>
+        <span style="font-weight:700;font-size:13px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(meta.label)}">${esc(meta.label)}</span>
+      </div>
+      <select class="select" id="perm_${k}" style="width:160px;min-width:160px;max-width:160px;flex-shrink:0;padding:6px 10px;font-size:12px" onchange="updateProfilePermission('${k}', this.value)">
+        <option value="none" ${val==='none'?'selected':''}>🚫 Masqué</option>
+        <option value="read" ${val==='read'?'selected':''}>👁️ Lecture seule</option>
+        <option value="write" ${val==='write'?'selected':''}>✏️ Complet</option>
+      </select>
+    </div>`;
+  }).join('');
+  openModal(isEdit ? '✏️ Modifier le profil' : '🔐 Nouveau profil sous-admin',
+    'Chaque profil a son propre mot de passe et ses permissions par vue',
+    `<div class="field-row">
+      <div class="field"><label>Nom du profil *</label>
+        <input class="input" id="apName" value="${esc(prof.name||'')}" placeholder="Ex : Secrétaire médical"></div>
+      <div class="field"><label>Identifiant *</label>
+        <input class="input" id="apUsername" value="${esc(prof.username||DB.admin.username)}" placeholder="${esc(DB.admin.username)}" oninput="state._profileUsernameTouched=true">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Identique à l'admin ou personnalisé</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Mot de passe ${isEdit ? '(laisser vide pour conserver)' : '*'} </label>
+      <input class="input" id="apPassword" type="password" placeholder="••••" autocomplete="new-password" value="">
+    </div>
+    <div class="sep"></div>
+    <div class="section-title">🔐 Permissions par vue</div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="mini-btn ghost" onclick="bulkSetProfilePerm('none')">🚫 Tout masquer</button>
+        <button type="button" class="mini-btn ghost" onclick="bulkSetProfilePerm('read')">👁️ Tout en lecture</button>
+        <button type="button" class="mini-btn ghost" onclick="bulkSetProfilePerm('write')">✏️ Tout complet</button>
+      </div>
+    </div>
+    <div style="max-height:45vh;overflow-y:auto;padding-right:4px">
+      ${permRows}
+    </div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="saveAdminProfile('${isEdit ? jsStr(prof.id) : 'new'}')">💾 ${t('save')}</button>`, true);
+}
+function updateProfilePermission(view, value){
+  if(!window._profilePerms) return;
+  window._profilePerms[view] = value;
+}
+function bulkSetProfilePerm(value){
+  if(!window._profilePerms) return;
+  
+  // 1. Mettre à jour les données en mémoire
+  ADMIN_VIEW_KEYS.forEach(k => { window._profilePerms[k] = value; });
+  
+  // 2. Mettre à jour directement l'affichage de tous les menus déroulants sans fermer la modale
+  ADMIN_VIEW_KEYS.forEach(k => {
+    const selectEl = document.getElementById('perm_' + k);
+    if(selectEl) selectEl.value = value;
+  });
+}
+
+async function saveAdminProfile(profileId){
+  if(!_adminProfileGuard()) return;
+  const name = ($('#apName')?.value||'').trim();
+  const username = ($('#apUsername')?.value||DB.admin.username).trim();
+  const password = ($('#apPassword')?.value||'').trim();
+  if(!name){ toast('Nom du profil requis','error'); return; }
+  if(!username){ toast('Identifiant requis','error'); return; }
+  const isEdit = profileId !== 'new';
+  if(!isEdit && !password){ toast('Mot de passe requis pour un nouveau profil','error'); return; }
+  if(password && password.length < 4){ toast('4 caractères minimum','error'); return; }
+  const perms = window._profilePerms || {};
+  if(!Object.values(perms).some(v => v !== 'none')){
+    toast('Sélectionnez au moins une vue','error'); return;
+  }
+  let hashedPassword = null;
+  if(password) hashedPassword = await hashPassword(password);
+  if(!DB.adminProfiles) DB.adminProfiles = [];
+  if(isEdit){
+    const prof = DB.adminProfiles.find(p => String(p.id) === String(profileId));
+    if(!prof){ toast('Profil introuvable','error'); return; }
+    prof.name = name;
+    prof.username = username;
+    if(hashedPassword){ prof.password = hashedPassword; prof.passwordPlain = password; }
+    prof.permissions = { ...perms };
+    if(state.adminProfile && String(state.adminProfile.id) === String(profileId)){
+      state.adminProfile = prof;
+    }
+    toast('✓ Profil modifié','success');
+  } else {
+    const id = 'ADM-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    DB.adminProfiles.push({
+      id, name, username,
+      password: hashedPassword || DEFAULT_PWD,
+      passwordPlain: password || DEFAULT_PWD,
+      permissions: { ...perms },
+      createdAt: nowISO()
+    });
+    toast('✓ Profil créé','success');
+  }
+  saveDB({critical:true});
+  window._profilePerms = null;
+  closeModal();
+  render();
+}
+
+function confirmDeleteAdminProfile(id){
+  if(!_adminProfileGuard()) return;
+  const prof = (DB.adminProfiles||[]).find(p => String(p.id) === String(id));
+  if(!prof) return;
+  openModal('🗑️ Supprimer le profil', `${esc(prof.name)}`, '<div style="font-size:13px;line-height:1.7">Cette action supprimera définitivement ce profil et son mot de passe. Le sous-admin ne pourra plus se connecter.</div>',
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="deleteAdminProfile('${jsStr(String(id))}')">🗑️ Supprimer</button>`);
+}
+function deleteAdminProfile(id){
+  if(!_adminProfileGuard()) return;
+  DB.adminProfiles = (DB.adminProfiles || []).filter(p => String(p.id) !== String(id));
+  saveDB({critical:true});
+  closeModal();
+  render();
+  toast('Profil supprimé','info');
 }
 function onBillingDoctorInput(v){
   v = (v||'').trim();
@@ -20679,7 +21164,7 @@ function renderSpecialtiesManager(){
       <div class="card-sub">${t('manage_lists_sub')}</div>
       <div class="field" style="margin-bottom:14px">
         <div class="input-with-btn">
-          <input class="input" id="newSpecialty" placeholder="${t('add_item_ph')}" onkeydown="if(event.key==='Enter')addSpecialtyAdmin()">
+          <input class="input" id="newSpecialty" placeholder="${t('add_item_ph')}" oninput="forceCapitalize(this)" onkeydown="if(event.key==='Enter')addSpecialtyAdmin()">
           <button type="button" class="pill-btn primary" onclick="addSpecialtyAdmin()">+ ${t('add_item')}</button>
         </div>
       </div>
@@ -20847,14 +21332,17 @@ function confirmDeleteMedication(idx){
      <button class="pill-btn danger" onclick="doDeleteMedication(${idx})">🗑️ ${t('delete')}</button>`);
 }
 function doDeleteMedication(idx){
+  if(!_adminWriteGuard('alistes')) return;
   if(!DB.medications || idx < 0 || idx >= DB.medications.length) return;
   DB.medications.splice(idx, 1);
-  saveDB(); closeModal(); render();
+  saveDB();
+  closeModal();
+  render();
   toast(t('item_deleted'),'success');
 }
 function addSpecialtyAdmin(){
   const inp = $('#newSpecialty'); if(!inp) return;
-  const v = inp.value.trim();
+  const v = forceFirstUpper(inp.value.trim());
   if(!v){ toast(t('required_fields'),'error'); return; }
   if(DB.specialties.includes(v)){ toast(t('item_exists'),'info'); return; }
   DB.specialties.push(v); saveDB(); render(); toast(t('item_added'),'success');
@@ -20866,10 +21354,17 @@ function deleteSpecialty(name){
     `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>
      <button class="pill-btn danger" onclick="doDeleteSpecialty('${jsStr(name)}')">🗑️</button>`);
 }
-function doDeleteSpecialty(name){ DB.specialties = DB.specialties.filter(s=>s!==name); saveDB(); closeModal(); render(); toast(t('item_deleted'),'success'); }
+function doDeleteSpecialty(name){
+  if(!_adminWriteGuard('alistes')) return;
+  DB.specialties = DB.specialties.filter(s=>s!==name);
+  saveDB();
+  closeModal();
+  render();
+  toast(t('item_deleted'),'success');
+}
 function addWilayaAdmin(){
   const inp = $('#newWilaya'); if(!inp) return;
-  const v = inp.value.trim();
+  const v = forceFirstUpper(inp.value.trim());
   if(!v){ toast(t('required_fields'),'error'); return; }
   if(DB.wilayas.includes(v)){ toast(t('item_exists'),'info'); return; }
   DB.wilayas.push(v); if(!DB.communes[v]) DB.communes[v] = [];
@@ -20883,15 +21378,19 @@ function deleteWilaya(name){
      <button class="pill-btn danger" onclick="doDeleteWilaya('${jsStr(name)}')">🗑️</button>`);
 }
 function doDeleteWilaya(name){
+  if(!_adminWriteGuard('alistes')) return;
   DB.wilayas = DB.wilayas.filter(w=>w!==name);
   delete DB.communes[name];
   if(state.listSelectedWilaya === name) state.listSelectedWilaya = DB.wilayas[0] || '';
-  saveDB(); closeModal(); render(); toast(t('item_deleted'),'success');
+  saveDB();
+  closeModal();
+  render();
+  toast(t('item_deleted'),'success');
 }
 function addCommuneAdmin(){
   const w = state.listSelectedWilaya; if(!w) return;
   const inp = $('#newCommune'); if(!inp) return;
-  const v = inp.value.trim();
+  const v = forceFirstUpper(inp.value.trim());
   if(!v){ toast(t('required_fields'),'error'); return; }
   if(!DB.communes[w]) DB.communes[w] = [];
   if(DB.communes[w].includes(v)){ toast(t('item_exists'),'info'); return; }
@@ -20905,8 +21404,12 @@ function deleteCommune(w, c){
      <button class="pill-btn danger" onclick="doDeleteCommune('${jsStr(w)}','${jsStr(c)}')">🗑️</button>`);
 }
 function doDeleteCommune(w, c){
+  if(!_adminWriteGuard('alistes')) return;
   if(DB.communes[w]) DB.communes[w] = DB.communes[w].filter(x=>x!==c);
-  saveDB(); closeModal(); render(); toast(t('item_deleted'),'success');
+  saveDB();
+  closeModal();
+  render();
+  toast(t('item_deleted'),'success');
 }
 
 /* ============================================================
@@ -21067,6 +21570,53 @@ function viewAdminSettings(){
         <button class="pill-btn danger" onclick="askCleanOldAppointments()" ${oldAppts.length === 0 ? 'disabled' : ''}>🧽 ${t('cleaning_btn')}</button>
       </div>
     </div>
+    ${!state.adminProfile ? `
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;color:#fff;font-size:26px;flex-shrink:0">🔐</div>
+          <div>
+            <div class="card-title" style="font-size:17px;margin:0">IDs & Abilités</div>
+            <div class="card-sub" style="margin:2px 0 0">Mot de passe admin principal et profils sous-admins</div>
+          </div>
+        </div>
+        <button class="pill-btn primary" onclick="openAdminProfileForm(null)">+ Nouveau profil</button>
+      </div>
+
+      <div style="margin-top:14px;padding:12px 14px;background:var(--glass-bg-3);border:1px dashed var(--glass-border);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:2px">🔑 Mot de passe administrateur principal</div>
+          <div style="font-size:11.5px;color:var(--text-muted)">Utilisateur : <strong>${esc(DB.admin.username)}</strong></div>
+        </div>
+        <button class="pill-btn primary" onclick="openChangeAdminPwdModal()">✏️ Changer le mot de passe</button>
+      </div>
+
+      <div style="margin-top:14px">
+        <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:800;color:var(--text-muted);margin-bottom:8px">👥 Profils sous-admins <span class="tag accent" style="margin-left:4px">${(DB.adminProfiles||[]).length}</span></div>
+        ${(DB.adminProfiles || []).length ? (DB.adminProfiles || []).map(prof => {
+          const allowedCount = getAdminProfileAllowedViews(prof).length;
+          const writeCount = ADMIN_VIEW_KEYS.filter(k => (prof.permissions && prof.permissions[k]) === 'write').length;
+          return `
+            <div class="admin-doc-row">
+              <div class="doc-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:22px">👤</div>
+              <div style="flex:1;min-width:200px">
+                <div class="doc-name">${esc(prof.name || 'Sans nom')}</div>
+                <div class="doc-meta" style="margin-top:4px">
+                  <span>👤 ${esc(prof.username || DB.admin.username)}</span>
+                  <span>👁️ ${allowedCount} / ${ADMIN_VIEW_KEYS.length} vues visibles</span>
+                  <span>✏️ ${writeCount} éditable(s)</span>
+                </div>
+              </div>
+              <div class="appt-actions">
+                <button class="mini-btn ghost" onclick="openAdminProfileForm('${jsStr(prof.id)}')" title="Modifier">✏️</button>
+                <button class="mini-btn red" onclick="confirmDeleteAdminProfile('${jsStr(prof.id)}')" title="Supprimer">🗑️</button>
+              </div>
+            </div>
+          `;
+        }).join('') : `<div class="empty" style="padding:20px"><div class="empty-ico">🔐</div>Aucun profil sous-admin — créez-en un pour déléguer l'accès</div>`}
+      </div>
+    </div>
+    ` : ''}
   `;
 }
 function exportSection(type){
@@ -21354,25 +21904,42 @@ function viewClinicDash(){
     return { inProgress, nextUpcoming };
   }
   
-  const servicesWithAppts = services.map(sv => {
-    const svcAppts = clinicAppts.filter(a => a.clinicServiceId === sv.id);
-    const { inProgress, nextUpcoming } = getServiceCurrentNext(svcAppts);
-    return {
-      sv,
-      total: svcAppts.length,
-      today: svcAppts.filter(a => a.date === _todayIso && a.status !== 'cancelled').length,
-      pending: svcAppts.filter(a => a.status === 'pending').length,
-      confirmed: svcAppts.filter(a => a.status === 'confirmed').length,
-      done: svcAppts.filter(a => a.status === 'done').length,
-      prestations: clinicPrestationsForService(sv.id).length,
-      inProgress, nextUpcoming
-    };
-  });
-  
-  const noServiceAppts = clinicAppts.filter(a => !a.clinicServiceId);
-  const noServiceToday = noServiceAppts.filter(a => a.date === _todayIso && a.status !== 'cancelled').length;
-  const noServicePending = noServiceAppts.filter(a => a.status === 'pending').length;
-  const noServiceConfirmed = noServiceAppts.filter(a => a.status === 'confirmed').length;
+      const filterDate = state.clinicDashDate || '';
+    const filteredClinicAppts = filterDate ? clinicAppts.filter(a => a.date === filterDate) : clinicAppts;
+
+    const servicesWithAppts = services.map(sv => {
+      const allSvcAppts = clinicAppts.filter(a => a.clinicServiceId === sv.id);
+      const svcAppts = filteredClinicAppts.filter(a => a.clinicServiceId === sv.id);
+      
+      let inProgress = null;
+      let nextUpcoming = null;
+      
+      if (filterDate) {
+        const dateAppts = allSvcAppts.filter(a => a.date === filterDate && a.status !== 'cancelled' && a.status !== 'deleted').sort((a,b) => toMin(a.time) - toMin(b.time));
+        nextUpcoming = dateAppts.length > 0 ? dateAppts[0] : null;
+      } else {
+        const res = getServiceCurrentNext(allSvcAppts);
+        inProgress = res.inProgress;
+        nextUpcoming = res.nextUpcoming;
+      }
+
+      return {
+        sv,
+        total: svcAppts.length,
+        today: filterDate ? svcAppts.filter(a => a.status !== 'cancelled').length : svcAppts.filter(a => a.date === _todayIso && a.status !== 'cancelled').length,
+        pending: svcAppts.filter(a => a.status === 'pending').length,
+        confirmed: svcAppts.filter(a => a.status === 'confirmed').length,
+        done: svcAppts.filter(a => a.status === 'done').length,
+        prestations: clinicPrestationsForService(sv.id).length,
+        inProgress, nextUpcoming
+      };
+    });
+    
+    const noServiceApptsAll = clinicAppts.filter(a => !a.clinicServiceId);
+    const noServiceAppts = filteredClinicAppts.filter(a => !a.clinicServiceId);
+    const noServiceToday = filterDate ? noServiceAppts.filter(a => a.status !== 'cancelled').length : noServiceAppts.filter(a => a.date === _todayIso && a.status !== 'cancelled').length;
+    const noServicePending = noServiceAppts.filter(a => a.status === 'pending').length;
+    const noServiceConfirmed = noServiceAppts.filter(a => a.status === 'confirmed').length;
   
   function renderServiceApptBlock(a, label, color, isCurrent){
     if(!a) return '';
@@ -21509,8 +22076,17 @@ function viewClinicDash(){
     
     <!-- 🏗️ Services de la clinique — EN HAUT, agrandie, avec RDV en cours/prochain -->
     <div class="card" style="margin-bottom:14px">
-      <div class="card-title" style="font-size:17px">🏗️ Services de la clinique <span class="tag accent">${services.length}</span></div>
-      <div class="card-sub">Rendez-vous en cours et prochain par service</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div>
+          <div class="card-title" style="font-size:17px">🏗️ Services de la clinique <span class="tag accent">${services.length}</span></div>
+          <div class="card-sub" style="margin-bottom:0;">Rendez-vous en cours et prochain par service</div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center; background:var(--glass-bg-3); padding:4px 8px; border-radius:8px; border:1px solid var(--glass-border);">
+          <span style="font-size:11px; color:var(--text-muted); font-weight:600;">📅 Filtrer :</span>
+          <input type="date" class="input" style="padding:4px 8px; font-size:11.5px; width:135px; height:auto; min-height:26px; border:none; background:transparent;" value="${state.clinicDashDate || ''}" onchange="state.clinicDashDate = this.value; render()">
+          <button class="mini-btn ${!state.clinicDashDate ? 'primary' : 'ghost'}" onclick="state.clinicDashDate = ''; render()" style="padding:4px 8px; font-size:11px; font-weight:600;">Tous</button>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-top:16px">
         ${servicesWithAppts.length ? servicesWithAppts.map(sv => {
           /* 🆕 Détection service urgence pour afficher les compteurs spécifiques */
@@ -21529,7 +22105,7 @@ function viewClinicDash(){
               </div>
               <div style="text-align:center;padding:8px 4px;background:rgba(59,130,246,.08);border-radius:10px">
                 <div style="font-family:var(--font-numbers);font-weight:700;font-size:16px;color:#2563eb">${sv.today}</div>
-                <div style="font-size:9.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-top:2px">Auj.</div>
+                <div style="font-size:9.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-top:2px">${state.clinicDashDate ? 'Date' : 'Auj.'}</div>
               </div>
               <div style="text-align:center;padding:8px 4px;background:var(--warn-bg);border-radius:10px">
                 <div style="font-family:var(--font-numbers);font-weight:700;font-size:16px;color:var(--warn)">${sv.pending}</div>
@@ -21589,7 +22165,7 @@ function viewClinicDash(){
               </div>
               <div style="text-align:center;padding:8px 4px;background:rgba(59,130,246,.08);border-radius:10px">
                 <div style="font-family:var(--font-numbers);font-weight:700;font-size:16px;color:#2563eb">${noServiceToday}</div>
-                <div style="font-size:9.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-top:2px">Auj.</div>
+                <div style="font-size:9.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-top:2px">${state.clinicDashDate ? 'Date' : 'Auj.'}</div>
               </div>
               <div style="text-align:center;padding:8px 4px;background:var(--warn-bg);border-radius:10px">
                 <div style="font-family:var(--font-numbers);font-weight:700;font-size:16px;color:var(--warn)">${noServicePending}</div>
@@ -23084,7 +23660,7 @@ function openClinicInternalDoctorForm(doctorId){
       <div class="section-title">👤 Informations du médecin</div>
       <div class="field-row">
         <div class="field"><label>Nom complet *</label>
-          <input class="input" id="idfName" value="${esc(d.name||'')}" placeholder="Dr. Prénom Nom"></div>
+  <input class="input" id="idfName" value="${esc(d.name||'')}" placeholder="Dr. Prénom Nom" oninput="forceCapitalize(this)"></div>
         <div class="field"><label>Spécialité *</label>
           <select class="select" id="idfSpec">
             <option value="">— Sélectionner —</option>
@@ -23154,7 +23730,7 @@ function saveClinicInternalDoctor(doctorId){
   const c = state.clinic;
   if(!c){ toast(t('clinic_not_found'),'error'); return; }
 
-  const name = ($('#idfName')?.value||'').trim();
+  const name = forceFirstUpper(($('#idfName')?.value||'').trim());
   const specialty = ($('#idfSpec')?.value||'').trim();
   const phone = ($('#idfPhone')?.value||'').trim();
   const bio = ($('#idfBio')?.value||'').trim();
@@ -23395,7 +23971,7 @@ function openClinicServiceForm(serviceId){
 
   openModal(isEdit?t('clinic_service_edit'):t('clinic_service_add'), '', `
     <div class="field-row">
-      <div class="field"><label>${t('clinic_service_name')} *</label><input class="input" id="csvName" value="${esc(sv.name)}"></div>
+      <div class="field"><label>${t('clinic_service_name')} *</label><input class="input" id="csvName" value="${esc(sv.name)}" oninput="forceCapitalize(this)"></div>
       <div class="field"><label>${t('clinic_service_icon')}</label><input class="input" id="csvIcon" maxlength="4" value="${esc(sv.icon||'🩺')}"></div>
     </div>
     <div class="field"><label>${t('clinic_service_desc')}</label><textarea class="textarea" id="csvDesc" style="min-height:60px">${esc(sv.description||'')}</textarea></div>
@@ -23508,7 +24084,7 @@ function toggleServicePreviewSlot(time){
 }
 function saveClinicService(id){
   const c = state.clinic;
-  const name = ($('#csvName')?.value||'').trim();
+  const name = forceFirstUpper(($('#csvName')?.value||'').trim());
   const icon = ($('#csvIcon')?.value||'🩺').trim() || '🩺';
   const desc = ($('#csvDesc')?.value||'').trim();
 
@@ -23674,7 +24250,7 @@ function openClinicPrestationForm(prestationId){
         ${services.map(sv=>`<option value="${sv.id}" ${p.serviceId===sv.id?'selected':''}>${sv.icon||'🩺'} ${esc(sv.name)}</option>`).join('')}
       </select>
     </div>
-    <div class="field"><label>${t('clinic_prestation_name')} *</label><input class="input" id="cpName" value="${esc(p.name)}"></div>
+    <div class="field"><label>${t('clinic_prestation_name')} *</label><input class="input" id="cpName" value="${esc(p.name)}" oninput="forceUppercaseInput(this)"></div>
     <div class="field-row">
       <div class="field"><label>${t('clinic_prestation_price')}</label><input class="input" id="cpPrice" type="number" min="0" step="100" value="${p.price || ''}" placeholder="Optionnel"></div>
       <div class="field"><label>${t('clinic_prestation_duration')}</label><input class="input" id="cpDur" type="number" min="5" step="5" value="${p.duration}"></div>
@@ -23701,7 +24277,7 @@ function openClinicPrestationForm(prestationId){
 function saveClinicPrestation(id){
   const c = state.clinic;
   const svc = ($('#cpSvc')?.value||'').trim();
-  const name = ($('#cpName')?.value||'').trim();
+  const name = forceUpperStr(($('#cpName')?.value||'').trim());
   const price = parseInt($('#cpPrice')?.value,10) || 0;
   const dur = parseInt($('#cpDur')?.value,10) || 30;
   const desc = ($('#cpDesc')?.value||'').trim();
@@ -24625,7 +25201,7 @@ function viewClinicInternal(){
       <!-- 👤 Informations patient -->
       <div class="field-row-3">
         <div class="field"><label>${t('fullname')} *</label>
-          <input class="input" value="${esc(f.patientName)}" oninput="state.clinicInternalForm.patientName=this.value" placeholder="${t('internal_name_ph')}"></div>
+  <input class="input" value="${esc(f.patientName)}" oninput="state.clinicInternalForm.patientName=forceCapitalize(this)" placeholder="${t('internal_name_ph')}"></div>
         <div class="field"><label>${t('patient_wilaya')}</label>
           <select class="select" onchange="state.clinicInternalForm.patientWilaya=this.value">
             <option value="">${t('patient_wilaya_ph')}</option>
@@ -24794,7 +25370,7 @@ function resetClinicInternalForm(){
 async function createClinicInternalAppt(){
   const c = state.clinic;
   const f = state.clinicInternalForm;
-  const name = (f.patientName || '').trim();
+  const name = forceFirstUpper((f.patientName || '').trim());
   const phone = (f.patientPhone || '').trim();
   const age = parseInt(f.patientAge, 10);
   
@@ -25172,6 +25748,8 @@ function viewClinicRevenue(){
   const weekRev = done.filter(a => a.date >= weekStart && a.date <= today).reduce((s,a)=>s+feeFor(a), 0);
   const monthRev = done.filter(a => a.date >= monthStart && a.date <= today).reduce((s,a)=>s+feeFor(a), 0);
   const allRev = done.reduce((s,a)=>s+feeFor(a), 0);
+  const totalCommission = done.reduce((s,a)=>s+apptClinicCommission(a), 0);
+  const netRev = allRev - totalCommission;
 
   const q = state.clinicRev;
   if(!q.month) q.month = currentMonth();
@@ -25192,23 +25770,87 @@ function viewClinicRevenue(){
   const allAdm = admissionsForClinic(c.id);
 
   return `
-    <!-- ═══════════ 1. Vue d'ensemble ═══════════ -->
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <!-- ═══════════ 1. Vue d'ensemble (Style Image) ═══════════ -->
+    <div class="card" style="margin-bottom:14px; background:linear-gradient(180deg, rgba(255,255,255,.5) 0%, rgba(240,245,255,.8) 100%); border-color:var(--glass-border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap; margin-bottom:16px">
         <div>
-          <div class="card-title" style="font-size:16px">💲 ${t('drecette')} — ${esc(c.name)}</div>
-          <div class="card-sub" style="margin-bottom:0">Aperçu de la recette clinique</div>
+          <div class="card-title" style="font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
+            <span style="background:linear-gradient(135deg,var(--accent-primary),#ec4899); color:#fff; width:28px; height:28px; display:grid; place-items:center; border-radius:8px; font-size:14px;">💲</span>
+            Finance
+          </div>
+          <div class="card-sub" style="margin-bottom:0">Aperçu de la recette</div>
         </div>
         <button class="pill-btn" onclick="state.clinicRecetteUnlocked=false;go('cdash')" title="${t('lock_revenue')}">🔒</button>
       </div>
-      <div class="stats-tags">
-        ${statTag(t('today_revenue'), fmtDA(todayRev), 'money', true)}
-        ${statTag(t('week_revenue'), fmtDA(weekRev), 'money', true)}
-        ${statTag(t('month_revenue'), fmtDA(monthRev), 'money', true)}
-        ${statTag(t('total_revenue'), fmtDA(allRev), 'money', true)}
+      
+      <!-- Grille des 6 étiquettes -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
+        
+        <!-- 1. Recette du jour -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #10b981; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(16,185,129,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📅</span> RECETTE DU JOUR
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#059669;">
+            ${n2(todayRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 2. Recette 7 jours -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #3b82f6; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(59,130,246,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">🗓️</span> RECETTE 7 JOURS
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#2563eb;">
+            ${n2(weekRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 3. Recette 30 jours -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #8b5cf6; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(139,92,246,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📅</span> RECETTE 30 JOURS
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#7c3aed;">
+            ${n2(monthRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 4. Recette Totale -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #64748b; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(100,116,139,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">💰</span> RECETTE TOTALE
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#334155;">
+            ${n2(allRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 5. Commission -->
+        <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #ef4444; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(239,68,68,.05);">
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">📉</span> COMMISSION
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#dc2626;">
+            ${n2(totalCommission)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
+        <!-- 6. Revenu Net -->
+        <div style="background:linear-gradient(135deg, rgba(16,185,129,.1) 0%, rgba(5,150,105,.05) 100%); border:1.5px solid rgba(16,185,129,.4); border-top:3px solid #059669; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 15px rgba(5,150,105,.15); position:relative; overflow:hidden;">
+          <div style="position:absolute; top:-10px; right:-10px; font-size:40px; opacity:.1; transform:rotate(15deg);">💎</div>
+          <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:#059669; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
+            <span style="font-size:14px;">✨</span> REVENU NET
+          </div>
+          <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#047857;">
+            ${n2(netRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
+          </div>
+        </div>
+
       </div>
+
       ${isClinicSubscriptionType(c) ? `
-      <div class="stats-tags" style="margin-top:6px">
+      <div class="stats-tags" style="margin-top:16px; padding-top:12px; border-top:1px dashed var(--glass-border);">
         ${statTag(getSubscriptionTypeLabel(c), isClinicSubscriptionActive(c) ? (getSubscriptionDaysLeft(c)+'j') : t('billing_subscription_expired'), isClinicSubscriptionActive(c)?'success':'danger', true)}
       </div>` : ''}
     </div>
@@ -26346,7 +26988,7 @@ function openClinicProfileForm(){
   const communes = c.wilaya ? (DB.communes[c.wilaya] || []) : [];
   openModal('✏️ ' + t('clinic_edit'), '', `
     <div class="field-row">
-      <div class="field"><label>${t('clinic_name')} *</label><input class="input" id="cfName" value="${esc(c.name)}"></div>
+      <div class="field"><label>${t('clinic_name')} *</label><input class="input" id="cfName" value="${esc(c.name)}" oninput="forceCapitalize(this)"></div>
       <div class="field"><label>${t('clinic_avatar')}</label><input class="input" id="cfAvatar" maxlength="4" value="${esc(c.avatar||'🏥')}"></div>
     </div>
     <div class="field-row">
@@ -26391,7 +27033,7 @@ function onClinicProfileWilayaChange(){
 }
 function saveClinicProfile(){
   const c = state.clinic;
-  const name = ($('#cfName')?.value||'').trim();
+  const name = forceFirstUpper(($('#cfName')?.value||'').trim());
   const avatar = ($('#cfAvatar')?.value||'🏥').trim() || '🏥';
   const wilaya = ($('#cfWilaya')?.value||'').trim();
   const commune = ($('#cfCommune')?.value||'').trim();
@@ -27182,8 +27824,7 @@ function showEmergencyDetails(emergencyId){
    ${canOpenAppt ? `<button class="pill-btn" onclick="closeModal();openPatientApptDetail('${linkedAppt.id}')">📄 Voir le RDV</button>` : ''}
    ${canAdmit ? `<button class="pill-btn success" onclick="closeModal();openAdmissionFromEmergency('${e.id}')">📥 Admettre à l'hôpital</button>` : ''}
    ${isClinicUser && e.status === 'accepted' ? `<button class="pill-btn primary" onclick="closeModal();openTransferEmergencyModal('${e.id}')">🏥 Transférer</button>` : ''}
-   ${isClinicUser && linkedAppt && (linkedAppt.status === 'confirmed' || linkedAppt.status === 'done') ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${linkedAppt.id}'),50)">🧾 Facture</button>` : ''}
-   ${clinic && e.status === 'accepted' && !isClinicUser ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((clinic.address||'')+' '+clinic.wilaya)}" target="_blank" rel="noopener" class="pill-btn primary">🗺️ ${t('emergency_go_to')}</a>` : ''}`);
+   ${isClinicUser && linkedAppt && (linkedAppt.status === 'confirmed' || linkedAppt.status === 'done') ? `<button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptInvoiceModal('${linkedAppt.id}'),50)">🧾 Facture</button>` : ''}`);
 }
 function viewMyEmergencies(){
   const phone = state.myPhone || '';
@@ -27800,6 +28441,8 @@ async function init(){
   /* 💰 Migration : créer la prestation "Consultation" par défaut et convertir les anciens RDV */
   try { migrateDoctorsToConsultationService(); } catch(e){ console.warn('[migration doctors]', e); }
   try { migrateAppointmentsToConsultation(); } catch(e){ console.warn('[migration appts]', e); }
+  /* 🆕 Migration : prestations en MAJUSCULES */
+  try { migratePrestationsToUppercase(); } catch(e){ console.warn('[migration uppercase]', e); }
   logVisit();
   state.filter.date = todayISO();
   if(!state.billing.month) state.billing.month = currentMonth();
@@ -27891,10 +28534,23 @@ async function init(){
           if (encodedPwd) savedPwd = decodeURIComponent(escape(atob(encodedPwd)));
         }
 
-        if (sess.role === 'admin' && DB.admin.username === sess.id) {
-           state.admin = {username: DB.admin.username};
-           state.role = 'admin';
-           state.view = 'adash';
+        if (sess.role === 'admin') {
+           if (sess.id === DB.admin.username) {
+             state.admin = {username: DB.admin.username};
+             state.adminProfile = null;
+             state.role = 'admin';
+             state.view = 'adash';
+           } else if (String(sess.id).startsWith('admin_profile_')) {
+             const profId = String(sess.id).replace('admin_profile_', '');
+             const prof = (DB.adminProfiles || []).find(p => String(p.id) === String(profId));
+             if (prof) {
+               state.admin = {username: prof.username || DB.admin.username};
+               state.adminProfile = prof;
+               state.role = 'admin';
+               const allowed = getAdminProfileAllowedViews(prof);
+               state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+             }
+           }
         } 
         else if (sess.role === 'clinic') {
            const clinic = DB.clinics.find(c => String(c.id) === String(sess.id));
@@ -28416,6 +29072,9 @@ Object.assign(window, {
   openDoctorForm, saveDoctor, confirmDeleteDoctor, deleteDoctor, toggleDoctorLock, toggleDoctorSession,
   exportSection, importSection, doImportSection,
   openCommissionRateModal, saveCommissionRate,
+  openChangeAdminPwdModal, saveAdminMainPwd,
+  openAdminProfileForm, saveAdminProfile, confirmDeleteAdminProfile, deleteAdminProfile,
+  updateProfilePermission, bulkSetProfilePerm,
   openBillingModal, printBillingReport, onBillingDoctorInput, onBillingDoctorSelect, onQuickRevDoctorSelect,
   onBillingDoctorSearch, renderBillingSuggestions, pickBillingDoctor,
   printQuickRevenueDetails, printDoctorRevenue, printAdminStats, printDoctorStats, printClinicStats, printClinicRevenue,
@@ -28590,6 +29249,8 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   openExpenseCategoryManager, updateExpenseCategoryField,
   addExpenseCategory, confirmDeleteExpenseCategory, doDeleteExpenseCategory,
   updateExpenseTotalPreview,
+  /* 🆕 MAJUSCULES prestations */
+  migratePrestationsToUppercase, forceUpperStr, forceUppercaseInput,
 });
 </script>
 </body>
