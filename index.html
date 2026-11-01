@@ -5398,9 +5398,14 @@ function getSubscriptionDiscountedPrice(kind){
 
 function apptCommission(a){
   if(!a) return getGeneralCommission();
+  // 🩺 RDV clinique : commission gérée par apptClinicCommission, jamais par apptCommission
+  if(a.clinicId) return 0;
   const doc = docById(a.doctorId);
+  if(!doc) return getGeneralCommission();
   const b = getDoctorBilling(doc);
   if(b.type === 'commission') return b.commissionAmount;
+  // 📅 Médecins en abonnement (monthly/yearly/trial) : pas de commission par RDV
+  if(b.type === 'sub_monthly' || b.type === 'sub_yearly' || b.type === 'sub_trial') return 0;
   return getGeneralCommission();
 }
 
@@ -5625,10 +5630,11 @@ const _pendingDeletes = (() => {
       doctorClinicLinks: Array.isArray(raw.doctorClinicLinks) ? raw.doctorClinicLinks : [],
       emergencies:  Array.isArray(raw.emergencies)  ? raw.emergencies  : [],
       expenses:     Array.isArray(raw.expenses)     ? raw.expenses     : [],
-      blocks:       Array.isArray(raw.blocks)       ? raw.blocks       : []
+      blocks:       Array.isArray(raw.blocks)       ? raw.blocks       : [],
+      rooms:        Array.isArray(raw.rooms)        ? raw.rooms        : []
     };
   } catch(e){
-    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [], expenses: [], blocks: [] };
+    return { doctors: [], services: [], appointments: [], messages: [], medicalFiles: [], clinics: [], clinicServices: [], clinicPrestations: [], doctorClinicLinks: [], emergencies: [], expenses: [], blocks: [], rooms: [] };
   }
 })();
 function savePendingDeletes(){
@@ -6049,7 +6055,7 @@ async function pushToSupabase(){
     const syncClinicPrestations     = needsSync('clinicPrestations', 'clinicPrestations');
     const syncDoctorClinicLinks     = needsSync('doctorClinicLinks', 'doctorClinicLinks');
     const syncEmergencies           = needsSync('emergencies', 'emergencies');
-    const syncRooms                 = needsSync('rooms');
+    const syncRooms                 = needsSync('rooms', 'rooms');
     const syncAdmissions            = needsSync('admissions');
     const syncExpenses              = needsSync('expenses', 'expenses');
     const syncBlocks                = needsSync('blocks', 'blocks');
@@ -6158,9 +6164,13 @@ async function pushToSupabase(){
       _pendingDeletes.expenses = []; savePendingDeletes();
     }
     if(_pendingDeletes.blocks && _pendingDeletes.blocks.length){
-      await sb.from('blocks').delete().in('id', _pendingDeletes.blocks);
-      _pendingDeletes.blocks = []; savePendingDeletes();
-    }
+  await sb.from('blocks').delete().in('id', _pendingDeletes.blocks);
+  _pendingDeletes.blocks = []; savePendingDeletes();
+}
+if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
+  await sb.from('rooms').delete().in('id', _pendingDeletes.rooms);
+  _pendingDeletes.rooms = []; savePendingDeletes();
+}
 
     // ---- DOCTORS ----
     if(syncDoctors && DB.doctors.length){
@@ -7366,12 +7376,18 @@ function slotsFor(doctorId, dateISO){
   const isToday = dateISO === todayISO();
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
+  const ws = toMin(doc.workStart);
+  const we = toMin(doc.workEnd);
+  const isNightShift = we <= ws;
   return all.map(s => {
     const slotStart = toMin(s);
     const slotEnd = slotStart + stepDur;
     const overlapping = busyIntervals.some(iv => slotStart < iv.end && slotEnd > iv.start);
     let available = !overlapping;
-    if(isToday && available && slotStart <= nowMin) available = false;
+    if(isToday && available){
+      const isAfterMidnight = isNightShift && slotStart < we;
+      if(!isAfterMidnight && slotStart <= nowMin) available = false;
+    }
     return { time: s, available };
   });
 }
@@ -7401,11 +7417,11 @@ function dateHasAvail(doctorId, dateISO, period){
    ⚠️ MODIFICATION #5 : La clinique est ouverte 24h/24, 7j/7 par défaut.
    Les créneaux disponibles dépendent uniquement du planning de chaque médecin. */
 function slotsForClinic(clinicId, dateISO, durationOverride){
-  /* Cette fonction n'est plus utilisée pour la génération de créneaux.
-     Les créneaux sont générés à partir du planning du médecin. */
   const c = clinicById(clinicId); if(!c) return [];
   const dur = durationOverride || 30;
-  const all = generateSlots(c.workStart||'00:00', c.workEnd||'23:59', dur);
+  const workStart = c.workStart||'00:00';
+  const workEnd = c.workEnd||'23:59';
+  const all = generateSlots(workStart, workEnd, dur);
   
   /* 🔗 LIAISON : tous les RDV de la clinique (avec ou sans médecin) */
   /* 🆕 Seuls les RDV confirmés/terminés bloquent le créneau (les pending ne réservent pas) */
@@ -7422,12 +7438,18 @@ function slotsForClinic(clinicId, dateISO, durationOverride){
   const isToday = dateISO === todayISO();
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
+  const ws = toMin(workStart);
+  const we = toMin(workEnd);
+  const isNightShift = we <= ws;
   return all.map(s => {
     const slotStart = toMin(s);
     const slotEnd = slotStart + dur;
     const overlapping = busyIntervals.some(iv => slotStart < iv.end && slotEnd > iv.start);
     let available = !overlapping;
-    if(isToday && available && slotStart <= nowMin) available = false;
+    if(isToday && available){
+      const isAfterMidnight = isNightShift && slotStart < we;
+      if(!isAfterMidnight && slotStart <= nowMin) available = false;
+    }
     return { time: s, available };
   });
 }
@@ -7520,12 +7542,18 @@ function slotsForClinicService(serviceId, dateISO){
   const isToday = dateISO === todayISO();
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
+  const ws = toMin(sched.workStart);
+  const we = toMin(sched.workEnd);
+  const isNightShift = we <= ws;
   return allSlots.map(s => {
     const ss = toMin(s);
     const se = ss + sched.slotDuration;
     const overlaps = busyIntervals.some(iv => ss < iv.end && se > iv.start);
     let available = !overlaps;
-    if(isToday && available && ss <= nowMin) available = false;
+    if(isToday && available){
+      const isAfterMidnight = isNightShift && ss < we;
+      if(!isAfterMidnight && ss <= nowMin) available = false;
+    }
     return { time: s, available };
   });
 }
@@ -7574,12 +7602,18 @@ function slotsForDoctorInService(doctorId, serviceId, dateISO){
   const isToday = dateISO === todayISO();
   const now = new Date();
   const nowMin = now.getHours()*60 + now.getMinutes();
+  const ws = toMin(hoursStart);
+  const we = toMin(hoursEnd);
+  const isNightShift = we <= ws;
   return allSlots.map(s => {
     const ss = toMin(s);
     const se = ss + slotDur;
     const overlaps = busyIntervals.some(iv => ss < iv.end && se > iv.start);
     let available = !overlaps;
-    if(isToday && available && ss <= nowMin) available = false;
+    if(isToday && available){
+      const isAfterMidnight = isNightShift && ss < we;
+      if(!isAfterMidnight && ss <= nowMin) available = false;
+    }
     return { time: s, available };
   });
 }
@@ -7664,6 +7698,10 @@ function findAutoDoctorForService(clinicId, serviceId){
 }
 
 function pushNotif(role, title, message, toDoctorId, apptId){
+  // 🆕 Les changements de statut patient sont déjà gérés en temps réel
+  //    par detectPatientChangesAndUpdate() + pollPatientData() (snapshot + polling 2s).
+  //    Inutile d'écrire des notifications role='patient' orphelines en DB.
+  if(role === 'patient') return;
   DB.notifications.unshift({id:uid('N-'), role, title, message, toDoctorId:toDoctorId!=null?String(toDoctorId):null, apptId:apptId||null, date:nowISO(), read:false});
   DB.notifications = DB.notifications.slice(0,80); saveDB();
 }
@@ -9088,6 +9126,27 @@ function mfOpenDossierFromAppt(apptId){
   
   /* 🧑‍⚕️ CONTEXTE MÉDECIN / ADMIN (existant) */
   const docId = state.doctor ? state.doctor.id : a.doctorId;
+  // 🩺 Fallback : si aucun médecin mais RDV clinique → créer dossier côté clinique
+  if(!docId){
+    if(a.clinicId){
+      const clinicId = a.clinicId;
+      let file = mfGetForClinic(clinicId, a.patientPhone);
+      if(!file){
+        file = mfNewEmpty(null, a.patientName, a.patientPhone, a.patientAge, a.patientWilaya, clinicId);
+        DB.medicalFiles.push(file);
+        saveDB();
+        toast(t('dossier_created'),'success');
+      }
+      state.dossier.fileId = file.id;
+      state.dossier.tab = 'summary';
+      state.dossier.showArchived = false;
+      state.view = 'dossier';
+      render();
+      return;
+    }
+    toast('Dossier impossible : aucun médecin/clinique associé', 'error');
+    return;
+  }
   let file = mfGet(docId, a.patientPhone);
   if(!file){
     file = mfNewEmpty(docId, a.patientName, a.patientPhone, a.patientAge, a.patientWilaya, null);
@@ -9509,6 +9568,7 @@ async function doAccountLogin(){
   /* 3. Médecin */
   let doc = null;
   for(const d of DB.doctors){
+    if(d.isClinicLocal || d.ownedByClinic) continue;  // 🆕 Médecins locaux : pas de session indépendante
     const okIdent = (String(d.email).toLowerCase() === identLower || String(d.name).toLowerCase() === identLower);
     if(okIdent && await verifyPassword(pwd, d.password)){ doc = d; break; }
   }
@@ -9563,6 +9623,7 @@ function logoutAccount(){
   state.doctor = null;
   state.clinic = null;
   _prevDoctorApptsSnap = null;
+  _prevPatientSnap = null;   // 🆕 évite de fausses notifs patient après re-login
   document.body.classList.remove('admin-readonly');
   state.role = 'patient';
   state.view = 'home';
@@ -9592,6 +9653,23 @@ function logoutAccount(){
   state.lang = 'fr';
   state.emergencyForm = {patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:''};
   state.emergencyAlertId = null;
+
+  // 🆕 Reset des filtres persistants (évite les fuites d'état entre comptes)
+  state.facturationPage = 1;
+  state.adminAvailabilityPageDocs = 1;
+  state.adminAvailabilityPageClinics = 1;
+  state.clinicFacturationFilter = {search:'', type:'all', dateFrom:'', dateTo:''};
+  state.clinicAdmRev = {
+    periodType:'month', dayDate:'',
+    month: currentMonth(), year: currentYear(),
+    startDate:'', endDate:''
+  };
+  state.expenseFilter = {
+    periodType:'month', month: currentMonth(), year: currentYear(),
+    startDate:'', endDate:'', dayDate:'', category:'all', search:''
+  };
+  state.expensePage = 1;
+
   hideEmergencyAlertModal();
   hideSubscriptionExpiredModal();
   render();
@@ -10092,26 +10170,6 @@ function showAllDoctors(){
   render();
   setTimeout(()=>{ window.scrollTo({top:0,behavior:'smooth'}); }, 50);
 }
-function recentClinicRowHTML(c){
-  const closed = !!c.sessionClosed;
-  const rating = getClinicRating(c.id);
-  const svcCount = clinicServicesFor(c.id).length;
-  const docCount = clinicLinkedDoctors(c.id).length;
-  return `
-    <button type="button" class="doctor-row ${closed?'closed':''}" onclick="openClinicPublic('${jsStr(c.id)}')">
-      <div class="dr-avatar" style="font-size:22px;position:relative;overflow:hidden">${clinicLogoContent(c)}</div>
-      <div class="dr-info">
-        <div class="dr-name">${esc(c.name)}</div>
-        <div class="dr-spec">📍 ${esc(c.wilaya)}${c.commune?' · '+esc(c.commune):''}</div>
-      </div>
-      ${closed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
-      ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg}</span>`:''}
-      <span class="tag accent">🥼 ${svcCount}</span>
-      <span class="tag accent">🧑‍⚕️ ${docCount}</span>
-      <span class="dr-arrow">›</span>
-    </button>
-  `;
-}
 function filterDoctorsForSearch(){
   const q = (state.search.q||'').trim().toLowerCase();
   const spec = state.search.specialty || '';
@@ -10160,25 +10218,6 @@ function searchResultLabelHTML(d){
         <div class="sr-spec">${esc(d.specialty)}${rating.count>0?' · ⭐ '+rating.avg:''}${clinics.length?' · 🩺 '+clinics.length:''}</div>
       </div>
       ${closed ? `<span class="sr-closed-badge">🔴 Fermé</span>` : ''}
-    </button>
-  `;
-}
-function recentDoctorRowHTML(d){
-  const todayWork = isWorkDay(d, todayISO());
-  const canToday = todayWork && dateHasAvail(d.id, todayISO(), '');
-  const rating = getDoctorRating(d.id);
-  const closed = !!d.sessionClosed;
-  return `
-    <button type="button" class="doctor-row ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
-      <div class="dr-avatar" style="position:relative">${doctorAvatarContent(d)}</div>
-      <div class="dr-info">
-        <div class="dr-name">${esc(d.name)}</div>
-        <div class="dr-spec">${esc(d.specialty)} · ${esc(d.wilaya)}${d.commune?' · '+esc(d.commune):''}</div>
-      </div>
-      ${closed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
-      ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg}</span>`:''}
-      <span class="tag ${canToday?'success':'muted'}">${canToday?'✓ '+t('today_appts'):'⏳'}</span>
-      <span class="dr-arrow">›</span>
     </button>
   `;
 }
@@ -10791,6 +10830,32 @@ function clinicBookStep4(){
     </div>
   `;
 }
+function _buildClinicDoctorConsultationLine(doc){
+  if(!doc) return [];
+  // Option A : médecin local de clinique → pas de facturation propre
+  if(doc.isClinicLocal || doc.ownedByClinic) return [];
+  // Médecin externe : sa prestation par défaut (issue de la migration)
+  const consultSvc = servicesForDoctor(doc.id).find(sv => sv.isDefault);
+  if(consultSvc){
+    return [{
+      id: consultSvc.id,
+      name: consultSvc.name,
+      price: Number(consultSvc.price) || 0,
+      showPrice: consultSvc.showPrice !== false,
+      isDefault: true
+    }];
+  }
+  // Fallback legacy : anciens médecins dont le fee n'a pas été migré
+  if(Number(doc.fee) > 0){
+    return [{
+      id: 'clinic-consult-' + doc.id,
+      name: 'Consultation',
+      price: Number(doc.fee),
+      isDefault: true
+    }];
+  }
+  return [];
+}
 async function confirmClinicBooking(){
   const s = state.clinicBooking;
   const name = forceFirstUpper(($('#cpName')?.value||'').trim());
@@ -10836,6 +10901,9 @@ async function confirmClinicBooking(){
     );
     if(clash){ toast(t('slot_just_taken'),'error'); s.step=3; render(); return; }
   }
+  const _clinicDoctorServices = (isDoctor && doc) ? _buildClinicDoctorConsultationLine(doc) : [];
+  const _clinicDoctorTotal = _clinicDoctorServices.reduce((s, sv) => s + (Number(sv.price) || 0), 0);
+
   const appt = {
     id: genApptId(),
     doctorId: doc ? doc.id : null,
@@ -10847,8 +10915,8 @@ async function confirmClinicBooking(){
     patientPassword: hashedPatientPwd,
     date: s.date, time: s.time,
     motif: motif || (prestation ? prestation.name : 'Consultation'),
-    services: prestation ? [{id:prestation.id, name:prestation.name, price:prestation.price}] : [],
-    servicesTotal: prestation ? prestation.price : 0,
+    services: isDoctor ? _clinicDoctorServices : (prestation ? [{id:prestation.id, name:prestation.name, price:prestation.price}] : []),
+    servicesTotal: isDoctor ? _clinicDoctorTotal : (prestation ? prestation.price : 0),
     documents: savedDocs,
     status: 'pending',
     createdAt: nowISO(),
@@ -11642,6 +11710,9 @@ async function confirmBooking(){
     a.documents = savedDocs;
     a.status = 'pending';
     a.updatedAt = nowISO();
+    // ✅ Reset du badge "Transféré" (le patient a lui-même modifié son RDV)
+    a.transferredFrom = null;
+    if(a.reminders) a.reminders.transferredFrom = null;
     clearApptNotifications(a.id);
     pushNotif('doctor','RDV modifié', `${name} — ${fmtDate(s.date)} ${s.time}`, doc.id, a.id);
     pushNotif('patient','RDV modifié', `RDV ${a.id} mis à jour`, null, a.id);
@@ -12882,7 +12953,7 @@ function viewDoctorAppts(){
       <div class="grid grid-2">
         <input class="input" type="date" value="${f.date}" onchange="state.filter.date=this.value;state.apptsPage=1;render()">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="pill-btn danger" onclick="state.filter={status:'all',date:todayISO(),search:''};state.apptsPage=1;render()" style="flex:1">🗑️ Réinitialiser</button>
+          <button class="pill-btn danger" onclick="state.filter={status:'all',date:todayISO(),search:''};state.apptsPage=1;render()" style="flex:1">↺ Réinitialiser</button>
           <button class="pill-btn primary" onclick="openPrintRDVModal()" style="flex:1">🖨️ ${t('print_rdv')}</button>
         </div>
       </div>
@@ -13477,10 +13548,9 @@ function viewDoctorInternal(){
       ` : `<div class="empty" style="padding:14px"><div class="empty-ico">💉</div>${t('internal_no_services')}</div>`}
       <div class="total-box" style="margin-top:12px">
         <div>
-          ${doc.fee > 0 ? `<div class="tb-lbl">${t('fee')} : ${n2(doc.fee)} DA</div>` : ''}
           <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">${t('total_to_pay')}</div>
         </div>
-        <div class="tb-val">${n2(doc.fee + services.filter(sv=>f.services.includes(sv.id)).reduce((s,sv)=>s+sv.price,0))} DA</div>
+        <div class="tb-val">${n2(services.filter(sv=>f.services.includes(sv.id)).reduce((s,sv)=>s+sv.price,0))} DA</div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:14px">
         <button class="pill-btn primary" style="padding:11px 22px;font-size:13px;font-weight:600" onclick="createInternalAppt()">✓ ${t('internal_add')}</button>
@@ -13503,7 +13573,14 @@ async function createInternalAppt(){
   const age = parseInt(f.patientAge,10);
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   if(!f.date || !f.time){ toast(t('required_fields'),'error'); return; }
-  const clash = DB.appointments.find(x=>String(x.doctorId)===String(doc.id) && x.date===f.date && x.time===f.time && (x.status === 'confirmed' || x.status === 'done'));
+  /* 🆕 Cohérence avec createClinicInternalAppt : vérifier le chevauchement réel,
+     pas seulement l'égalité stricte heure:minute (ex. RDV 10:00 + 30 min bloque 10:15). */
+  const _intDur = doc.duration || 30;
+  const clash = hasApptConflict(
+    f.date, f.time, _intDur,
+    (x) => String(x.doctorId) === String(doc.id),
+    null
+  );
   if(clash){ toast(t('slot_taken'),'error'); return; }
   const selectedServices = (f.services||[]).map(id=>{
     const sv = serviceById(id);
@@ -14630,20 +14707,32 @@ function mfOpenVitalForm(id){
   `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
    <button class="pill-btn primary" onclick="mfSaveVital('${isEdit?id:'new'}')">💾 ${t('save')}</button>`);
 }
+function _parseFloatOrNull(sel){
+  const el = document.querySelector(sel);
+  if(!el || el.value === '' || el.value === null) return null;
+  const v = parseFloat(el.value);
+  return isNaN(v) ? null : v;
+}
+function _parseIntOrNull(sel){
+  const el = document.querySelector(sel);
+  if(!el || el.value === '' || el.value === null) return null;
+  const v = parseInt(el.value, 10);
+  return isNaN(v) ? null : v;
+}
 function mfSaveVital(id){
   const d = mfData(); if(!d) return;
   const date = $('#viDate')?.value;
   if(!date){ toast(t('required_fields'),'error'); return; }
   const obj = {
     date,
-    weight: parseFloat($('#viWeight')?.value) || null,
-    height: parseFloat($('#viHeight')?.value) || null,
-    taSys: parseInt($('#viSys')?.value,10) || null,
-    taDia: parseInt($('#viDia')?.value,10) || null,
-    fc: parseInt($('#viFc')?.value,10) || null,
-    temp: parseFloat($('#viTemp')?.value) || null,
-    spo2: parseInt($('#viSpo2')?.value,10) || null,
-    glyc: parseFloat($('#viGlyc')?.value) || null
+    weight: _parseFloatOrNull('#viWeight'),
+    height: _parseFloatOrNull('#viHeight'),
+    taSys: _parseIntOrNull('#viSys'),
+    taDia: _parseIntOrNull('#viDia'),
+    fc: _parseIntOrNull('#viFc'),
+    temp: _parseFloatOrNull('#viTemp'),
+    spo2: _parseIntOrNull('#viSpo2'),
+    glyc: _parseFloatOrNull('#viGlyc')
   };
   d.vitals = d.vitals || [];
   if(id === 'new'){
@@ -15125,6 +15214,10 @@ function mfMergeDo(){
   if(!s || !tId) return;
   const ok = mfMerge(s, tId);
   if(!ok){ toast(t('invalid_value'),'error'); return; }
+  // ✅ Cascade : le dossier source disparaît côté Supabase
+  if(!_pendingDeletes.medicalFiles) _pendingDeletes.medicalFiles = [];
+  if(!_pendingDeletes.medicalFiles.includes(s)) _pendingDeletes.medicalFiles.push(s);
+  savePendingDeletes();
   state.dossier.fileId = tId;
   state.dossierMerge = {sourceId: null, targetId: null, step: 1};
   saveDB();
@@ -16875,8 +16968,9 @@ function printDoctorStats(){
   const appts = getStatsAppts().filter(a=>String(a.doctorId)===String(doc.id));
   const s = computeCommonStats(appts);
   const billableList = appts.filter(a=>a.status==='done');
-  /* 💰 Recette = montant facturé (gross), pas la commission OmniMed */
-  const totalRev = billableList.reduce((sum,a)=>sum+(Number(a.servicesTotal)||0),0);
+  // 🩺 Recette = cabinet uniquement (exclut les RDV clinique)
+  const billableCabinet = billableList.filter(a=>!a.clinicId);
+  const totalRev = billableCabinet.reduce((sum,a)=>sum+(Number(a.servicesTotal)||0),0);
   const now = new Date().toLocaleString('fr-FR');
   const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const refNo = 'STATS-' + String(Date.now()).slice(-6) + '/' + new Date().getFullYear();
@@ -17312,7 +17406,7 @@ function viewAdminDoctors(){
             ${d.locked
               ? `<button class="mini-btn green" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Ouvrir la session du médecin">🔓 Ouvrir session</button>`
               : `<button class="mini-btn red" onclick="toggleDoctorLock('${jsStr(String(d.id))}')" title="Verrouiller la session du médecin">🔒 Verrouiller</button>`}
-            <button class="mini-btn ghost" onclick="openDoctorForm('${jsStr(String(d.id))}')">✏️</button>
+            <button class="mini-btn ghost" onclick="openDoctorForm('${jsStr(String(d.id))}', false, '${d.ownedByClinic ? jsStr(String(d.ownedByClinic)) : ''}')">✏️</button>
             <button class="mini-btn ghost" onclick="openServicesManager('${jsStr(String(d.id))}')">💉</button>
             <button class="mini-btn red" onclick="confirmDeleteDoctor('${jsStr(String(d.id))}')">🗑️</button>
           </div>
@@ -17742,6 +17836,9 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
         if(m.to && String(m.to.id)===String(oldId) && m.to.role === 'doctor') m.to = {...m.to, id:newId, key:`doctor_${newId}`};
       });
       DB.doctorClinicLinks.forEach(l=>{ if(String(l.doctorId)===String(oldId)) l.doctorId = newId; });
+      // ✅ Cascade : dossiers médicaux + dépenses
+      if(DB.medicalFiles) DB.medicalFiles.forEach(m=>{ if(String(m.doctorId)===String(oldId)) m.doctorId = newId; });
+      if(DB.expenses) DB.expenses.forEach(e=>{ if(e.ownerType==='doctor' && String(e.ownerId)===String(oldId)) e.ownerId = newId; });
       _pendingDeletes.doctors.push(oldId);
       savePendingDeletes();
     }
@@ -17833,8 +17930,12 @@ function deleteDoctor(id){
   if(!_adminWriteGuard('adoctors')) return;
   const d = docById(id); if(!d) return;
   _pendingDeletes.doctors.push(id);
-  clinicLinksForDoctor(id).forEach(l => _pendingDeletes.doctorClinicLinks.push(l.id));
-  savePendingDeletes();
+// ✅ Cascade : propager TOUTES les suppressions à Supabase
+DB.appointments.filter(a=>String(a.doctorId)===String(id)).forEach(a => _pendingDeletes.appointments.push(a.id));
+DB.services.filter(s=>String(s.doctorId)===String(id)).forEach(s => _pendingDeletes.services.push(s.id));
+DB.medicalFiles.filter(m=>String(m.doctorId)===String(id)).forEach(m => _pendingDeletes.medicalFiles.push(m.id));
+clinicLinksForDoctor(id).forEach(l => _pendingDeletes.doctorClinicLinks.push(l.id));
+savePendingDeletes();
   DB.doctors = DB.doctors.filter(x=>String(x.id)!==String(id));
   DB.appointments = DB.appointments.filter(a=>String(a.doctorId)!==String(id));
   DB.notifications = DB.notifications.filter(n=>String(n.toDoctorId)!==String(id));
@@ -18170,8 +18271,10 @@ function toggleClinicWorkDay(day, btn){
 }
 async function saveClinic(id){
   if(!_adminWriteGuard('aclinics')) return;
+  const _existingClinic = id ? DB.clinics.find(x=>String(x.id)===String(id)) : null;
   const name = forceFirstUpper(($('#cfName')?.value||'').trim());
-  const avatar = '🩺';
+  // ✅ Préserver l'avatar existant (pas d'input dédié dans le formulaire admin)
+  const avatar = _existingClinic ? (_existingClinic.avatar || '🩺') : '🩺';
   const photo = window._clinicPhoto || null;
   const wilaya = ($('#cfWilaya')?.value||'').trim();
   const commune = ($('#cfCommune')?.value||'').trim();
@@ -18188,6 +18291,14 @@ async function saveClinic(id){
   const recettePwdRaw = ($('#cfRecettePwd')?.value||'').trim();
 
   if(!name || !wilaya || !email){ toast(t('required_fields'),'error'); return; }
+  // ✅ Valider que la commune appartient bien à la wilaya sélectionnée
+  if(commune){
+    const validCommunes = DB.communes[wilaya] || [];
+    if(!validCommunes.includes(commune)){
+      toast('La commune sélectionnée n\'appartient pas à cette wilaya', 'error');
+      return;
+    }
+  }
 
   const existing = id ? DB.clinics.find(x=>String(x.id)===String(id)) : null;
   let pwd, pwdPlain, recettePwd, recettePwdPlain;
@@ -18257,6 +18368,11 @@ async function saveClinic(id){
         if(m.from && m.from.role === 'clinic' && String(m.from.id)===String(oldId)) m.from = {...m.from, id:newId, key:`clinic_${newId}`};
         if(m.to && m.to.role === 'clinic' && String(m.to.id)===String(oldId)) m.to = {...m.to, id:newId, key:`clinic_${newId}`};
       });
+      // ✅ Cascade : chambres, admissions, dépenses, notifications
+      if(DB.rooms) DB.rooms.forEach(r=>{ if(String(r.clinicId)===String(oldId)) r.clinicId = newId; });
+      if(DB.admissions) DB.admissions.forEach(a=>{ if(String(a.clinicId)===String(oldId)) a.clinicId = newId; });
+      if(DB.expenses) DB.expenses.forEach(e=>{ if(e.ownerType==='clinic' && String(e.ownerId)===String(oldId)) e.ownerId = newId; });
+      if(DB.notifications) DB.notifications.forEach(n=>{ if(n.role==='clinic' && n.toDoctorId!=null && String(n.toDoctorId)===String(oldId)) n.toDoctorId = newId; });
       _pendingDeletes.clinics.push(oldId);
       savePendingDeletes();
     }
@@ -19991,9 +20107,11 @@ function buildInvoiceStyles(){
 }
 function buildInvoicePageHTML(doc, docAppts, periodLabel, invNo, totalWords, total){
   const docLabel = doc ? `${doc.name} — ${doc.specialty}` : t('billing_all_doctors');
-  const isSub = doc && isSubscriptionType(doc) && isSubscriptionActive(doc);
   const isTrial = doc && doc.billingType === 'sub_trial';
-  const block = isSub ? buildSubscriptionInvoiceBlock(doc) : buildInvoiceTableBlockForDoctor(docAppts, doc, state.billing.periodType);
+  const isSub = doc && isSubscriptionType(doc) && isSubscriptionActive(doc) && !isTrial;
+  const block = isTrial
+    ? `<div class="letter-amount" style="font-style:normal;color:#059669;border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)"><strong>🎁 ${esc(t('billing_type_sub_trial'))} :</strong> ${esc(t('trial_invoice_note'))}</div>`
+    : (isSub ? buildSubscriptionInvoiceBlock(doc) : buildInvoiceTableBlockForDoctor(docAppts, doc, state.billing.periodType));
   let factNo;
   if(isTrial){
     factNo = t('billing_type_sub_trial');
@@ -20184,10 +20302,12 @@ function printBillingReport(){
       const doc = docById(docId);
       if(!doc) return;
       const docAppts = grouped[docId];
-      const isSub = isSubscriptionType(doc);
-      const invNum = assignInvoiceNumberForDoctor(docId);
-      const invNo = isSub ? formatSubInvoiceNumberFromCount(invNum) : formatInvoiceNumberFromCount(invNum);
-      const docTotal = docAppts.reduce((s,a)=>s+apptCommission(a),0);
+      const isTrial = doc.billingType === 'sub_trial';
+      const isSub = isSubscriptionType(doc) && !isTrial;
+      // ✅ Ne PAS consommer de numéro de facture pour un médecin en essai libre
+      const invNum = isTrial ? null : assignInvoiceNumberForDoctor(docId);
+      const invNo = invNum === null ? null : (isSub ? formatSubInvoiceNumberFromCount(invNum) : formatInvoiceNumberFromCount(invNum));
+      const docTotal = isTrial ? 0 : docAppts.reduce((s,a)=>s+apptCommission(a),0);
       const docTotalWords = numberToFrenchWords(docTotal) + ' ' + t('dinars');
       pages += buildInvoicePageHTML(doc, docAppts, periodLabel, invNo, docTotalWords, docTotal);
       if(idx < lastIdx) pages += `<div class="page-break"></div>`;
@@ -20407,35 +20527,6 @@ function _buildClinicInvoicePageHTML_PRO(clinic, clinicAppts, periodLabel, invNo
 }
 function buildClinicInvoicePageHTML(clinic, clinicAppts, periodLabel, invNo, totalWords, total){
   return _buildClinicInvoicePageHTML_PRO(clinic, clinicAppts, periodLabel, invNo, totalWords, total);
-  /* corps original (dead-code conservé pour patcher idempotent) */
-
-  const clinicLabel = clinic ? `${clinic.name}` : t('clinics');
-  const b = clinic ? getClinicBilling(clinic) : null;
-  const isSub = b && (b.type === 'sub_monthly' || b.type === 'sub_yearly') && isClinicSubscriptionActive(clinic);
-  const isTrial = clinic && clinic.billingType === 'sub_trial';
-  const block = isSub ? buildClinicSubscriptionInvoiceBlock(clinic) : buildClinicInvoiceTableBlock(clinicAppts, clinic, state.clinicBilling.periodType);
-  let factNo;
-  if(isTrial) factNo = t('billing_type_sub_trial');
-  else if(isSub) factNo = invNo ? `${t('clinic_invoice_title')} N° ${invNo}` : t('clinic_invoice_title');
-  else if(invNo && invNo !== '(par clinique)') factNo = `${t('clinic_invoice_title')} N° ${invNo}`;
-  else factNo = t('clinic_invoice_title');
-  return `
-  <div class="head">
-    <div class="brand">
-      <div class="logo">${clinic ? (clinic.avatar||'🩺') : '🩺'}</div>
-      <div class="brand-txt">
-        <h1>OmniMed</h1>
-        <div class="fact-no">${factNo}</div>
-        <div class="sub"><strong>${esc(clinicLabel)}</strong>${clinic && clinic.wilaya ? ` — ${esc(clinic.wilaya)}` : ''}</div>
-      </div>
-    </div>
-    <div class="meta">
-      <div class="brand-line">OmniMed une solution OmniSoft</div>
-      <div class="brand-line-3">${esc(periodLabel)}</div>
-    </div>
-  </div>
-  ${isSub ? block : (block + `<div class="letter-amount"><strong>${t('stop_invoice')} :</strong> ${esc(totalWords)}</div>`)}
-  `;
 }
 function openClinicBillingModal(){
   const cb = state.clinicBilling;
@@ -20604,7 +20695,7 @@ function printClinicBillingReport(){
       const invNo = formatClinicInvoiceNumberFromCount(invNum);
       const clinicTotal = clinicAppts.reduce((s,a)=>s+apptClinicCommission(a),0);
       const clinicTotalWords = numberToFrenchWords(clinicTotal) + ' ' + t('dinars');
-      pages += buildClinicInvoicePageHTML(clinic, clinicAppts, periodLabel, invNo, clinicTotalWords, clinicTotal);
+      pages += buildClinicInvoicePageHTML(clinic, clinicAppts, periodLabel, invNo, clinicTotalWords, clinicTotal) + getClinicFooterBlock(clinic);
       if(idx < lastIdx) pages += `<div class="page-break"></div>`;
     });
     saveDB();
@@ -20861,6 +20952,19 @@ async function sendInvoicesToDoctors(){
   if(b.periodType === 'month') subject = `Facture mois de ${periodLabel}`;
   else if(b.periodType === 'day') subject = `Facture du ${periodLabel}`;
   else subject = `Facture ${periodLabel}`;
+  // 🆕 Anti-doublon : vérifier si ces factures ont déjà été envoyées
+  if(!window._forceSendInvoices){
+    const alreadySent = DB.messages.some(m => m.from.key === me.key && m.subject === subject);
+    if(alreadySent){
+      openModal('⚠️ Factures déjà envoyées',
+        `Des factures pour "${periodLabel}" ont déjà été envoyées via la messagerie. Renvoyer quand même ?`,
+        '',
+        `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+         <button class="pill-btn primary" onclick="closeModal();window._forceSendInvoices=true;sendInvoicesToDoctors()">Renvoyer</button>`);
+      return;
+    }
+  }
+  window._forceSendInvoices = false;
   let sent = 0;
   for(const {docId, appts} of groups){
     const doc = docById(docId);
@@ -21843,11 +21947,13 @@ function exportSection(type){
     payload = { app:'OmniMed', type:'rest', exportedAt: nowISO(), data: {
       schemaVersion: 3,
       admin: DB.admin,
+      adminProfiles: DB.adminProfiles || [],          // 🆕
       settings: {
         commission: DB.settings.commission,
         subMonthly: DB.settings.subMonthly,
         subYearly: DB.settings.subYearly,
-        subDiscount: DB.settings.subDiscount
+        subDiscount: DB.settings.subDiscount,
+        blocage: DB.settings.blocage                   // 🆕
       },
       doctors: DB.doctors,
       clinics: DB.clinics,
@@ -21861,7 +21967,14 @@ function exportSection(type){
       medicalFiles: DB.medicalFiles,
       invoiceRegistry: DB.invoiceRegistry,
       subInvoiceRegistry: DB.subInvoiceRegistry,
-      clinicInvoiceRegistry: DB.clinicInvoiceRegistry
+      clinicInvoiceRegistry: DB.clinicInvoiceRegistry,
+      emergencies: DB.emergencies || [],               // 🆕
+      expenses: DB.expenses || [],                     // 🆕
+      rooms: DB.rooms || [],                           // 🆕
+      admissions: DB.admissions || [],                 // 🆕
+      blocks: DB.blocks || [],                         // 🆕
+      visits: DB.visits || {},                         // 🆕
+      expenseCategories: DB.expenseCategories || []    // 🆕
     }};
     filename = `omnimed_rest_${ts}.json`;
   } else { return; }
@@ -21923,6 +22036,7 @@ function importSection(input, type){
   reader.readAsText(file);
 }
 function doImportSection(){
+  if(!_adminWriteGuard('asettings')) return;
   const pending = state._importPending;
   if(!pending){ closeModal(); return; }
   const { data: parsed, type } = pending;
@@ -21947,12 +22061,14 @@ function doImportSection(){
     } else if(type === 'rest'){
       const d = parsed.data;
       if(d.admin) DB.admin = d.admin;
+      if(d.adminProfiles) DB.adminProfiles = d.adminProfiles;              // 🆕
       if(d.settings){
         DB.settings = DB.settings || {};
         if(d.settings.commission !== undefined) DB.settings.commission = d.settings.commission;
         if(d.settings.subMonthly !== undefined) DB.settings.subMonthly = d.settings.subMonthly;
         if(d.settings.subYearly !== undefined) DB.settings.subYearly = d.settings.subYearly;
         if(d.settings.subDiscount !== undefined) DB.settings.subDiscount = d.settings.subDiscount;
+        if(d.settings.blocage !== undefined) DB.settings.blocage = d.settings.blocage;  // 🆕
       }
       if(d.doctors) DB.doctors = d.doctors;
       if(d.clinics) DB.clinics = d.clinics;
@@ -21967,6 +22083,13 @@ function doImportSection(){
       if(d.invoiceRegistry) DB.invoiceRegistry = d.invoiceRegistry;
       if(d.subInvoiceRegistry) DB.subInvoiceRegistry = d.subInvoiceRegistry;
       if(d.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = d.clinicInvoiceRegistry;
+      if(d.emergencies) DB.emergencies = d.emergencies;                    // 🆕
+      if(d.expenses) DB.expenses = d.expenses;                             // 🆕
+      if(d.rooms) DB.rooms = d.rooms;                                      // 🆕
+      if(d.admissions) DB.admissions = d.admissions;                       // 🆕
+      if(d.blocks) DB.blocks = d.blocks;                                   // 🆕
+      if(d.visits) DB.visits = d.visits;                                   // 🆕
+      if(d.expenseCategories) DB.expenseCategories = d.expenseCategories;  // 🆕
     }
     state._importPending = null;
     saveDB();
@@ -22084,7 +22207,7 @@ function viewClinicDash(){
   const _emgAccepted = _clinicEmergencies.filter(e => e.status === 'accepted').length;
   const _emgToday    = _clinicEmergencies.filter(e => {
     if(!e.createdAt) return false;
-    return String(e.createdAt).slice(0,10) === todayISO();
+    try { return localISO(new Date(e.createdAt)) === todayISO(); } catch(_){ return false; }
   }).length;
   
   const _now = new Date();
@@ -22769,13 +22892,18 @@ function viewClinicHospitalization(){
 }
 
 function quickAdmitToBed(roomId, serviceId, bedNumber){
-  state.admissionForm = {
+  const c = state.clinic;
+  if(!c){ return; }
+  const services = clinicServicesFor(c.id);
+  const _initServiceId = (serviceId && services.some(sv => String(sv.id) === String(serviceId)))
+    ? serviceId
+    : (services[0]?.id || null);
+  openAdmissionForm(null, {
     patientName:'', patientPhone:'', patientAge:'', patientWilaya:'',
-    serviceId: serviceId || null, roomId: roomId, bedNumber: bedNumber, doctorId: null,
+    serviceId: _initServiceId, roomId: roomId, bedNumber: bedNumber, doctorId: null,
     fromApptId: null, motif:'', admissionDate: todayISO(),
     interventions: [], pricePerDay: 0, notes: ''
-  };
-  openAdmissionForm();
+  });
 }
 function openAdmissionFromAppt(apptId){
   const a = DB.appointments.find(x => x.id === apptId);
@@ -22861,28 +22989,49 @@ function openAdmissionFromEmergency(emergencyId){
   /* Ouvrir le formulaire d'admission pré-rempli */
   openAdmissionFromAppt(appt.id);
 }
-function openAdmissionForm(admissionId){
+function openAdmissionForm(admissionId, initData){
   const c = state.clinic;
   const services = clinicServicesFor(c.id);
   const isEdit = !!admissionId;
   const existing = isEdit ? DB.admissions.find(a => a.id === admissionId) : null;
   if(!services.length){ toast('Créez d\'abord des services', 'error'); return; }
   if(!roomsForClinic(c.id).length){ toast('Créez d\'abord des chambres dans votre profil', 'error'); return; }
-  state.admissionForm = existing ? {
-    patientName: existing.patientName, patientPhone: existing.patientPhone,
-    patientAge: existing.patientAge || '', patientWilaya: existing.patientWilaya || '',
-    serviceId: existing.serviceId, roomId: existing.roomId, bedNumber: existing.bedNumber,
-    doctorId: existing.doctorId, fromApptId: existing.fromApptId,
-    motif: existing.motif || '', admissionDate: existing.admissionDate || todayISO(),
-    interventions: JSON.parse(JSON.stringify(existing.interventions || [])),
-    pricePerDay: existing.pricePerDay || 0,
-    notes: existing.notes || ''
-  } : {
-    patientName:'', patientPhone:'', patientAge:'', patientWilaya:'',
-    serviceId: services[0]?.id || null, roomId: null, bedNumber: 1, doctorId: null,
-    fromApptId: null, motif:'', admissionDate: todayISO(),
-    interventions: [], pricePerDay: 0, notes: ''
-  };
+  if(existing){
+    state.admissionForm = {
+      patientName: existing.patientName, patientPhone: existing.patientPhone,
+      patientAge: existing.patientAge || '', patientWilaya: existing.patientWilaya || '',
+      serviceId: existing.serviceId, roomId: existing.roomId, bedNumber: existing.bedNumber,
+      doctorId: existing.doctorId, fromApptId: existing.fromApptId,
+      motif: existing.motif || '', admissionDate: existing.admissionDate || todayISO(),
+      interventions: JSON.parse(JSON.stringify(existing.interventions || [])),
+      pricePerDay: existing.pricePerDay || 0,
+      notes: existing.notes || ''
+    };
+  } else if(initData){
+    state.admissionForm = {
+      patientName: initData.patientName || '',
+      patientPhone: initData.patientPhone || '',
+      patientAge: initData.patientAge || '',
+      patientWilaya: initData.patientWilaya || '',
+      serviceId: initData.serviceId || services[0]?.id || null,
+      roomId: initData.roomId || null,
+      bedNumber: initData.bedNumber || 1,
+      doctorId: initData.doctorId || null,
+      fromApptId: initData.fromApptId || null,
+      motif: initData.motif || '',
+      admissionDate: initData.admissionDate || todayISO(),
+      interventions: initData.interventions || [],
+      pricePerDay: initData.pricePerDay || 0,
+      notes: initData.notes || ''
+    };
+  } else {
+    state.admissionForm = {
+      patientName:'', patientPhone:'', patientAge:'', patientWilaya:'',
+      serviceId: services[0]?.id || null, roomId: null, bedNumber: 1, doctorId: null,
+      fromApptId: null, motif:'', admissionDate: todayISO(),
+      interventions: [], pricePerDay: 0, notes: ''
+    };
+  }
   openModal(isEdit ? '✏️ Modifier admission' : '📥 Nouvelle admission', c.name,
     `<div id="admissionFormBody"></div>`,
     `<button class="pill-btn" onclick="closeModal()">Annuler</button>
@@ -22893,141 +23042,6 @@ function openAdmissionForm(admissionId){
 
 function renderAdmissionFormBody(admissionId){
   return _renderAdmissionFormBody_V2(admissionId);
-}
-function _renderAdmissionFormBody_OLD(admissionId){
-  const body = document.getElementById('admissionFormBody');
-  if(!body) return;
-  state._editingAdmissionId = admissionId || null;
-  const c = state.clinic;
-  const f = state.admissionForm;
-  const services = clinicServicesFor(c.id);
-  const rooms = roomsForClinicService(c.id, f.serviceId);
-  const doctors = clinicLinkedDoctors(c.id);
-  const appts = DB.appointments.filter(a =>
-    String(a.clinicId) === String(c.id) &&
-    ['confirmed','pending','done'].includes(a.status) &&
-    normPhone(a.patientPhone) === normPhone(f.patientPhone)
-  ).slice(0, 10);
-  const interventionsTotal = (f.interventions || []).reduce((s, i) => s + (Number(i.price) || 0), 0);
-  const todayDate = todayISO();
-  const days = f.admissionDate ? (() => {
-    const diff = Math.ceil((new Date(todayDate + 'T00:00:00') - new Date(f.admissionDate + 'T00:00:00')) / (1000 * 60 * 60 * 24));
-    return Math.max(1, diff + 1);
-  })() : 0;
-  const roomTotal = (f.pricePerDay || 0) * days;
-  body.innerHTML = `
-    <div class="section-title">👤 Patient</div>
-    <div class="field-row">
-      <div class="field"><label>Nom complet *</label><input class="input" value="${esc(f.patientName)}" oninput="state.admissionForm.patientName=this.value"></div>
-      <div class="field"><label>Téléphone *</label><input class="input" type="tel" value="${esc(f.patientPhone)}" oninput="state.admissionForm.patientPhone=this.value"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Âge</label><input class="input" type="number" min="0" max="130" value="${esc(f.patientAge)}" oninput="state.admissionForm.patientAge=this.value"></div>
-      <div class="field"><label>Wilaya</label>
-        <select class="select" onchange="state.admissionForm.patientWilaya=this.value">
-          <option value="">—</option>
-          ${DB.wilayas.map(w => `<option ${f.patientWilaya===w?'selected':''}>${esc(w)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    ${appts.length ? `
-    <div class="field">
-      <label>🔗 RDV lié (optionnel)</label>
-      <select class="select" onchange="state.admissionForm.fromApptId=this.value||null">
-        <option value="">— Aucun —</option>
-        ${appts.map(a => `<option value="${a.id}" ${f.fromApptId===a.id?'selected':''}>${a.id} — ${fmtDateFR(a.date)} ${a.time} (${a.status})</option>`).join('')}
-      </select>
-    </div>` : ''}
-
-    <div class="section-title" style="margin-top:14px">🥼 Service & Chambre</div>
-    <div class="field-row">
-      <div class="field"><label>Service *</label>
-        <select class="select" onchange="state.admissionForm.serviceId=this.value;state.admissionForm.roomId=null;renderAdmissionFormBody('${admissionId || ''}')">
-          ${services.map(sv => `<option value="${sv.id}" ${f.serviceId===sv.id?'selected':''}>${sv.icon||'🩺'} ${esc(sv.name)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field"><label>Médecin traitant (optionnel)</label>
-        <select class="select" onchange="state.admissionForm.doctorId=this.value||null">
-          <option value="">—</option>
-          ${doctors.map(d => `<option value="${jsStr(String(d.id))}" ${String(f.doctorId)===String(d.id)?'selected':''}>${specialtyAvatar(d.specialty)} ${esc(d.name)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    <div class="field">
-      <label>Chambre * (${rooms.length} disponible${rooms.length>1?'s':''} dans ce service)</label>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
-        ${rooms.length ? rooms.map(r => {
-          const isSel = String(f.roomId) === String(r.id);
-          return `<button type="button" class="mini-btn ghost" style="padding:10px;height:auto;flex-direction:column;display:flex;align-items:center;gap:3px;${isSel?'background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)':''}" onclick="state.admissionForm.roomId='${r.id}';state.admissionForm.bedNumber=1;renderAdmissionFormBody('${admissionId || ''}')">
-            <div style="font-weight:700;font-size:12.5px">🛏️ ${esc(r.name)}</div>
-            <div style="font-size:10.5px;opacity:.8">${r.beds} lits ${r.floor?'· '+esc(r.floor):''}</div>
-          </button>`;
-        }).join('') : `<div style="font-size:12px;color:var(--text-muted);grid-column:1/-1;text-align:center;padding:10px">Aucune chambre dans ce service</div>`}
-      </div>
-    </div>
-    ${f.roomId ? `
-    <div class="field">
-      <label>Lit *</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${Array.from({length: (roomById(f.roomId)?.beds||1)}, (_,i)=>i+1).map(n => {
-          const occ = isBedOccupied(f.roomId, n);
-          const selfOcc = String(f.roomId)===String(state.admissionForm.roomId) && f.bedNumber===n;
-          const occupiedByOther = occ && !(admissionId && DB.admissions.find(a=>a.id===admissionId && a.status==='active' && a.roomId===f.roomId && a.bedNumber===n));
-          return `<button type="button" class="mini-btn ${selfOcc?'purple':(occupiedByOther?'ghost':'green')}" ${occupiedByOther?'disabled':''} style="min-width:70px;padding:10px" onclick="state.admissionForm.bedNumber=${n};renderAdmissionFormBody('${admissionId || ''}')">
-            🛏️ Lit ${n}${occupiedByOther?' (occupé)':''}
-          </button>`;
-        }).join('')}
-      </div>
-    </div>` : ''}
-
-    <div class="section-title" style="margin-top:14px">📅 Séjour</div>
-    <div class="field-row">
-      <div class="field"><label>Date d'admission *</label>
-        <input class="input" type="date" value="${f.admissionDate||''}" onchange="state.admissionForm.admissionDate=this.value;renderAdmissionFormBody('${admissionId || ''}')">
-      </div>
-      <div class="field"><label>Motif</label>
-        <input class="input" value="${esc(f.motif)}" oninput="state.admissionForm.motif=this.value" placeholder="Ex : intervention chirurgicale…">
-      </div>
-    </div>
-    <div class="field">
-      <label>💰 Prix chambre / jour (DA) *</label>
-      <input class="input" type="number" min="0" step="500" value="${f.pricePerDay || 0}" onchange="state.admissionForm.pricePerDay=parseInt(this.value,10)||0;renderAdmissionFormBody('${admissionId || ''}')">
-    </div>
-
-    <div class="section-title" style="margin-top:14px">💉 Interventions / Prestations</div>
-    <div style="margin-bottom:8px">
-      ${(f.interventions||[]).map((iv, i) => `
-        <div class="list-item">
-          <span class="li-name">${esc(iv.name)}</span>
-          <span class="tag accent">${iv.days||0}j</span>
-          <span class="tag money">${n2(iv.price)} DA</span>
-          <button class="mini-btn out-red" onclick="removeAdmissionIntervention(${i})">✕</button>
-        </div>
-      `).join('') || `<div style="font-size:12px;color:var(--text-muted);padding:8px;text-align:center">Aucune intervention ajoutée</div>`}
-    </div>
-    <div class="field-row" style="align-items:flex-end">
-      <div class="field" style="margin-bottom:0"><label>Intervention</label><input class="input" id="ivName" placeholder="Ex : Appendicectomie"></div>
-            <div class="field" style="margin-bottom:0;max-width:140px"><label>Prix (DA)</label><input class="input" id="ivPrice" type="number" min="0" step="500" value="0"></div>
-      <button type="button" class="pill-btn primary" style="height:42px" onclick="addAdmissionIntervention()">+ Ajouter</button>
-    </div>
-
-    <div class="section-title" style="margin-top:14px">📝 Notes</div>
-    <div class="field"><label>Notes</label>
-      <textarea class="textarea" style="min-height:60px" oninput="state.admissionForm.notes=this.value">${esc(f.notes)}</textarea>
-    </div>
-
-    <div class="total-box" style="margin-top:14px">
-      <div>
-        <div class="tb-lbl">🛏️ Chambre (${days} j × ${n2(f.pricePerDay||0)}) : ${n2(roomTotal)} DA</div>
-        <div class="tb-lbl">💉 Interventions : ${n2(interventionsTotal)} DA</div>
-        <div class="tb-lbl" style="font-weight:700;color:var(--text-main);margin-top:4px">Total à payer</div>
-        <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;font-style:italic">
-          💡 Commission OmniMed calculée automatiquement selon les paramètres de la clinique
-        </div>
-      </div>
-      <div class="tb-val">${n2(roomTotal + interventionsTotal)} DA</div>
-    </div>
-  `;
 }
 
 function updateAdmissionFullName(){
@@ -23514,145 +23528,15 @@ function _printAdmissionInvoice_PRO(admissionId){
 function printAdmissionInvoice(admissionId){
   return _printAdmissionInvoice_PRO(admissionId);
 }
-function _printAdmissionInvoice_DEAD(admissionId){
-  const a = DB.admissions.find(x => x.id === admissionId);
-  if(!a){ toast('Admission introuvable', 'error'); return; }
-  const c = clinicById(a.clinicId);
-  const room = a.roomId ? roomById(a.roomId) : null;
-  const svc = a.serviceId ? clinicServiceById(a.serviceId) : null;
-  const doc = a.doctorId ? docById(a.doctorId) : null;
-  const tot = computeAdmissionTotals(a);
-  const now = new Date().toLocaleString('fr-FR');
-  const printDate = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  const invRef = 'FACT-' + a.id;
-  const totalWords = numberToFrenchWords(tot.total) + ' ' + t('dinars');
-
-  const lines = [
-    `<tr>
-      <td class="c">1</td>
-      <td><strong>🛏️ Chambre ${room ? esc(room.name) : '—'} — séjour</strong>${room && room.floor ? `<div style="font-size:8.5px;color:#6b7280">📍 ${esc(room.floor)} · Lit ${a.bedNumber}</div>` : ''}</td>
-      <td class="c">${tot.days} j</td>
-      <td class="r">${n2(a.pricePerDay)}</td>
-      <td class="r total">${n2(tot.roomTotal)}</td>
-    </tr>`,
-    ...(a.interventions||[]).map((iv, i) => `<tr>
-      <td class="c">${i+2}</td>
-      <td><strong>💉 ${esc(iv.name)}</strong>${iv.days>1 ? `<div style="font-size:8.5px;color:#6b7280">${iv.days} jour(s)</div>` : ''}</td>
-      <td class="c">1</td>
-      <td class="r">${n2(iv.price)}</td>
-      <td class="r total">${n2(iv.price)}</td>
-    </tr>`)
-  ].join('');
-
-  printHTML(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>OmniMed — Facture ${esc(a.id)}</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  @page{size:A4 portrait;margin:10mm}
-  body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:9.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden}
-  .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
-  .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-  .cover .logo-box{display:flex;gap:14px;align-items:center}
-  .cover .logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
-  .cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:'Playfair Display',Georgia,serif;line-height:1.05}
-  .cover .sub{font-size:11.5px;opacity:.94}
-  .cover .ref{margin-top:4px;font-family:'Rubik',sans-serif;font-size:10.5px;opacity:.9}
-  .cover .date-box{background:rgba(255,255,255,.18);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}
-  .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}
-  .cover .date-box strong{display:block;font-size:13px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize}
-  .section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #ede9fe;margin:18px 0 12px}
-  .section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:grid;place-items:center;font-size:14px}
-  .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:12px;font-size:10px;line-height:1.6}
-  .info-grid .k{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;margin-bottom:2px}
-  .info-grid .v{color:#111827;font-weight:600}
-  table.data{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:8px}
-  table.data thead th{background:#f3f4f6;color:#374151;padding:7px 6px;text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1.5px solid #e5e7eb}
-  table.data thead th.c{text-align:center}
-  table.data thead th.r{text-align:right}
-  table.data tbody td{padding:6px;border-bottom:1px solid #f3f4f6;vertical-align:top}
-  table.data tbody td.c{text-align:center}
-  table.data tbody td.r{text-align:right;font-family:'Rubik',sans-serif;font-weight:500;white-space:nowrap}
-  table.data tbody td.total{color:#059669;font-weight:700}
-  table.data tbody tr:nth-child(even){background:#fafafa}
-  table.data tfoot td{padding:8px 6px;font-weight:700;background:#f3f4f6;border-top:2px solid #8b5cf6;font-family:'Rubik',sans-serif;font-size:10px}
-  table.data tfoot td.r{text-align:right}
-  table.data tfoot td.grand{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);color:#059669;font-size:12px}
-  table.data tfoot td.warn{color:#d97706;background:#fffbeb}
-  .letter-amount{background:#f8fafc;border:1px dashed #d1d5db;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:10px;line-height:1.5;font-style:italic;color:#1f2937}
-  .letter-amount strong{color:#8b5cf6;font-style:normal}
-  .footer{margin-top:26px;padding-top:12px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;align-items:center;gap:16px;flex-wrap:wrap;font-size:9px;color:#6b7280}
-  .footer .stamp{display:inline-flex;align-items:center;gap:5px;background:#f3f4f6;padding:5px 10px;border-radius:8px;font-family:'Rubik',sans-serif;font-size:8.5px;color:#4b5563;font-weight:600}
-</style></head>
-<body>
-  <div class="cover">
-    <div class="cover-top">
-      <div class="logo-box">
-        <div class="logo">${c ? (c.avatar||'🩺') : '🩺'}</div>
-        <div>
-          <h1>${c ? esc(c.name) : 'OmniMed'}</h1>
-          <div class="sub">FACTURE HOSPITALISATION${c && c.wilaya ? ' — ' + esc(c.wilaya) : ''}</div>
-          <div class="ref">Réf. ${esc(invRef)}</div>
-        </div>
-      </div>
-      <div class="date-box">
-        <div class="lbl">Émise le</div>
-        <strong>${printDate}</strong>
-        <div style="opacity:.85;font-size:9px;margin-top:3px;font-family:'Rubik',sans-serif">${now}</div>
-      </div>
-    </div>
-  </div>
-  ${c ? getClinicHeaderBlock(c) : ''}
-
-  <div class="section-head"><span class="ico-badge">👤</span> Informations patient & admission</div>
-  <div class="info-grid">
-    <div><div class="k">Patient</div><div class="v">${esc(a.patientName)}${a.patientAge?' · '+a.patientAge+' ans':''}</div></div>
-    <div><div class="k">Téléphone</div><div class="v">${esc(a.patientPhone||'—')}</div></div>
-    <div><div class="k">Wilaya</div><div class="v">${esc(a.patientWilaya||'—')}</div></div>
-    ${svc ? `<div><div class="k">Service</div><div class="v">${svc.icon||'🩺'} ${esc(svc.name)}</div></div>` : ''}
-    ${doc ? `<div><div class="k">Médecin</div><div class="v">${esc(doc.name)}</div></div>` : ''}
-    <div><div class="k">Chambre</div><div class="v">${room?esc(room.name)+' — Lit '+a.bedNumber:'—'}</div></div>
-    <div><div class="k">Date d'admission</div><div class="v">${a.admissionDate?fmtDateFR(a.admissionDate):'—'}</div></div>
-    <div><div class="k">Date de sortie</div><div class="v">${a.dischargeDate?fmtDateFR(a.dischargeDate):'En cours'}</div></div>
-    <div><div class="k">Durée totale</div><div class="v">${tot.days} jour(s)</div></div>
-  </div>
-
-  ${a.motif ? `<div class="letter-amount" style="font-style:normal;margin-bottom:12px">📝 <strong>Motif :</strong> ${esc(a.motif)}</div>` : ''}
-
-  <div class="section-head"><span class="ico-badge">📋</span> Détail des frais</div>
-  <table class="data">
-    <thead><tr>
-      <th class="c" style="width:30px">#</th>
-      <th>Désignation</th>
-      <th class="c" style="width:60px">Qté</th>
-      <th class="r" style="width:100px">P.U. (DA)</th>
-      <th class="r" style="width:110px">Total (DA)</th>
-    </tr></thead>
-    <tbody>${lines}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="4" class="r" style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);color:#059669;font-size:12px">TOTAL À PAYER :</td>
-        <td class="r grand" style="color:#059669">${n2(tot.total)} DA</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <div class="letter-amount">
-    <strong>Arrêtée la présente facture à la somme de :</strong> ${esc(totalWords)}
-  </div>
-
-  ${getClinicFooterBlock(c)}
-</body></html>`);
-  closeModal();
-}
 function viewClinicDoctors(){
   const c = state.clinic;
   const links = clinicLinksFor(c.id);
-  const accepted = links.filter(l => l.status === 'accepted');
+  const localDocs = DB.doctors.filter(d => String(d.ownedByClinic)===String(c.id));
+  const localIds = new Set(localDocs.map(d => String(d.id)));
+  // ✅ Exclure les médecins locaux de la liste "accepted" (ils ont leur section dédiée)
+  const accepted = links.filter(l => l.status === 'accepted' && !localIds.has(String(l.doctorId)));
   const pending = links.filter(l => l.status === 'pending');
   const services = clinicServicesFor(c.id);
-  const localDocs = DB.doctors.filter(d => String(d.ownedByClinic)===String(c.id));
   return `
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -24032,13 +23916,15 @@ function saveClinicInternalDoctor(doctorId){
   }
 
   /* Synchroniser le lien médecin-clinique (service affecté) */
+  // ✅ Chercher TOUT lien existant (pending OU accepted) pour éviter les doublons
   let link = DB.doctorClinicLinks.find(l =>
     String(l.doctorId)===String(docId) &&
-    String(l.clinicId)===String(c.id) &&
-    l.status === 'accepted'
+    String(l.clinicId)===String(c.id)
   );
   if(link){
     link.serviceId = serviceId;
+    link.status = 'accepted';             // Promouvoir pending → accepted
+    if(!link.joinedAt) link.joinedAt = nowISO();
   } else {
     DB.doctorClinicLinks.push({
       id: uid('DCL-'),
@@ -24605,7 +24491,7 @@ function viewClinicAppts(){
         ${fbtn('done','✅ '+t('status_done'),'done')}
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
-        <button class="pill-btn danger" onclick="state.clinicData.clinicApptFilter={status:'all',date:todayISO(),search:'',doctorId:'all',serviceId:'all'};state.apptsPage=1;render()">🗑️ Réinitialiser</button>
+        <button class="pill-btn danger" onclick="state.clinicData.clinicApptFilter={status:'all',date:todayISO(),search:'',doctorId:'all',serviceId:'all'};state.apptsPage=1;render()">↺ Réinitialiser</button>
       </div>
     </div>
     ${renderBulkToolbar(sliceIds)}
@@ -24661,7 +24547,6 @@ function clinicApptRow(a){
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn green" onclick="openAdmissionFromAppt('${a.id}')" title="Admettre à l'hospitalisation">📥</button>`:''}
         ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🩺</button>` : ''}
         ${(a.status === 'confirmed' || a.status === 'done') ? `<button class="mini-btn primary" onclick="event.stopPropagation();openApptInvoiceModal('${a.id}')" title="Voir la facture">🧾</button>` : ''}
-        ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🩺</button>` : ''}
         ${a.status==='pending' && findConfirmedConflicts(a).length ? `<button class="mini-btn danger" onclick="openTransferApptModal('${a.id}')" title="⚠️ Ce créneau est occupé par un RDV confirmé — Transférer vers un autre créneau">🔄 Transférer</button>` : ''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="clinicConfirmAppt('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
@@ -25566,11 +25451,13 @@ function onClinicInternalServiceChange(serviceId){
   const f = state.clinicInternalForm;
   f.serviceId = serviceId || null;
   f.prestations = [];
-  /* Réinitialiser le médecin s'il n'appartient pas au nouveau service */
   if(f.doctorId){
     const valid = serviceId && getDoctorServiceInClinic(f.doctorId, state.clinic.id) === serviceId;
-    if(!valid){ f.doctorId = null; f.date = null; f.time = null; }
+    if(!valid){ f.doctorId = null; }
   }
+  // 🆕 Toujours réinitialiser date/heure : les horaires du service peuvent différer
+  f.date = null;
+  f.time = null;
   render();
 }
 
@@ -26050,7 +25937,7 @@ function viewClinicRevenue(){
         <!-- 4. Recette Totale -->
         <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-top:3px solid #64748b; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 4px 10px rgba(100,116,139,.05);">
           <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
-            <span style="font-size:14px;">💰</span> RECETTE TOTALE
+            <span style="font-size:14px;">💰</span> RECETTE TOTALE RDV
           </div>
           <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#334155;">
             ${n2(allRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
@@ -26071,7 +25958,7 @@ function viewClinicRevenue(){
         <div style="background:linear-gradient(135deg, rgba(16,185,129,.1) 0%, rgba(5,150,105,.05) 100%); border:1.5px solid rgba(16,185,129,.4); border-top:3px solid #059669; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 15px rgba(5,150,105,.15); position:relative; overflow:hidden;">
           <div style="position:absolute; top:-10px; right:-10px; font-size:40px; opacity:.1; transform:rotate(15deg);">💎</div>
           <div style="display:flex; align-items:center; gap:6px; font-size:10.5px; color:#059669; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
-            <span style="font-size:14px;">✨</span> REVENU NET
+            <span style="font-size:14px;">✨</span> REVENU NET RDV
           </div>
           <div style="font-family:var(--font-numbers); font-size:18px; font-weight:800; color:#047857;">
             ${n2(netRev)} <span style="font-size:11px; font-weight:600; opacity:.8;">DA</span>
@@ -26361,9 +26248,8 @@ function viewClinicFacturation(){
   const combined = [];
   if(f.type === 'all' || f.type === 'rdv'){
     appts.forEach(a => {
-      const doc = docById(a.doctorId);
-      const fee = a.internal ? 0 : ((doc?.fee)||0);
-      const total = fee + (a.servicesTotal||0);
+      // 🩺 Clinique : prestations uniquement — pas de frais cabinet (cohérent avec buildSingleApptInvoiceHTML)
+      const total = a.servicesTotal || 0;
       combined.push({ kind:'rdv', item:a, sortKey: a.date+' '+a.time, total });
     });
   }
@@ -26798,7 +26684,7 @@ function printClinicRevenue(){
             <div class="logo">${clinicLogoContent(c)}</div>
             <div>
               <h1>${esc(c.name)}</h1>
-              <div class="sub">Hospitalisation — Détail des revenus</div>
+              <div class="sub">Recette clinique — Détail des revenus</div>
               <div class="ref">Réf. ${esc(refNo)}</div>
             </div>
           </div>
@@ -27271,6 +27157,14 @@ function saveClinicProfile(){
   const headerText = ($('#cfHeaderText')?.value||'').trim();
   const footerText = ($('#cfFooterText')?.value||'').trim();
   if(!name || !wilaya || !email){ toast(t('required_fields'),'error'); return; }
+  // ✅ Valider que la commune appartient bien à la wilaya sélectionnée
+  if(commune){
+    const validCommunes = DB.communes[wilaya] || [];
+    if(!validCommunes.includes(commune)){
+      toast('La commune sélectionnée n\'appartient pas à cette wilaya', 'error');
+      return;
+    }
+  }
   const dbc = DB.clinics.find(x => String(x.id)===String(c.id));
   if(!dbc){ toast(t('clinic_not_found'),'error'); return; }
   Object.assign(dbc, { name, avatar, wilaya, commune, address, phone, email, headerText, footerText });
@@ -27352,6 +27246,9 @@ function deleteRoomConfirm(roomId){
 }
 
 function deleteRoom(roomId){
+  if(!_pendingDeletes.rooms) _pendingDeletes.rooms = [];
+  if(!_pendingDeletes.rooms.includes(roomId)) _pendingDeletes.rooms.push(roomId);
+  savePendingDeletes();
   DB.rooms = DB.rooms.filter(r => r.id !== roomId);
   saveDB(); closeModal(); render();
   toast('Chambre supprimée', 'info');
@@ -27729,6 +27626,7 @@ function acceptEmergency(emergencyId){
   }
   
   pushNotif('patient', '✅ Urgence acceptée', `${e.assignedClinicName} a accepté votre urgence ${e.id}`, null, _emgLink1.id);
+  clearApptNotifications(_emgLink1.id);   // ✅ Nettoyer les notifications d'urgence traitées
   saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
@@ -27781,6 +27679,7 @@ function declineEmergency(emergencyId){
     _emgLink2.updatedAt = nowISO();
   }
   pushNotif('patient', '❌ Urgence refusée', `${e.assignedClinicName} n'a pas pu prendre en charge votre urgence ${e.id}`, null, _emgLink2 ? _emgLink2.id : null);
+  if(_emgLink2) clearApptNotifications(_emgLink2.id);   // ✅ Nettoyer les notifications d'urgence traitées
   saveDB({immediate: true});
   state.emergencyAlertId = null;
   hideEmergencyAlertModal();
@@ -27987,20 +27886,6 @@ function cancelEmergency(emergencyId){
   if(e.status !== 'pending'){ toast('Impossible d\'annuler','error'); return; }
   state._cancellingEmergencyId = emergencyId;
   openEmergencyCancelConfirm();
-  return;
-  e.status = 'cancelled';
-  e.updatedAt = new Date().toISOString();
-  /* 🆕 Synchroniser le RDV lié */
-  const linkedAppt = DB.appointments.find(a => a.emergencyId === emergencyId);
-  if(linkedAppt && (linkedAppt.status === 'pending' || linkedAppt.status === 'confirmed')){
-    linkedAppt.status = 'cancelled';
-    linkedAppt.cancelReason = 'Urgence annulée par le patient';
-    linkedAppt.updatedAt = nowISO();
-  }
-  saveDB();
-  closeModal();
-  render();
-  toast(t('emergency_cancelled'), 'info');
 }
 function showEmergencyDetails(emergencyId){
   const e = DB.emergencies.find(x => x.id === emergencyId);
@@ -28529,14 +28414,18 @@ function checkDoctorNewAppointments(){
     _prevDoctorApptsSnap = current;
     return;
   }
-  let hasNew = false;
+  const newIds = [];
   current.forEach(id => {
-    if(!_prevDoctorApptsSnap.has(id)) hasNew = true;
+    if(!_prevDoctorApptsSnap.has(id)) newIds.push(id);
   });
   _prevDoctorApptsSnap = current;
-  if(hasNew){
-    /* 🔔 Son uniquement — la notification s'affiche dans la section 📩 du tableau de bord */
+  if(newIds.length){
+    /* 🔔 Son + toast : le médecin est notifié même hors dashboard */
     playDoctorNewApptSound();
+    newIds.forEach(id => {
+      const appt = DB.appointments.find(a => a.id === id);
+      if(appt) showDoctorNewApptNotification(appt);
+    });
   }
 }
 
@@ -29077,7 +28966,16 @@ const _unitPriceForForm = existing ? (
 ) : 0;
   const catList = getExpenseCategoriesList();
   const categoriesOptions = catList.map(c=>'<option value="'+c.key+'" '+(e.category===c.key?'selected':'')+'>'+c.ico+' '+c.label+'</option>').join('');
-  const body = `<input type="hidden" id="expenseEditingId" value="${isEdit ? e.id : ''}"><div class="field-row"><div class="field"><label>📅 Date *</label><input class="input" id="expDate" type="date" value="${e.date||todayISO()}"></div><div class="field"><label>🏷️ Catégorie *</label><div style="display:flex;gap:6px;align-items:stretch"><select class="select" id="expCategory" style="flex:1;min-width:0">${categoriesOptions}</select><button type="button" class="pill-btn primary" onclick="openExpenseCategoryManager()" title="Gérer les catégories" style="flex-shrink:0;padding:8px 12px;font-size:14px;font-weight:700">+</button></div></div></div><div class="field"><label>📝 Libellé *</label><input class="input" id="expLabel" maxlength="200" value="${esc(e.label||'')}" placeholder="Ex : Loyer janvier 2025"></div><div class="field-row-3"><div class="field"><label>💰 Prix unitaire (DA) *</label><input class="input" id="expAmount" type="number" min="0" step="0.01" value="${_unitPriceForForm||''}" placeholder="0" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>🔢 Quantité *</label><input class="input" id="expQuantity" type="number" min="1" step="1" value="${e.quantity||1}" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>💵 Total (DA)</label><input class="input" id="expTotal" type="text" readonly value="${n2((Number(e.amount)||0)*(Number(e.quantity)||1))}" style="background:var(--accent-light);color:var(--accent-primary);font-family:var(--font-numbers);font-weight:700;cursor:default"></div></div><div class="field-row"><div class="field"><label>🏢 Fournisseur</label><input class="input" id="expSupplier" value="${esc(e.supplier||'')}" placeholder="Ex : Sonelgaz"></div><div class="field"><label>🔢 N° facture / Reçu</label><input class="input" id="expRef" value="${esc(e.reference||'')}" placeholder="Ex : FCT-2025-001"></div></div><div class="field"><label>📎 Pièce jointe (reçu, facture…)</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="pill-btn primary" style="cursor:pointer;margin:0">📎 ${e.attachmentName ? 'Remplacer' : 'Joindre un fichier'}<input type="file" style="display:none" onchange="onExpenseFile(this)" accept="image/*,.pdf"></label>${e.attachmentName ? '<span class="tag accent">📎 '+esc(e.attachmentName)+' <button class="mini-btn out-red" style="padding:1px 5px;font-size:9px;margin-left:4px" onclick="removeExpenseFile()">✕</button></span>' : '<span style="font-size:11.5px;color:var(--text-muted)">Aucune pièce jointe</span>'}</div></div><div class="field"><label>📝 Notes</label><textarea class="textarea" id="expNotes" style="min-height:70px" placeholder="Notes additionnelles…">${esc(e.notes||'')}</textarea></div>`;
+  const body = `<input type="hidden" id="expenseEditingId" value="${isEdit ? e.id : ''}"><div class="field-row"><div class="field"><label>📅 Date *</label><input class="input" id="expDate" type="date" value="${e.date||todayISO()}"></div><div class="field"><label>🏷️ Catégorie *</label><div style="display:flex;gap:6px;align-items:stretch"><select class="select" id="expCategory" style="flex:1;min-width:0">${categoriesOptions}</select><button type="button" class="pill-btn primary" onclick="openExpenseCategoryManager()" title="Gérer les catégories" style="flex-shrink:0;padding:8px 12px;font-size:14px;font-weight:700">+</button></div></div></div><div class="field"><label>📝 Libellé *</label><input class="input" id="expLabel" maxlength="200" value="${esc(e.label||'')}" placeholder="Ex : Loyer janvier 2025"></div><div class="field-row-3"><div class="field"><label>💰 Prix unitaire (DA) *</label><input class="input" id="expAmount" type="number" min="0" step="0.01" value="${_unitPriceForForm||''}" placeholder="0" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>🔢 Quantité *</label><input class="input" id="expQuantity" type="number" min="1" step="1" value="${e.quantity||1}" oninput="updateExpenseTotalPreview()"></div><div class="field"><label>💵 Total (DA)</label><input class="input" id="expTotal" type="text" readonly value="${n2(_unitPriceForForm * (Number(e.quantity)||1))}" style="background:var(--accent-light);color:var(--accent-primary);font-family:var(--font-numbers);font-weight:700;cursor:default"></div></div><div class="field-row"><div class="field"><label>🏢 Fournisseur</label><input class="input" id="expSupplier" value="${esc(e.supplier||'')}" placeholder="Ex : Sonelgaz"></div><div class="field"><label>🔢 N° facture / Reçu</label><input class="input" id="expRef" value="${esc(e.reference||'')}" placeholder="Ex : FCT-2025-001"></div></div><div class="field">
+  <label>📎 Pièce jointe (reçu, facture…)</label>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <label class="pill-btn primary" style="cursor:pointer;margin:0">
+      <span id="expFileBtnLabel">📎 ${e.attachmentName ? 'Remplacer' : 'Joindre un fichier'}</span>
+      <input type="file" style="display:none" onchange="onExpenseFile(this)" accept="image/*,.pdf">
+    </label>
+    <span id="expFileDisplay">${e.attachmentName ? '<span class="tag accent">📎 '+esc(e.attachmentName)+' <button type="button" class="mini-btn out-red" style="padding:1px 5px;font-size:9px;margin-left:4px" onclick="removeExpenseFile()">✕</button></span>' : '<span style="font-size:11.5px;color:var(--text-muted)">Aucune pièce jointe</span>'}</span>
+  </div>
+</div><div class="field"><label>📝 Notes</label><textarea class="textarea" id="expNotes" style="min-height:70px" placeholder="Notes additionnelles…">${esc(e.notes||'')}</textarea></div>`;
   window._expenseAttachment = e.attachmentKey ? { key: e.attachmentKey, name: e.attachmentName } : null;
   const actions = `<button class="pill-btn" onclick="closeModal()">Annuler</button>${!isEdit ? '<button class="pill-btn" onclick="saveExpense(null, true)">💾 Enregistrer & nouvelle</button>' : ''}<button class="pill-btn primary" onclick="saveExpense('${isEdit ? e.id : 'new'}', false)">💾 ${isEdit ? 'Mettre à jour' : 'Enregistrer'}</button>`;
   openModal(isEdit ? '✏️ Modifier la dépense' : '💰 Nouvelle dépense', owner.label, body, actions);
@@ -29093,9 +28991,12 @@ async function onExpenseFile(input){
     try {
       await idbFiles.put(key, { name: file.name, type: file.type || 'application/octet-stream', size: file.size, data: ev.target.result });
       window._expenseAttachment = { key, name: file.name };
-      const currentId = document.getElementById('expenseEditingId')?.value || null;
-      closeModal();
-      setTimeout(() => openExpenseForm(currentId || null), 50);
+      const display = document.getElementById('expFileDisplay');
+      if(display){
+        display.innerHTML = '<span class="tag accent">📎 ' + esc(file.name) + ' <button type="button" class="mini-btn out-red" style="padding:1px 5px;font-size:9px;margin-left:4px" onclick="removeExpenseFile()">✕</button></span>';
+      }
+      const btnLabel = document.getElementById('expFileBtnLabel');
+      if(btnLabel) btnLabel.textContent = '📎 Remplacer';
       toast('📎 Pièce jointe prête','success');
     } catch(err){ console.error(err); toast('Erreur upload','error'); }
   };
@@ -29180,7 +29081,14 @@ function doDeleteExpenseCategory(key){
   setTimeout(() => openExpenseCategoryManager(), 50);
   toast('Catégorie supprimée','info');
 }
-function removeExpenseFile(){ window._expenseAttachment = null; const currentId = document.getElementById('expenseEditingId')?.value || null; closeModal(); setTimeout(() => openExpenseForm(currentId || null), 50); toast('Pièce jointe retirée','info'); }
+function removeExpenseFile(){
+  window._expenseAttachment = null;
+  const display = document.getElementById('expFileDisplay');
+  if(display) display.innerHTML = '<span style="font-size:11.5px;color:var(--text-muted)">Aucune pièce jointe</span>';
+  const btnLabel = document.getElementById('expFileBtnLabel');
+  if(btnLabel) btnLabel.textContent = '📎 Joindre un fichier';
+  toast('Pièce jointe retirée','info');
+}
 
 function saveExpense(id, saveAndNew){
   const owner = getCurrentExpenseOwner();
