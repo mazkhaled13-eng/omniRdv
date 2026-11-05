@@ -4931,9 +4931,64 @@ const t = k => (T[state.lang] && T[state.lang][k]) || T.fr[k] || k;
    STORAGE — Supabase Storage
    ============================================================ */
 const idb = { db:null, supported:false, async open(){}, async get(){ return null; }, async set(){} };
+// ⚡ SYSTÈME DE CACHE LOCAL (IndexedDB) POUR ZÉRO EGRESS SUR LES FICHIERS
+const fileCache = {
+  dbName: 'omnimed_file_cache',
+  storeName: 'files',
+  db: null,
+  async init() {
+    if (this.db) return;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.dbName, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName);
+        }
+      };
+      req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
+      req.onerror = (e) => reject(e);
+    });
+  },
+  async get(key) {
+    await this.init();
+    return new Promise((resolve) => {
+      const tx = this.db.transaction(this.storeName, 'readonly');
+      const store = tx.objectStore(this.storeName);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  },
+  async set(key, val) {
+    await this.init();
+    return new Promise((resolve) => {
+      const tx = this.db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.put(val, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    });
+  },
+  async del(key) {
+    await this.init();
+    return new Promise((resolve) => {
+      const tx = this.db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve();
+    });
+  }
+};
+
 const idbFiles = {
   async put(key, val){
     try{
+      // ⚡ 1. On sauvegarde immédiatement en local (dans le navigateur du médecin)
+      await fileCache.set(key, val);
+      
+      // 2. On upload vers Supabase (seulement si nouveau)
       const blob = new Blob([val.data], {type: val.type || 'application/octet-stream'});
       const { error } = await sb.storage.from('omnimed-files').upload(key, blob, {
         contentType: val.type || 'application/octet-stream',
@@ -4944,14 +4999,29 @@ const idbFiles = {
   },
   async get(key){
     try{
+      // ⚡ 1. On cherche D'ABORD dans le cache local (0 Egress)
+      const cached = await fileCache.get(key);
+      if(cached) {
+        return cached; 
+      }
+      
+      // 2. Si pas en cache, on télécharge depuis Supabase (1 Egress)
       const { data, error } = await sb.storage.from('omnimed-files').download(key);
       if(error || !data) return null;
+      
       const buf = await data.arrayBuffer();
-      return { data: buf, type: data.type, name: key };
+      const fileObj = { data: buf, type: data.type, name: key };
+      
+      // 3. On le sauvegarde en cache pour la prochaine fois
+      await fileCache.set(key, fileObj);
+      return fileObj;
     }catch(e){ return null; }
   },
   async del(key){
-    try{ await sb.storage.from('omnimed-files').remove([key]); }catch(e){}
+    try{ 
+      await fileCache.del(key); // Suppression locale
+      await sb.storage.from('omnimed-files').remove([key]); // Suppression distante
+    }catch(e){}
   }
 };
 
@@ -5654,10 +5724,11 @@ async function loadDB(){
     const results = await Promise.allSettled([
       sb.from('settings').select('*').eq('id',1).maybeSingle(),
       sb.from('doctors').select('*').order('name'),
-      sb.from('appointments').select('*').order('created_at',{ascending:false}),
+      // ⚡ OPTIMISATION EGRESS : On ne charge que le récent
+      sb.from('appointments').select('*').order('date', {ascending: false}).limit(300),
       sb.from('services').select('*'),
-      sb.from('notifications').select('*').order('date',{ascending:false}).limit(200),
-      sb.from('messages').select('*').order('date',{ascending:false}).limit(500),
+      sb.from('notifications').select('*').order('date',{ascending:false}).limit(50),
+      sb.from('messages').select('*').order('date',{ascending:false}).limit(100),
       sb.from('specialties').select('name'),
       sb.from('wilayas').select('name'),
       sb.from('communes').select('wilaya,name'),
@@ -6299,39 +6370,50 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
       }
     }
 
-        // ---- APPOINTMENTS (OPTIMISÉ) ----
+     // ---- APPOINTMENTS (OPTIMISÉ EGRESS) ----
     if(syncAppointments && DB.appointments.length){
-      const rows = DB.appointments.map(a=>({
-        id:a.id,
-        doctor_id: a.doctorId ? String(a.doctorId) : null,
-        patient_name:a.patientName,
-        patient_age:a.patientAge,
-        patient_phone:a.patientPhone,
-        patient_email:a.patientEmail||'',
-        patient_wilaya:a.patientWilaya||'',
-        patient_password:a.patientPassword||'',
-        date:a.date,
-        time:a.time,
-        motif:a.motif||'',
-        services:a.services||[],
-        services_total:a.servicesTotal||0,
-        documents:a.documents||[],
-        status:a.status,
-        internal:!!a.internal,
-        clinic_id:a.clinicId||null,
-        clinic_service_id:a.clinicServiceId||null,
-        prestation_id:a.prestationId||null,
-        appt_type:a.apptType||'cabinet',
-        emergency_id: a.emergencyId || null,
-        clinic_rating:a.clinicRating||0,
-        rating:a.rating||0,
-        notes:a.notes||'',
-        cancel_reason:a.cancelReason||null,
-        reminders:a.reminders||{h2:false},
-        updated_at:new Date().toISOString(),
-        deleted_at:a.status==='deleted'?new Date().toISOString():null
-      }));
-      await sb.from('appointments').upsert(rows);
+      // ⚡ On ne garde QUE les RDV modifiés récemment (ex: dans les 10 dernières minutes)
+      const now = Date.now();
+      const recentAppts = DB.appointments.filter(a => {
+        const updated = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const created = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        // On push si modifié dans les 10 mins OU si c'est un nouveau RDV
+        return (now - updated < 600000) || (now - created < 600000) || !a.updatedAt;
+      });
+
+      if(recentAppts.length > 0){
+        const rows = recentAppts.map(a=>({
+          id:a.id,
+          doctor_id: a.doctorId ? String(a.doctorId) : null,
+          patient_name:a.patientName,
+          patient_age:a.patientAge,
+          patient_phone:a.patientPhone,
+          patient_email:a.patientEmail||'',
+          patient_wilaya:a.patientWilaya||'',
+          patient_password:a.patientPassword||'',
+          date:a.date,
+          time:a.time,
+          motif:a.motif||'',
+          services:a.services||[],
+          services_total:a.servicesTotal||0,
+          documents:a.documents||[],
+          status:a.status,
+          internal:!!a.internal,
+          clinic_id:a.clinicId||null,
+          clinic_service_id:a.clinicServiceId||null,
+          prestation_id:a.prestationId||null,
+          appt_type:a.apptType||'cabinet',
+          emergency_id: a.emergencyId || null,
+          clinic_rating:a.clinicRating||0,
+          rating:a.rating||0,
+          notes:a.notes||'',
+          cancel_reason:a.cancelReason||null,
+          reminders:a.reminders||{h2:false},
+          updated_at:new Date().toISOString(),
+          deleted_at:a.status==='deleted'?new Date().toISOString():null
+        }));
+        await sb.from('appointments').upsert(rows);
+      }
     }
 
     // ---- NOTIFICATIONS ----
@@ -6789,13 +6871,84 @@ function subscribeRealtime(){
       try{
         const before = snapshotDB();
 
-        // ⚡ CHEMIN RAPIDE : 1 seule table rechargée au lieu de 18
+        // ⚡ OPTIMISATION EGRESS MAJEURE : Télécharger UNIQUEMENT la ligne modifiée
         let fastOK = false;
-        if(changedTable && INCREMENTAL_TABLES.includes(changedTable)){
-          fastOK = await loadTable(changedTable);
+        if (payload && payload.table) {
+          const t = payload.table;
+          // On ne récupère que l'ID concerné
+          const recordId = payload.new?.id || payload.old?.id;
+          
+          if (t === 'appointments' && recordId) {
+            if (payload.eventType === 'DELETE') {
+              DB.appointments = DB.appointments.filter(a => a.id !== recordId);
+              fastOK = true;
+            } else {
+              // On télécharge JUSTE ce RDV (1 ligne au lieu de 300)
+              const { data } = await sb.from('appointments').select('*').eq('id', recordId).single();
+              if (data) {
+                const mapped = { /* ... mapping identique à loadTable ... */ 
+                  id:data.id, doctorId:data.doctor_id, patientName:data.patient_name,
+                  patientAge:data.patient_age, patientPhone:data.patient_phone, patientEmail:data.patient_email||'',
+                  patientWilaya:data.patient_wilaya||'', patientPassword:data.patient_password||'',
+                  date:data.date, time:data.time, motif:data.motif||'', services:data.services||[],
+                  servicesTotal:Number(data.services_total)||0, documents:data.documents||[],
+                  status:data.status, internal:!!data.internal, clinicId:data.clinic_id||null,
+                  clinicServiceId:data.clinic_service_id||null, prestationId:data.prestation_id||null,
+                  apptType:data.appt_type||'cabinet', emergencyId:data.emergency_id||null,
+                  clinicRating:data.clinic_rating||0, rating:data.rating||0, notes:data.notes||'',
+                  cancelReason:data.cancel_reason, reminders:data.reminders||{h2:false},
+                  transferredFrom:data.reminders?.transferredFrom||null, createdAt:data.created_at,
+                  updatedAt:data.updated_at, deletedAt:data.deleted_at
+                };
+                const idx = DB.appointments.findIndex(a => a.id === recordId);
+                if (idx !== -1) DB.appointments[idx] = mapped;
+                else DB.appointments.push(mapped);
+                fastOK = true;
+              }
+            }
+          }
+          
+          if (t === 'emergencies' && recordId) {
+            if (payload.eventType === 'DELETE') {
+              DB.emergencies = DB.emergencies.filter(e => e.id !== recordId);
+              fastOK = true;
+            } else {
+              const { data } = await sb.from('emergencies').select('*').eq('id', recordId).single();
+              if (data) {
+                const mapped = {
+                  id: data.id, patientName: data.patient_name, patientPhone: data.patient_phone,
+                  patientWilaya: data.patient_wilaya, patientAge: data.patient_age != null ? Number(data.patient_age) : null,
+                  emergencyType: data.emergency_type, description: data.description || '',
+                  status: data.status || 'pending', assignedClinicId: data.assigned_clinic_id || null,
+                  assignedClinicName: data.assigned_clinic_name || '', clinicResponse: data.clinic_response || '',
+                  createdAt: data.created_at, respondedAt: data.responded_at, updatedAt: data.updated_at
+                };
+                const idx = DB.emergencies.findIndex(e => e.id === recordId);
+                if (idx !== -1) DB.emergencies[idx] = mapped;
+                else DB.emergencies.push(mapped);
+                fastOK = true;
+              }
+            }
+          }
+          
+          if (t === 'notifications' && recordId) {
+             if (payload.eventType === 'DELETE') {
+                DB.notifications = DB.notifications.filter(n => n.id !== recordId);
+                fastOK = true;
+             } else {
+                const { data } = await sb.from('notifications').select('*').eq('id', recordId).single();
+                if (data) {
+                   const mapped = { id:data.id, role:data.role, title:data.title, message:data.message, toDoctorId:data.to_doctor_id, apptId:data.appt_id, date:data.date, read:data.read };
+                   const idx = DB.notifications.findIndex(n => n.id === recordId);
+                   if (idx !== -1) DB.notifications[idx] = mapped;
+                   else DB.notifications.unshift(mapped);
+                   fastOK = true;
+                }
+             }
+          }
         }
 
-        // Fallback : full loadDB() si table non gérée ou erreur réseau
+        // Fallback si la table n'est pas gérée (ex: settings)
         if(!fastOK){
           await loadDB();
         }
@@ -6947,10 +7100,13 @@ function setupVisibilityResync(){
       }
     })();
   };
-  document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'visible') triggerResync();
-  });
-  window.addEventListener('focus', triggerResync);
+  // ⚡ OPTIMISATION EGRESS : On désactive le Resync complet au focus.
+  // Le système Realtime de Supabase maintient déjà les données à jour.
+  // Si la connexion a été coupée, le Realtime se reconnecte automatiquement.
+  // document.addEventListener('visibilitychange', () => {
+  //   if (document.visibilityState === 'visible') triggerResync();
+  // });
+  // window.addEventListener('focus', triggerResync);
 }
 function saveHidden(){ try { localStorage.setItem(LS_HIDDEN, JSON.stringify(state.hiddenAppts)); } catch(e){} }
 /* 🆕 Persistance des urgences masquées (stockage local uniquement — l'urgence reste dans l'app) */
@@ -28031,81 +28187,60 @@ function snapshotApptsBrief(){
 
 function startCriticalPolling(){
   if(_criticalPollTimer) clearInterval(_criticalPollTimer);
+  
+  // ⚡ OPTIMISATION EGRESS : On passe de 2 secondes à 30 secondes, 
+  // et on retire les loadTable() inutiles (Realtime s'en occupe).
   _criticalPollTimer = setInterval(async () => {
     if(document.visibilityState !== 'visible') return;
-    if(_isApplyingRemote || _isPushing) return;
-    if(Date.now() < _criticalGuardUntil) return;   // 🆕 ne pas poller pendant le verrou critique
-    if(Date.now() - _lastPushTime < 1200) return;
+    if(_isApplyingRemote || _isPushing || Date.now() < _criticalGuardUntil) return;
+    if(Date.now() - _lastPushTime < 2000) return;
 
-    const isClinic = state.role === 'clinic' && state.clinic;
-    const isDoctor = state.role === 'doctor' && state.doctor;
-    const isAdmin  = state.role === 'admin' && state.admin;
     const isPatient = state.role === 'patient' && !!state.myPhone;
-
-    if(!isClinic && !isDoctor && !isAdmin && !isPatient) return;
+    const isClinic = state.role === 'clinic' && state.clinic;
 
     let needRender = false;
     let patientNotifs = [];
 
-    _isApplyingRemote = true;   // 🆕 verrouille pendant toute la durée du polling
+    _isApplyingRemote = true;
     try {
+      // 🚨 CLINIQUE : On vérifie juste s'il y a de NOUVELLES urgences en attente (1 seule requête légère)
+      if(isClinic){
+        try{
+          const { data } = await sb.from('emergencies')
+            .select('id')
+            .eq('assigned_clinic_id', String(state.clinic.id))
+            .eq('status', 'pending');
+          
+          if(data && data.length > 0) {
+            // Si Supabase Realtime a raté quelque chose, on force le chargement local
+            const currentIds = DB.emergencies.filter(e => e.status === 'pending' && String(e.assignedClinicId) === String(state.clinic.id)).map(e=>e.id);
+            const hasNew = data.some(e => !currentIds.includes(e.id));
+            if (hasNew) {
+              await loadTable('emergencies');
+              needRender = true;
+            }
+          }
+        }catch(e){}
+      }
 
-    // 🚨 Clinique : urgences (toutes les 2 s)
-    if(isClinic){
-      try{
-        const before = snapshotEmergenciesBrief();
-        await loadTable('emergencies');
-        const after = snapshotEmergenciesBrief();
-        if(!arraysEqualBrief(before, after)) needRender = true;
-      }catch(e){}
-    }
-
-    // 👤 Patient : poll ciblé + détection de changements
-    if(isPatient){
-      try{
-        await pollPatientData();
-        patientNotifs = detectPatientChangesAndUpdate();
-        if(patientNotifs.length > 0) needRender = true;
-      }catch(e){}
-    }
-
-    // 📅 RDV : poll toutes les 2 s pour le médecin (instantané), 4 s pour autres pros
-    _criticalPollTick = (_criticalPollTick || 0) + 1;
-    const shouldPollAppts = isDoctor ? true : (_criticalPollTick % 2 === 0);
-    if(shouldPollAppts && (isClinic || isDoctor || isAdmin)){
-      try{
-        const before = snapshotApptsBrief();
-        /* 🔔 Médecin + Clinique : capturer l'état des notifications avant rechargement */
-        const notifsBefore = (isDoctor || isClinic)
-          ? DB.notifications.map(n => n.id + ':' + (n.read ? 1 : 0)).join('|')
-          : '';
-        await loadTable('appointments');
-        /* 🔔 Recharger aussi les notifications pour peupler la section 📩 */
-        if(isDoctor || isClinic){
-          await loadTable('notifications');
-          const notifsAfter = DB.notifications.map(n => n.id + ':' + (n.read ? 1 : 0)).join('|');
-          if(notifsBefore !== notifsAfter) needRender = true;
-        }
-        const after = snapshotApptsBrief();
-        if(!arraysEqualBrief(before, after)) needRender = true;
-        if(isDoctor) checkDoctorNewAppointments();
-      }catch(e){}
-    }
+      // 👤 PATIENT : On garde le poll ciblé (très léger)
+      if(isPatient){
+        try{
+          await pollPatientData();
+          patientNotifs = detectPatientChangesAndUpdate();
+          if(patientNotifs.length > 0) needRender = true;
+        }catch(e){}
+      }
 
     } finally {
-      _releaseRemoteLock();   // 🆕 libère le verrou + rejoue le push si besoin
+      _releaseRemoteLock();
     }
 
-    // Rendu + notifications
     if(needRender && !_isApplyingRemote){
-      if(!shouldSkipRenderForPatient()){
-        try{ render(); }catch(e){}
-      }
-      if(patientNotifs.length){
-        applyPatientNotifications(patientNotifs);
-      }
+      if(!shouldSkipRenderForPatient()) try{ render(); }catch(e){}
+      if(patientNotifs.length) applyPatientNotifications(patientNotifs);
     }
-  }, 2000);
+  }, 30000); // ⚡ 30 secondes au lieu de 2 secondes !
 }
 let _criticalPollTick = 0;
 /* ============================================================
@@ -28610,37 +28745,32 @@ async function init(){
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') window.sendHeartbeat();
   });
-  setInterval(async () => {
-    if(_isApplyingRemote) return;
-    if(_isPushing) return;
-    if(Date.now() < _criticalGuardUntil) return;
-    if(Date.now() - _lastPushTime < PUSH_GRACE_MS) return;
-    if(document.visibilityState !== 'visible') return;
-    const ae = document.activeElement;
-    if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return;
-    _isApplyingRemote = true;
-    try {
-      const before = snapshotDB();
-      await loadDB();
-      if(state.doctor){
-        const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
-        if(refreshed) state.doctor = refreshed;
-      }
-      if(state.clinic){
-        const refreshed = DB.clinics.find(c=>c.id===state.clinic.id);
-        if(refreshed) state.clinic = refreshed;
-      }
-      try { autoLockPrestations(); } catch(e){}
-      const after = snapshotDB();
-      const changedKeys = Object.keys(after).filter(k => before[k] !== after[k]);
-      if(changedKeys.length === 0) return;
-      const relevant = relevantKeysForCurrentView();
-      if(relevant && !changedKeys.some(k => relevant.includes(k))) return;
-      render();
-    } finally {
-      _releaseRemoteLock();
-    }
-  }, 60000);
+  // ⚡ OPTIMISATION EGRESS CRITIQUE : SUPPRESSION TOTALE du loadDB() toutes les 60s
+  // Ce bloc téléchargeait TOUTE la base toutes les minutes pour tous les utilisateurs.
+  // Le système Realtime de Supabase gère déjà les mises à jour en direct.
+  // Si tu veux garder un filet de sécurité minimal, active-le UNIQUEMENT pour les rôles critiques :
+  //
+  // const _lightResyncInterval = setInterval(async () => {
+  //   if(document.visibilityState !== 'visible') return;
+  //   if(_isApplyingRemote || _isPushing) return;
+  //   if(state.role !== 'doctor' && state.role !== 'clinic') return;
+  //   
+  //   // ⚡ On ne recharge QUE les RDV des 7 derniers jours (ultra léger)
+  //   try {
+  //     const weekAgo = dateOffset(-7);
+  //     const { data } = await sb.from('appointments')
+  //       .select('id, status, date, time, updated_at')
+  //       .gte('date', weekAgo)
+  //       .order('date', { ascending: false });
+  //     if(data) {
+  //       data.forEach(row => {
+  //         const local = DB.appointments.find(a => a.id === row.id);
+  //         if(local) { local.status = row.status; local.updatedAt = row.updated_at; }
+  //       });
+  //       render();
+  //     }
+  //   } catch(e){}
+  // }, 5 * 60 * 1000); // Toutes les 5 minutes, pas 1 minute !
 
   // =========================================================
   // ÉTAPE 4 : RESTAURATION AUTOMATIQUE DE SESSION
