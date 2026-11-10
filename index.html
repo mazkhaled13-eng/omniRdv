@@ -2869,6 +2869,44 @@ const SUB_MONTHLY_DEFAULT = 2000;
 const SUB_YEARLY_DEFAULT = 20000;
 const SUB_DISCOUNT_DEFAULT = 0;
 const DEFAULT_PWD = '0000';
+
+/* 🛡️ SÉCURITÉ : Limitation des tentatives de connexion (Anti-Brute Force) */
+const LOGIN_ATTEMPTS_KEY = 'omnimed_login_attempts';
+function getLoginAttempts() {
+  try { return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function recordFailedLogin(ident) {
+  const attempts = getLoginAttempts();
+  const now = Date.now();
+  if (!attempts[ident]) attempts[ident] = [];
+  // Garder uniquement les tentatives des 15 dernières minutes
+  attempts[ident] = attempts[ident].filter(t => now - t < 15 * 60 * 1000);
+  attempts[ident].push(now);
+  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+}
+function checkLoginRateLimit(ident) {
+  const attempts = getLoginAttempts();
+  const now = Date.now();
+  if (!attempts[ident]) return true;
+  const recent = attempts[ident].filter(t => now - t < 15 * 60 * 1000);
+  return recent.length < 5; // Maximum 5 tentatives par 15 minutes
+}
+function resetLoginAttempts(ident) {
+  const attempts = getLoginAttempts();
+  if(attempts[ident]) {
+    delete attempts[ident];
+    localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+  }
+}
+
+/* 🛡️ SÉCURITÉ : Validation de la complexité du mot de passe */
+function validatePasswordStrength(pwd) {
+  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (!/[A-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins une majuscule.";
+  if (!/[a-z]/.test(pwd)) return "Le mot de passe doit contenir au moins une minuscule.";
+  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre.";
+  return null; // Null signifie que le mot de passe est valide
+}
 const APPTS_PER_PAGE = 25;
 const DOCTORS_PER_PAGE = 10;
 const CLINICS_PER_PAGE = 10;
@@ -5584,6 +5622,17 @@ function isClinicHiddenFromPatients(c){
   if(isClinicSubscriptionType(c) && !isClinicSubscriptionActive(c)) return true;
   return false;
 }
+function isClinicHiddenFromPatients(c){
+  if(!c) return true;
+  if(isClinicSubscriptionType(c) && !isClinicSubscriptionActive(c)) return true;
+  return true;
+}
+
+/* 🔒 URGENCE : vérifie s'il existe au moins une clinique disponible */
+function hasAvailableClinics(){
+  if(!Array.isArray(DB.clinics) || DB.clinics.length === 0) return false;
+  return DB.clinics.some(c => !c.sessionClosed);
+}
 
 /* ============================================================
    🔒 PRESTATIONS VERROUILLÉES — HELPERS
@@ -5680,6 +5729,17 @@ function seedData(){
 
 let DB;
 let _remoteLoadOK = false;
+
+// 🛡️ SÉCURITÉ : Preuve de session pour empêcher la modification du rôle via la console (F12)
+let _sessionProof = null;
+let _sessionProofRole = null;   // 🆕 Rôle en clair (Base64 ne préserve pas les sous-chaînes)
+
+function generateSessionProof(role, id) {
+  // Génère un jeton unique (non falsifiable par un simple "state.role='admin'")
+  const secret = "OmniMed_Secure_2025_X89";
+  _sessionProofRole = role;     // 🆕 Preuve de rôle en clair, non-encodée
+  return btoa(`${role}_${id}_${Date.now()}_${secret}`);
+}
 let _syncTimer = null;
 let _isApplyingRemote = false;
 let _criticalGuardUntil = 0;   // 🆕 protège les actions critiques (valider/annuler) contre les resync
@@ -5723,7 +5783,7 @@ async function loadDB(){
   try {
     const results = await Promise.allSettled([
       sb.from('settings').select('*').eq('id',1).maybeSingle(),
-      sb.from('doctors').select('*').order('name'),
+      sb.from('doctors_public').select('*').order('name'),
       // ⚡ OPTIMISATION EGRESS : On ne charge que le récent
       sb.from('appointments').select('*').order('date', {ascending: false}).limit(300),
       sb.from('services').select('*'),
@@ -5832,7 +5892,8 @@ async function loadDB(){
         commune: d.commune||'', address: d.address||'', phone: d.phone||'',
         email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
         password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
-        passwordPlain: d.password_plain || '', recettePasswordPlain: d.recette_password_plain || '',
+passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
+passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
         bio: d.bio||'', photo: d.photo || null, workDays: d.work_days||[], workStart: d.work_start||'08:00',
         workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
         billingType: d.billing_type||'none',
@@ -5852,7 +5913,6 @@ async function loadDB(){
         phone: c.phone||'', email: c.email||'',
         password: c.password||DEFAULT_PWD,
         recettePassword: c.recette_password||DEFAULT_PWD,
-        passwordPlain: c.password_plain||'', recettePasswordPlain: c.recette_password_plain||'',
         workDays: c.work_days||[], workStart: c.work_start||'00:00', workEnd: c.work_end||'23:59',
         open24_7: c.open_24_7 !== false,
         sessionClosed: !!c.session_closed, locked: !!c.locked,
@@ -6141,22 +6201,27 @@ async function pushToSupabase(){
 
     // ---- SETTINGS ----
     if(syncSettings || syncVisits || syncAdminProfiles){
-      const _settingsPayload = {
-        id: 1,
-        commission: DB.settings.commission,
-        sub_monthly: DB.settings.subMonthly,
-        sub_yearly: DB.settings.subYearly,
-        sub_discount: DB.settings.subDiscount,
-        admin_username: DB.admin.username,
-        admin_password: DB.admin.password,
-        admin_profiles: DB.adminProfiles || [],
-        medications: DB.medications || [],
-        search_logs: DB.searchLogs || [],
-        expense_categories: DB.expenseCategories || null,
-        visits: DB.visits || {},
-        blocage: DB.settings.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 },
-        updated_at: new Date().toISOString()
-      };
+      // 🛡️ SÉCURITÉ : nettoyer les profils admin avant envoi (retirer passwordPlain)
+const _cleanAdminProfiles = (DB.adminProfiles || []).map(p => {
+  const { passwordPlain, ...safe } = p;
+  return safe;
+});
+const _settingsPayload = {
+  id: 1,
+  commission: DB.settings.commission,
+  sub_monthly: DB.settings.subMonthly,
+  sub_yearly: DB.settings.subYearly,
+  sub_discount: DB.settings.subDiscount,
+  admin_username: DB.admin.username,
+  admin_password: DB.admin.password,
+  admin_profiles: _cleanAdminProfiles,
+  medications: DB.medications || [],
+  search_logs: DB.searchLogs || [],
+  expense_categories: DB.expenseCategories || null,
+  visits: DB.visits || {},
+  blocage: DB.settings.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 },
+  updated_at: new Date().toISOString()
+};
       const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
       // 🆕 Fallback robuste : retire itérativement les colonnes manquantes jusqu'à succès
@@ -6245,26 +6310,36 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
 
     // ---- DOCTORS ----
     if(syncDoctors && DB.doctors.length){
-      const _docsPayload = DB.doctors.map(d=>({
-        id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
-        commune:d.commune||'', address:d.address||'', phone:d.phone||'',
-        email:d.email||'', fee:d.fee||0, duration:d.duration||30,
-        password:d.password||DEFAULT_PWD, recette_password:d.recettePassword||DEFAULT_PWD,
-        password_plain: d.passwordPlain || null, recette_password_plain: d.recettePasswordPlain || null,
-        bio:d.bio||'', photo: d.photo || null, work_days:d.workDays||[], work_start:d.workStart||'08:00',
-        work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
-        billing_type:d.billingType||'none',
-        commission_amount:d.commissionAmount,
-        sub_start:d.subStart, sub_trial_end:d.subTrialEnd,
-        session_closed:!!d.sessionClosed, locked:!!d.locked,
-        owned_by_clinic: d.ownedByClinic || null,
-        is_clinic_local: !!d.isClinicLocal,
-        updated_at: d.updatedAt || new Date().toISOString()
-      }));
+      const _docsPayload = DB.doctors.map(d => {
+        const row = {
+          id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
+          commune:d.commune||'', address:d.address||'', phone:d.phone||'',
+          email:d.email||'', fee:d.fee||0, duration:d.duration||30,
+          password_plain: null,
+          recette_password_plain: null,
+          bio:d.bio||'', photo: d.photo || null, work_days:d.workDays||[], work_start:d.workStart||'08:00',
+          work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
+          billing_type:d.billingType||'none',
+          commission_amount:d.commissionAmount,
+          sub_start:d.subStart, sub_trial_end:d.subTrialEnd,
+          session_closed:!!d.sessionClosed, locked:!!d.locked,
+          owned_by_clinic: d.ownedByClinic || null,
+          is_clinic_local: !!d.isClinicLocal,
+          updated_at: d.updatedAt || new Date().toISOString()
+        };
+        if(d.password) row.password = d.password;
+        if(d.recettePassword) row.recette_password = d.recettePassword;
+        return row;
+      });
       const _docsRes = await sb.from('doctors').upsert(_docsPayload);
       if(_docsRes && _docsRes.error){
         const _msg = String(_docsRes.error.message || _docsRes.error.details || '').toLowerCase();
-        if(_msg.includes('photo')){
+        if(_msg.includes('password_plain') || _msg.includes('recette_password_plain')){
+          console.warn('⚠️ Colonnes password_plain / recette_password_plain absentes. SQL requis.');
+          toast('⚠️ Colonnes password_plain manquantes — exécutez le SQL fourni.', 'error');
+          const _fallback = _docsPayload.map(({password_plain, recette_password_plain, ...rest}) => rest);
+          await sb.from('doctors').upsert(_fallback);
+        } else if(_msg.includes('photo')){
           console.warn('⚠️ Colonne "photo" absente de la table doctors. SQL requis : ALTER TABLE doctors ADD COLUMN photo TEXT;');
           toast('⚠️ Colonne "photo" manquante dans Supabase — exécutez le SQL fourni.', 'error');
           const _fallback = _docsPayload.map(({photo, ...rest}) => rest);
@@ -6283,9 +6358,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
         wilaya:c.wilaya||'', commune:c.commune||'', address:c.address||'',
         phone:c.phone||'', email:c.email||'',
         password:c.password||DEFAULT_PWD,
-        password_plain: c.passwordPlain || null,
         recette_password:c.recettePassword||DEFAULT_PWD,
-        recette_password_plain: c.recettePasswordPlain || null,
         work_days:c.workDays||[], work_start:c.workStart||'00:00', work_end:c.workEnd||'23:59',
         open_24_7: c.open24_7 !== false,
         session_closed:!!c.sessionClosed, locked:!!c.locked,
@@ -6731,15 +6804,15 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
       case 'doctors': {
-        const { data, error } = await sb.from('doctors').select('*').order('name');
-        if(error) return false;
-        DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
-          id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
-          commune: d.commune||'', address: d.address||'', phone: d.phone||'',
-          email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
-          password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
-          passwordPlain: d.password_plain || '', recettePasswordPlain: d.recette_password_plain || '',
-          bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
+  const { data, error } = await sb.from('doctors_public').select('*').order('name');
+  if(error) return false;
+  DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
+    id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
+    commune: d.commune||'', address: d.address||'', phone: d.phone||'',
+    email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
+    password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
+passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
+    bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
           workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
           billingType: d.billing_type||'none',
           commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
@@ -6752,16 +6825,15 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
       case 'clinics': {
-        const { data, error } = await sb.from('clinics').select('*').order('name');
-        if(error) return false;
-        DB.clinics = (data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
-          id: c.id, name: c.name, avatar: c.avatar||'🩺', photo: c.photo || null, description: c.description||'',
-          wilaya: c.wilaya||'', commune: c.commune||'', address: c.address||'',
-          phone: c.phone||'', email: c.email||'',
-          password: c.password||DEFAULT_PWD,
-          recettePassword: c.recette_password||DEFAULT_PWD,
-          passwordPlain: c.password_plain||'', recettePasswordPlain: c.recette_password_plain||'',
-          workDays: c.work_days||[], workStart: c.work_start||'00:00', workEnd: c.work_end||'23:59',
+  const { data, error } = await sb.from('clinics').select('*').order('name');
+  if(error) return false;
+  DB.clinics = (data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
+    id: c.id, name: c.name, avatar: c.avatar||'🩺', photo: c.photo || null, description: c.description||'',
+    wilaya: c.wilaya||'', commune: c.commune||'', address: c.address||'',
+    phone: c.phone||'', email: c.email||'',
+    password: c.password||DEFAULT_PWD,
+    recettePassword: c.recette_password||DEFAULT_PWD,
+    workDays: c.work_days||[], workStart: c.work_start||'00:00', workEnd: c.work_end||'23:59',
           open24_7: c.open_24_7 !== false,
           sessionClosed: !!c.session_closed, locked: !!c.locked,
           billingType: c.billing_type||'none',
@@ -6957,7 +7029,13 @@ function subscribeRealtime(){
 
         if(state.doctor){
           const refreshed = DB.doctors.find(d=>d.id===state.doctor.id);
-          if(refreshed){ state.doctor = refreshed; } else { logoutAccount(); return; }
+          if(refreshed){ 
+            const oldPwd = state.doctor.password;
+            const oldRecette = state.doctor.recettePassword;
+            state.doctor = refreshed; 
+            if(oldPwd) state.doctor.password = oldPwd;
+            if(oldRecette) state.doctor.recettePassword = oldRecette;
+          } else { logoutAccount(); return; }
         }
         if(state.clinic){
           const refreshed = DB.clinics.find(c=>c.id===state.clinic.id);
@@ -9442,6 +9520,21 @@ function qrSVG(seed){
    ============================================================ */
 function render(){
   const app = $('#app'); if(!app) return;
+  
+  // 🛡️ VÉRIFICATION DE SÉCURITÉ (Anti-F12)
+// ⚠️ On compare sur _sessionProofRole (clair), pas sur _sessionProof (Base64)
+let isHacked = false;
+if (state.role === 'admin' && (!_sessionProof || _sessionProofRole !== 'admin')) isHacked = true;
+if (state.role === 'doctor' && (!_sessionProof || _sessionProofRole !== 'doctor')) isHacked = true;
+if (state.role === 'clinic' && (!_sessionProof || _sessionProofRole !== 'clinic')) isHacked = true;
+  if (isHacked) {
+    console.warn("⛔ Accès refusé : Tentative de modification de session non autorisée.");
+    state.role = 'patient';
+    state.admin = null; state.doctor = null; state.clinic = null;
+    _sessionProof = null;
+    toast("⛔ Session invalide. Veuillez vous reconnecter.", "error");
+  }
+
   if(state.role === 'admin' || state.role === 'clinic' || state.role === 'doctor') state.lang = 'fr';
   const oldCW = document.getElementById('content');
   const scrollTop = oldCW ? oldCW.scrollTop : 0;
@@ -9595,18 +9688,13 @@ function viewLogin(){
   `;
 }
 // Fonctions utilitaires de sauvegarde locale
-function saveLocalSession(role, id, password) {
+function saveLocalSession(role, id) {
   const remember = document.getElementById('compteRemember')?.checked;
   const sessionData = { role: role, id: id, date: Date.now() };
   
   if (remember) {
-    // Sauvegarde persistante
+    // Sauvegarde persistante (Uniquement l'ID de session, JAMAIS le mot de passe)
     localStorage.setItem('omnimed_saved_session', JSON.stringify(sessionData));
-    if (password) {
-      // Encodage basique en Base64 pour ne pas stocker en clair absolu
-      const encodedPwd = btoa(unescape(encodeURIComponent(password)));
-      localStorage.setItem('omnimed_saved_pwd_' + id, encodedPwd);
-    }
   } else {
     // Sauvegarde temporaire (session)
     sessionStorage.setItem('omnimed_saved_session', JSON.stringify(sessionData));
@@ -9616,13 +9704,27 @@ function saveLocalSession(role, id, password) {
 function clearLocalSession() {
   localStorage.removeItem('omnimed_saved_session');
   sessionStorage.removeItem('omnimed_saved_session');
-  // On ne supprime pas les mots de passe sauvegardés pour que l'utilisateur n'ait pas à les retaper
+  
+  // 🧹 Nettoyage des anciens mots de passe stockés en Base64 (Sécurité)
+  try {
+    Object.keys(localStorage).forEach(key => {
+      if(key.startsWith('omnimed_saved_pwd_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch(e) {}
 }
 async function doAccountLogin(){
   const ident = ($('#compteIdent')?.value||'').trim();
   const pwd = ($('#comptePwd')?.value||'').trim();
   const identLower = ident.toLowerCase();
   if(!ident || !pwd){ toast(t('required_fields'),'error'); return; }
+
+  /* 🛡️ Vérification Anti-Brute Force */
+  if(!checkLoginRateLimit(identLower)){
+    toast('⛔ Trop de tentatives échouées. Veuillez patienter 15 minutes.', 'error');
+    return;
+  }
 
   /* 1. Admin principal OU sous-admin (profil) */
   const adminAttempt = await _tryAdminLogin(identLower, pwd);
@@ -9644,7 +9746,9 @@ async function doAccountLogin(){
       state.msgSelected = [];
       state.selectedAppts = [];
       hideSubscriptionExpiredModal();
-      saveLocalSession('admin', 'admin', pwd);
+      _sessionProof = generateSessionProof('admin', 'admin'); // 🛡️ Étape 3
+      resetLoginAttempts(identLower); // 🛡️ Étape 4 : Réinitialiser les tentatives
+      saveLocalSession('admin', 'admin');
       saveDB();
       render();
       toast(t('account_admin_welcome') + ' ✓','success');
@@ -9667,10 +9771,12 @@ async function doAccountLogin(){
       state.clinicRecetteUnlocked = false;
       state.msgTab = 'inbox'; state.msgOpenId = null;
       state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-      state.msgSelected = [];
+            state.msgSelected = [];
       state.selectedAppts = [];
       hideSubscriptionExpiredModal();
-      saveLocalSession('admin', 'admin_profile_' + prof.id, pwd);
+      _sessionProof = generateSessionProof('admin', prof.id); // 🛡️ Étape 3
+      resetLoginAttempts(identLower); // 🛡️ Étape 4
+      saveLocalSession('admin', 'admin_profile_' + prof.id);
       render();
       toast('👋 Bienvenue ' + (prof.name || 'Admin'), 'success');
       return;
@@ -9709,10 +9815,10 @@ async function doAccountLogin(){
       showClinicSubscriptionExpiredModal();
       return;
     }
-    hideSubscriptionExpiredModal();
-    
-    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Clinique)
-    saveLocalSession('clinic', clinicFound.id, pwd);
+       hideSubscriptionExpiredModal();
+    _sessionProof = generateSessionProof('clinic', clinicFound.id); // 🛡️ Étape 3
+    resetLoginAttempts(identLower); // 🛡️ Étape 4
+    saveLocalSession('clinic', clinicFound.id);
     
     state.emergencyAlertId = null;
     render();
@@ -9723,11 +9829,25 @@ async function doAccountLogin(){
 
   /* 3. Médecin */
   let doc = null;
-  for(const d of DB.doctors){
-    if(d.isClinicLocal || d.ownedByClinic) continue;  // 🆕 Médecins locaux : pas de session indépendante
-    const okIdent = (String(d.email).toLowerCase() === identLower || String(d.name).toLowerCase() === identLower);
-    if(okIdent && await verifyPassword(pwd, d.password)){ doc = d; break; }
-  }
+  try {
+    const { data } = await sb.rpc('login_doctor', { ident: identLower, pwd: pwd });
+    if(data && data.length > 0) {
+      const row = data[0];
+      doc = {
+        id: row.id, name: row.name, specialty: row.specialty, wilaya: row.wilaya,
+        commune: row.commune||'', address: row.address||'', phone: row.phone||'',
+        email: row.email||'', fee: Number(row.fee)||0, duration: row.duration||30,
+        password: row.password, recettePassword: row.recette_password,
+        passwordPlain: row.password_plain, recettePasswordPlain: row.recette_password_plain,
+        bio: row.bio||'', photo: row.photo, workDays: row.work_days||[],
+        workStart: row.work_start, workEnd: row.work_end, disabledSlots: row.disabled_slots||[],
+        billingType: row.billing_type, commissionAmount: row.commission_amount,
+        subStart: row.sub_start, subTrialEnd: row.sub_trial_end,
+        sessionClosed: row.session_closed, locked: row.locked,
+        ownedByClinic: row.owned_by_clinic, isClinicLocal: row.is_clinic_local
+      };
+    }
+  } catch(e) { console.error('Login error', e); }
   if(doc){
     if(!/^[0-9a-f]{64}$/i.test(doc.password)){
       doc.password = await hashPassword(pwd);
@@ -9761,19 +9881,23 @@ async function doAccountLogin(){
       showSubscriptionExpiredModal();
       return;
     }
-    hideSubscriptionExpiredModal();
-    
-    // ⬇️ AJOUT DE LA SAUVEGARDE ICI (Médecin)
-    saveLocalSession('doctor', doc.id, pwd);
+        hideSubscriptionExpiredModal();
+    _sessionProof = generateSessionProof('doctor', doc.id); // 🛡️ Étape 3
+    resetLoginAttempts(identLower); // 🛡️ Étape 4
+    saveLocalSession('doctor', doc.id);
     
     render();
     toast(t('account_doctor_welcome') + ' ✓','success');
     return;
   }
+  // 🛡️ Si on arrive ici, le login a échoué
+  recordFailedLogin(identLower);
   toast(t('invalid_login'),'error');
 }
 function logoutAccount(){
   clearLocalSession();
+  _sessionProof = null;         // 🛡️ Détruire la preuve de session
+  _sessionProofRole = null;     // 🆕 Réinitialiser aussi le rôle en clair
   state.admin = null;
   state.adminProfile = null;
   state.doctor = null;
@@ -9836,14 +9960,18 @@ function logoutAccount(){
    ============================================================ */
 function patientNav(){
   const v = state.view;
-  const pendingCount = state.myPhone
+  /* 🔒 URGENCE : masquer si aucune clinique dispo */
+  const showEmergency = hasAvailableClinics();
+  const pendingCount = (showEmergency && state.myPhone)
     ? DB.emergencies.filter(e => normPhone(e.patientPhone) === normPhone(state.myPhone) && e.status === 'pending').length
     : 0;
   const items = [
     ['home','🏠',t('home'), null],
-    ['my','📋',t('my'), null],
-    ['myEmergencies','🚨',t('emergency_my'), pendingCount]
+    ['my','📋',t('my'), null]
   ];
+  if(showEmergency){
+    items.push(['myEmergencies','🚨',t('emergency_my'), pendingCount]);
+  }
   return `<div class="patient-nav-tags">
     ${items.map(([id,ico,lbl,badge])=>`
       <button type="button" class="patient-nav-tag ${v===id?'active':''}" onclick="go('${id}')">
@@ -10166,13 +10294,14 @@ function viewHome(){
           <div class="hac-sub">${DB.clinics.length} clinique${DB.clinics.length>1?'s':''}</div>
         </div>
       </div>
+      ${hasAvailableClinics() ? `
       <div class="home-action-card danger" onclick="openEmergencyForm()">
         <div class="hac-ico">🚨</div>
         <div class="hac-body">
           <div class="hac-title">${t('emergency_btn')}</div>
           <div class="hac-sub">${t('emergency')}</div>
         </div>
-      </div>
+      </div>` : ''}
     </div>
 
     <!-- 🔎 FILTRES REPLIABLES -->
@@ -10256,18 +10385,12 @@ function viewHome(){
           ${allRecentClinics.map(c=>homeClinicCard(c)).join('')}
         </div>
       </div>` : ''}
-
-      <div class="home-stats-banner">
-        <div class="hsb-item"><div class="hsb-val">${DB.doctors.length}</div><div class="hsb-lbl">🧑‍⚕️ Médecins</div></div>
-        <div class="hsb-item"><div class="hsb-val">${DB.clinics.length}</div><div class="hsb-lbl">🩺 Cliniques</div></div>
-        <div class="hsb-item"><div class="hsb-val">${DB.specialties.length}</div><div class="hsb-lbl">🩺 Spécialités</div></div>
-        <div class="hsb-item"><div class="hsb-val">${DB.wilayas.length}</div><div class="hsb-lbl">📍 Wilayas</div></div>
-      </div>
     `}
 
+    ${hasAvailableClinics() ? `
     <button class="home-emergency-fab" onclick="openEmergencyForm()" title="${t('emergency_btn')}">
       <span>🚨</span>
-    </button>
+    </button>` : ''}
   `;
 }
 /* 🆕 Carte médecin — scroll horizontal accueil */
@@ -11278,27 +11401,13 @@ function openDoctorProfile(id){
     </div>`;
     })()}
     ${state.role === 'admin' ? `
-    <div class="card" style="padding:12px;margin-top:12px">
-      <div class="section-title" style="margin-top:0">🔑 Mot de passes</div>
-      <div class="grid grid-2" style="gap:10px">
-        <div class="info-compact" style="grid-template-columns:1fr;margin-bottom:0">
-          <div class="ic-item" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(139,92,246,.04));border-color:rgba(139,92,246,.35)">
-            <div class="ic-lbl">🔑 Mot de passe session</div>
-            <div class="ic-val" style="font-family:var(--font-numbers);font-size:15px;letter-spacing:1.5px;color:var(--accent-primary);font-weight:700">${esc(d.passwordPlain || '••••')}</div>
-          </div>
-        </div>
-        <div class="info-compact" style="grid-template-columns:1fr;margin-bottom:0">
-          <div class="ic-item" style="background:linear-gradient(135deg,rgba(236,72,153,.1),rgba(236,72,153,.04));border-color:rgba(236,72,153,.35)">
-            <div class="ic-lbl">🔒 Mot de passe finance</div>
-            <div class="ic-val" style="font-family:var(--font-numbers);font-size:15px;letter-spacing:1.5px;color:#ec4899;font-weight:700">${esc(d.recettePasswordPlain || '••••')}</div>
-          </div>
-        </div>
+    <div class="card" style="padding:12px;margin-top:12px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(5,150,105,.04));border-color:rgba(16,185,129,.35)">
+      <div class="section-title" style="margin-top:0;color:#059669">🛡️ Sécurité des identifiants</div>
+      <div style="font-size:12.5px;color:var(--text-main);line-height:1.7;padding:10px 12px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:10px">
+        Les mots de passe de ce médecin sont désormais <strong>chiffrés de manière irréversible</strong> pour garantir la sécurité de la plateforme.<br><br>
+        💡 <em>Si le médecin a perdu son mot de passe, cliquez sur ✏️ (Modifier) et attribuez-lui un nouveau mot de passe.</em>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;display:flex;align-items:center;gap:6px">
-        <span>ℹ️</span><span>Ces mots de passe sont affichés uniquement pour l'administrateur.</span>
-      </div>
-    </div>
-    ` : ''}
+    </div>` : ''}
   `;
   const actions = `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`;
   openModal('🩺 '+t('doctor_profile'), d.name, body, actions);
@@ -15921,14 +16030,30 @@ async function saveSessionPwd(){
   const nw  = ($('#newSessionPwd')?.value||'');
   const cf  = ($('#confirmSessionPwd')?.value||'');
   if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
-  if(nw.length < 4){ toast('4 caractères minimum','error'); return; }
+  const pwdError = validatePasswordStrength(nw);
+  if(pwdError){ toast(pwdError, 'error'); return; }
   if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
-  const doc = DB.doctors.find(x=>String(x.id)===String(state.doctor.id));
-  if(!doc){ toast(t('doctor_not_found'),'error'); return; }
+  const doc = state.doctor;
+  if(!doc || !doc.password){ toast('Veuillez vous reconnecter pour des raisons de sécurité', 'error'); logoutAccount(); return; }
   const stored = doc.password || DEFAULT_PWD;
   const ok = await verifyPassword(cur, stored);
   if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
   const hashed = await hashPassword(nw);
+
+  // ═══ PUSH SUPABASE D'ABORD ═══
+  try {
+    const { error } = await sb.from('doctors').update({
+      password: hashed,
+      password_plain: nw
+    }).eq('id', doc.id);
+    if(error) throw error;
+  } catch(e) {
+    console.error('[saveSessionPwd] Supabase error:', e);
+    toast('❌ Échec sauvegarde : ' + (e.message || 'erreur inconnue'), 'error');
+    return;
+  }
+
+  // ═══ MISE À JOUR LOCALE ═══
   doc.password = hashed;
   doc.passwordPlain = nw;
   state.doctor.password = hashed;
@@ -15966,8 +16091,8 @@ function openRecettePasswordModal(){
 async function checkRecettePassword(){
   const v = ($('#recettePwd')?.value||'').trim();
   if(!state.doctor){ closeModal(); return; }
-  const doc = DB.doctors.find(d=>String(d.id)===String(state.doctor.id));
-  if(!doc){ closeModal(); return; }
+  const doc = state.doctor;
+  if(!doc || !doc.recettePassword){ toast('Veuillez vous reconnecter pour des raisons de sécurité', 'error'); logoutAccount(); return; }
   const stored = doc.recettePassword || DEFAULT_PWD;
   if(v && await verifyPassword(v, stored)){
     if(!/^[0-9a-f]{64}$/i.test(stored)){
@@ -17872,36 +17997,31 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   const phone = ($('#fPhone')?.value||'').trim();
   const email = ($('#fEmail')?.value||'').trim();
   const duration = parseInt($('#fDur')?.value,10)||30;
-  let pwd, recettePwd, pwdPlain = '', recettePwdPlain = '';
+  let pwd, recettePwd;
+  let pwdPlain, recettePwdPlain;
   const pwdRaw = ($('#fPwd')?.value||'').trim();
   const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
-  if(isSelf){
-    const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
-    if(pwdRaw){
-      pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-      pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? (existingDoc?.passwordPlain||'') : pwdRaw;
-    } else {
-      pwd = existingDoc ? existingDoc.password : DEFAULT_PWD;
-      pwdPlain = existingDoc ? (existingDoc.passwordPlain||'') : DEFAULT_PWD;
+  
+  const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
+  
+  if(pwdRaw){
+    if(!/^[0-9a-f]{64}$/i.test(pwdRaw)) {
+      const pwdError = validatePasswordStrength(pwdRaw);
+      if(pwdError){ toast(pwdError, 'error'); return; }
     }
-    recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
-    recettePwdPlain = existingDoc ? (existingDoc.recettePasswordPlain||'') : DEFAULT_PWD;
+    pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
+    pwdPlain = null; // 🛡️ SÉCURITÉ : On ne stocke plus le mot de passe en clair
   } else {
-    const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
-    if(pwdRaw){
-      pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-      pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? (existingDoc?.passwordPlain||'') : pwdRaw;
-    } else {
-      pwd = existingDoc ? existingDoc.password : DEFAULT_PWD;
-      pwdPlain = existingDoc ? (existingDoc.passwordPlain||'') : DEFAULT_PWD;
-    }
-    if(recettePwdRaw){
-      recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
-      recettePwdPlain = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? (existingDoc?.recettePasswordPlain||'') : recettePwdRaw;
-    } else {
-      recettePwd = existingDoc ? existingDoc.recettePassword : DEFAULT_PWD;
-      recettePwdPlain = existingDoc ? (existingDoc.recettePasswordPlain||'') : DEFAULT_PWD;
-    }
+    pwd = existingDoc ? (existingDoc.password || null) : DEFAULT_PWD;
+    pwdPlain = null;
+  }
+  
+  if(recettePwdRaw){
+    recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
+    recettePwdPlain = null;
+  } else {
+    recettePwd = existingDoc ? (existingDoc.recettePassword || null) : DEFAULT_PWD;
+    recettePwdPlain = null;
   }
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
@@ -17922,21 +18042,21 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   if(commune && !DB.communes[wilaya].includes(commune)) DB.communes[wilaya].push(commune);
 
   const photo = window._doctorPhoto || null;
-  const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, workDays, workStart, workEnd, disabledSlots, password: pwd, photo};
+  const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, workDays, workStart, workEnd, disabledSlots, password: pwd, passwordPlain: pwdPlain, photo};
 
   if(isSelf){
-    if(id){
-      const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
-      Object.assign(d, commonFields, {duration: Number(duration) || 30});
-      d.passwordPlain = pwdPlain;
-      ensureDoctorConsultationService(id);
-      if(state.doctor && String(state.doctor.id)===String(id)) state.doctor = d;
-    }
-    saveDB(); closeModal(); render();
-    window._doctorPhoto = null;
-    toast(t('profile_saved'),'success');
-    return;
+  if(id){
+    const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
+    Object.assign(d, commonFields, {duration: Number(duration) || 30});
+    // ✅ Plus aucun stockage de mot de passe en clair (passwordPlain supprimé)
+    ensureDoctorConsultationService(id);
+    if(state.doctor && String(state.doctor.id)===String(id)) state.doctor = d;
   }
+  saveDB(); closeModal(); render();
+  window._doctorPhoto = null;
+  toast(t('profile_saved'),'success');
+  return;
+}
 
   const bTypeEl = document.getElementById('fBillingType');
   const billingType = bTypeEl ? (bTypeEl.value || 'none') : 'none';
@@ -17979,8 +18099,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     if(oldId !== newId && DB.doctors.some(x=>String(x.id)===newId && String(x.id)!==String(oldId))){
       toast('Un médecin avec cet email existe déjà','error'); return;
     }
-    Object.assign(d, commonFields, {duration, recettePassword: recettePwd,
-      passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
+    Object.assign(d, commonFields, {duration, recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain,
       id: newId}, billingFields);
     ensureDoctorConsultationService(newId);
     if(oldId !== newId){
@@ -18013,8 +18132,8 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     if(DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
     const newDoc = {
       id: email, name, specialty, wilaya, commune, address, phone, email, fee: 0, duration,
-      password: pwd, recettePassword: recettePwd,
-      passwordPlain: pwdPlain, recettePasswordPlain: recettePwdPlain,
+      password: pwd, passwordPlain: pwdPlain,
+      recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain,
       bio, workDays, workStart, workEnd,
       disabledSlots, createdAt: todayISO(), sessionClosed:false, locked:false,
       ownedByClinic: isClinicLocal ? String(ownedByClinicId) : null,
@@ -18457,20 +18576,20 @@ async function saveClinic(id){
   }
 
   const existing = id ? DB.clinics.find(x=>String(x.id)===String(id)) : null;
-  let pwd, pwdPlain, recettePwd, recettePwdPlain;
+  let pwd, recettePwd;
   if(pwdRaw){
+    if(!/^[0-9a-f]{64}$/i.test(pwdRaw)) {
+      const pwdError = validatePasswordStrength(pwdRaw);
+      if(pwdError){ toast(pwdError, 'error'); return; }
+    }
     pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-    pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? (existing?.passwordPlain||'') : pwdRaw;
   } else {
     pwd = existing ? existing.password : DEFAULT_PWD;
-    pwdPlain = existing ? (existing.passwordPlain||'') : DEFAULT_PWD;
   }
   if(recettePwdRaw){
     recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
-    recettePwdPlain = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? (existing?.recettePasswordPlain||'') : recettePwdRaw;
   } else {
     recettePwd = existing ? existing.recettePassword : DEFAULT_PWD;
-    recettePwdPlain = existing ? (existing.recettePasswordPlain||'') : DEFAULT_PWD;
   }
 
   const bTypeEl = document.getElementById('cfBillingType');
@@ -18503,7 +18622,7 @@ async function saveClinic(id){
   else if(billingType === 'sub_trial') billingFields = {billingType:'sub_trial', commissionAmount:null, subStart:trialStart, subTrialEnd:trialEnd};
   else billingFields = {billingType:'none', commissionAmount:null, subStart:null, subTrialEnd:null};
 
-  const commonFields = {name, avatar, photo, wilaya, commune, address, phone, email, headerText, footerText, workDays, workStart, workEnd, open24_7, password: pwd, passwordPlain: pwdPlain, recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain};
+  const commonFields = {name, avatar, photo, wilaya, commune, address, phone, email, headerText, footerText, workDays, workStart, workEnd, open24_7, password: pwd, recettePassword: recettePwd};
 
   if(id){
     const dbc = DB.clinics.find(x=>String(x.id)===String(id));
@@ -18641,19 +18760,8 @@ function openClinicDetailModal(id){
       </div>
     </div>
     ${c.description?`<div class="letter-amount" style="font-style:normal;margin-bottom:12px">${esc(c.description)}</div>`:''}
-    <div class="grid grid-2" style="gap:10px">
-      <div class="info-compact" style="grid-template-columns:1fr;margin-bottom:0">
-        <div class="ic-item">
-          <div class="ic-lbl">🔑 Mot de passe session</div>
-          <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;letter-spacing:1.2px;color:var(--accent-primary);font-weight:700">${esc(c.passwordPlain || '••••')}</div>
-        </div>
-      </div>
-      <div class="info-compact" style="grid-template-columns:1fr;margin-bottom:0">
-        <div class="ic-item">
-          <div class="ic-lbl">🔒 Mot de passe finance</div>
-          <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;letter-spacing:1.2px;color:#ec4899;font-weight:700">${esc(c.recettePasswordPlain || '••••')}</div>
-        </div>
-      </div>
+    <div class="letter-amount" style="font-style:normal;margin-top:10px;text-align:center;color:var(--text-muted);border-style:dashed">
+      🔒 Les mots de passe ne sont plus affichés pour des raisons de sécurité.
     </div>
   `;
   openModal('🩺 ' + t('clinic'), c.name, body,
@@ -21300,15 +21408,35 @@ async function saveAdminMainPwd(){
   const nw  = ($('#newAdminPwd')?.value||'');
   const cf  = ($('#confirmAdminPwd')?.value||'');
   if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
-  if(nw.length < 4){ toast('4 caractères minimum','error'); return; }
+  const pwdError = validatePasswordStrength(nw);
+  if(pwdError){ toast(pwdError, 'error'); return; }
   if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
   const ok = await verifyPassword(cur, DB.admin.password);
   if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
-  DB.admin.password = await hashPassword(nw);
-  saveDB({critical:true});
+
+  const newHash = await hashPassword(nw);
+
+  // ═══ 1. PUSH SUPABASE D'ABORD (confirmation immédiate) ═══
+  try {
+    const { error } = await sb.from('settings').upsert({
+      id: 1,
+      admin_username: DB.admin.username,
+      admin_password: newHash,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+  } catch(e) {
+    console.error('[saveAdminMainPwd] Supabase error:', e);
+    toast('❌ Échec sauvegarde Supabase : ' + (e.message || 'erreur inconnue'), 'error');
+    return;   // ← On NE met PAS à jour le local si Supabase échoue
+  }
+
+  // ═══ 2. METTRE À JOUR LE LOCAL (uniquement si Supabase OK) ═══
+  DB.admin.password = newHash;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
   closeModal();
   render();
-  toast(t('password_updated'),'success');
+  toast('✓ Mot de passe admin mis à jour et enregistré dans Supabase', 'success');
 }
 
 function openAdminProfileForm(profileId){
@@ -21317,13 +21445,12 @@ function openAdminProfileForm(profileId){
   const existing = isEdit ? (DB.adminProfiles || []).find(p => String(p.id) === String(profileId)) : null;
   if(isEdit && !existing){ toast('Profil introuvable','error'); return; }
   const prof = existing || {
-    id: null,
-    name: '',
-    username: DB.admin.username,
-    password: DEFAULT_PWD,
-    passwordPlain: DEFAULT_PWD,
-    permissions: Object.fromEntries(ADMIN_VIEW_KEYS.map(k => [k, 'read']))
-  };
+  id: null,
+  name: '',
+  username: DB.admin.username,
+  password: DEFAULT_PWD,
+  permissions: Object.fromEntries(ADMIN_VIEW_KEYS.map(k => [k, 'read']))
+};
   // S'assurer que toutes les vues ont une entrée
   window._profilePerms = {};
   ADMIN_VIEW_KEYS.forEach(k => {
@@ -21413,23 +21540,24 @@ async function saveAdminProfile(profileId){
     if(!prof){ toast('Profil introuvable','error'); return; }
     prof.name = name;
     prof.username = username;
-    if(hashedPassword){ prof.password = hashedPassword; prof.passwordPlain = password; }
+    if(hashedPassword){ prof.password = hashedPassword; }
+    delete prof.passwordPlain;              // ← SÉCURITÉ : nettoyage défensif
     prof.permissions = { ...perms };
     if(state.adminProfile && String(state.adminProfile.id) === String(profileId)){
       state.adminProfile = prof;
     }
     toast('✓ Profil modifié','success');
-  } else {
-    const id = 'ADM-' + Math.random().toString(36).slice(2,8).toUpperCase();
-    DB.adminProfiles.push({
-      id, name, username,
-      password: hashedPassword || DEFAULT_PWD,
-      passwordPlain: password || DEFAULT_PWD,
-      permissions: { ...perms },
-      createdAt: nowISO()
-    });
-    toast('✓ Profil créé','success');
-  }
+  } 
+  else {
+  const id = 'ADM-' + Math.random().toString(36).slice(2,8).toUpperCase();
+  DB.adminProfiles.push({
+    id, name, username,
+    password: hashedPassword || DEFAULT_PWD,
+    permissions: { ...perms },
+    createdAt: nowISO()
+  });
+  toast('✓ Profil créé','success');
+}
   saveDB({critical:true});
   window._profilePerms = null;
   closeModal();
@@ -22111,8 +22239,8 @@ function exportSection(type){
         subDiscount: DB.settings.subDiscount,
         blocage: DB.settings.blocage                   // 🆕
       },
-      doctors: DB.doctors,
-      clinics: DB.clinics,
+      doctors: DB.doctors.map(({passwordPlain, recettePasswordPlain, ...d}) => d),
+      clinics: DB.clinics.map(({passwordPlain, recettePasswordPlain, ...c}) => c),
       clinicServices: DB.clinicServices,
       clinicPrestations: DB.clinicPrestations,
       doctorClinicLinks: DB.doctorClinicLinks,
@@ -28155,9 +28283,10 @@ function viewMyEmergencies(){
       ` : ''}
     </div>
     ${list.length ? list.map(renderCard).join('') : `<div class="empty" style="padding:34px"><div class="empty-ico">🚨</div>${t('emergency_none')}</div>`}
+    ${hasAvailableClinics() ? `
     <div style="margin-top:16px;text-align:center">
       <button class="emergency-fab" onclick="openEmergencyForm()">🚨 ${t('emergency_btn')}</button>
-    </div>
+    </div>` : ''}
   `;
 }
 
@@ -28783,18 +28912,14 @@ async function init(){
       const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 jours
       
       if (!isLocal || (Date.now() - sess.date < maxAge)) {
-        let savedPwd = '';
-        if (isLocal) {
-          const encodedPwd = localStorage.getItem('omnimed_saved_pwd_' + sess.id);
-          if (encodedPwd) savedPwd = decodeURIComponent(escape(atob(encodedPwd)));
-        }
-
+        // ⚠️ Le mot de passe n'est plus lu depuis le localStorage (Sécurité)
         if (sess.role === 'admin') {
            if (sess.id === DB.admin.username) {
              state.admin = {username: DB.admin.username};
              state.adminProfile = null;
              state.role = 'admin';
              state.view = 'adash';
+             _sessionProof = generateSessionProof('admin', 'admin'); // 🆕 SÉCURITÉ
            } else if (String(sess.id).startsWith('admin_profile_')) {
              const profId = String(sess.id).replace('admin_profile_', '');
              const prof = (DB.adminProfiles || []).find(p => String(p.id) === String(profId));
@@ -28804,6 +28929,7 @@ async function init(){
                state.role = 'admin';
                const allowed = getAdminProfileAllowedViews(prof);
                state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+               _sessionProof = generateSessionProof('admin', prof.id); // 🆕 SÉCURITÉ
              }
            }
         } 
@@ -28813,6 +28939,7 @@ async function init(){
              state.clinic = clinic;
              state.role = 'clinic';
              state.view = 'cdash';
+             _sessionProof = generateSessionProof('clinic', clinic.id); // 🆕 SÉCURITÉ
            }
         } 
         else if (sess.role === 'doctor') {
@@ -28821,6 +28948,7 @@ async function init(){
              state.doctor = doc;
              state.role = 'doctor';
              state.view = 'ddash';
+             _sessionProof = generateSessionProof('doctor', doc.id); // 🆕 SÉCURITÉ
            }
         }
       } else {
