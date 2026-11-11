@@ -5863,9 +5863,9 @@ async function loadDB(){
         ? s.visits
         : { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
 
-            doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
-        const _prevDoc = (DB.doctors||[]).find(x => String(x.id) === String(d.id));
-        return {
+                doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
+      const _prevDoc = (DB && DB.doctors) ? DB.doctors.find(x => String(x.id) === String(d.id)) : null;
+      return {
           id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
           commune: d.commune||'', address: d.address||'', phone: d.phone||'',
           email: d.email || (_prevDoc && _prevDoc.email) || '',
@@ -6793,9 +6793,9 @@ if(state.role === 'doctor' && state.doctor) {
           data = _dR2.data; error = _dR2.error;
         }
         if(error) return false;
-        DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
-          const _prevDoc = (DB.doctors||[]).find(x => String(x.id) === String(d.id));
-          return {
+              DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
+        const _prevDoc = (DB && DB.doctors) ? DB.doctors.find(x => String(x.id) === String(d.id)) : null;
+        return {
             id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
             commune: d.commune||'', address: d.address||'', phone: d.phone||'',
             email: d.email || (_prevDoc && _prevDoc.email) || '',
@@ -22220,6 +22220,7 @@ function viewAdminSettings(){
             📥 ${t('backup_import')}
             <input type="file" accept=".json,application/json" style="display:none" onchange="importSection(this,'rest')">
           </label>
+          <button class="pill-btn danger" onclick="openResetRestModal()">🗑️ RESET</button>
         </div>
       </div>
     </div>
@@ -22282,6 +22283,81 @@ function viewAdminSettings(){
     </div>
     ` : ''}
   `;
+}
+function openResetRestModal(){
+  if(!_adminWriteGuard('asettings')) return;
+  openModal("🗑️ Réinitialisation — Reste de l'application", 
+    "Cette action est IRRÉVERSIBLE et va supprimer toutes les données de cette section.", 
+    `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06);margin-bottom:14px;font-size:12.5px">
+      ⚠️ <strong>Attention :</strong> Médecins, Cliniques, RDV, Messages, Dossiers médicaux, Dépenses, Hospitalisations, etc. seront définitivement supprimés de Supabase et de votre navigateur.<br><br>
+      ✅ <strong>Conservés :</strong> Médicaments, Wilayas & Communes, Spécialités, Paramètres.
+    </div>
+    <div class="field">
+      <label>Confirmez avec votre mot de passe Admin *</label>
+      <input class="input" type="password" id="resetRestPwd" placeholder="••••" autocomplete="off">
+    </div>`,
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn danger" onclick="executeResetRest()">🗑️ Confirmer la réinitialisation</button>`);
+  setTimeout(()=>{ const el=document.getElementById('resetRestPwd'); if(el) el.focus(); }, 40);
+}
+
+async function executeResetRest(){
+  if(!_adminWriteGuard('asettings')) return;
+  const pwd = document.getElementById('resetRestPwd')?.value || '';
+  if(!pwd){ toast('Mot de passe requis', 'error'); return; }
+  
+  const storedPwd = state.adminProfile ? (state.adminProfile.password || DB.admin.password) : DB.admin.password;
+  
+  const ok = await verifyPassword(pwd, storedPwd);
+  if(!ok){
+    toast('Mot de passe incorrect', 'error');
+    return;
+  }
+  
+  closeModal();
+  
+  // 1. Préparer la suppression distante (Supabase) via _pendingDeletes
+  DB.doctors.forEach(d => { if(!_pendingDeletes.doctors.includes(String(d.id))) _pendingDeletes.doctors.push(String(d.id)); });
+  DB.clinics.forEach(c => { if(!_pendingDeletes.clinics.includes(String(c.id))) _pendingDeletes.clinics.push(String(c.id)); });
+  DB.clinicServices.forEach(cs => { if(!_pendingDeletes.clinicServices.includes(String(cs.id))) _pendingDeletes.clinicServices.push(String(cs.id)); });
+  DB.clinicPrestations.forEach(cp => { if(!_pendingDeletes.clinicPrestations.includes(String(cp.id))) _pendingDeletes.clinicPrestations.push(String(cp.id)); });
+  DB.doctorClinicLinks.forEach(l => { if(!_pendingDeletes.doctorClinicLinks.includes(String(l.id))) _pendingDeletes.doctorClinicLinks.push(String(l.id)); });
+  DB.appointments.forEach(a => { if(!_pendingDeletes.appointments.includes(String(a.id))) _pendingDeletes.appointments.push(String(a.id)); });
+  DB.services.forEach(s => { if(!_pendingDeletes.services.includes(String(s.id))) _pendingDeletes.services.push(String(s.id)); });
+  DB.messages.forEach(m => { if(!_pendingDeletes.messages.includes(String(m.id))) _pendingDeletes.messages.push(String(m.id)); });
+  DB.medicalFiles.forEach(m => { if(!_pendingDeletes.medicalFiles.includes(String(m.id))) _pendingDeletes.medicalFiles.push(String(m.id)); });
+  DB.emergencies.forEach(e => { if(!_pendingDeletes.emergencies.includes(String(e.id))) _pendingDeletes.emergencies.push(String(e.id)); });
+  DB.expenses.forEach(e => { if(!_pendingDeletes.expenses.includes(String(e.id))) _pendingDeletes.expenses.push(String(e.id)); });
+  DB.blocks.forEach(b => { if(!_pendingDeletes.blocks.includes(String(b.id))) _pendingDeletes.blocks.push(String(b.id)); });
+  DB.rooms.forEach(r => { if(!_pendingDeletes.rooms.includes(String(r.id))) _pendingDeletes.rooms.push(String(r.id)); });
+  savePendingDeletes();
+  
+  // 2. Réinitialisation locale (Mémoire)
+  DB.doctors = [];
+  DB.clinics = [];
+  DB.clinicServices = [];
+  DB.clinicPrestations = [];
+  DB.doctorClinicLinks = [];
+  DB.appointments = [];
+  DB.services = [];
+  DB.notifications = [];
+  DB.messages = [];
+  DB.medicalFiles = [];
+  DB.invoiceRegistry = {};
+  DB.subInvoiceRegistry = {};
+  DB.clinicInvoiceRegistry = {};
+  DB.emergencies = [];
+  DB.expenses = [];
+  DB.rooms = [];
+  DB.admissions = [];
+  DB.blocks = [];
+  DB.visits = { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} };
+  DB.adminProfiles = [];
+  
+  // 3. Sauvegarde (déclenche le DELETE sur Supabase)
+  saveDB({ critical: true });
+  render();
+  toast("✅ Section Reste de l'application réinitialisée avec succès", 'success');
 }
 function exportSection(type){
   const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
