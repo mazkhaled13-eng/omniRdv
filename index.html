@@ -2870,42 +2870,19 @@ const SUB_YEARLY_DEFAULT = 20000;
 const SUB_DISCOUNT_DEFAULT = 0;
 const DEFAULT_PWD = '0000';
 
-/* 🛡️ SÉCURITÉ : Limitation des tentatives de connexion (Anti-Brute Force) */
+/* 🛡️ Anti-brute-force DÉSACTIVÉ — pas de blocage */
 const LOGIN_ATTEMPTS_KEY = 'omnimed_login_attempts';
-function getLoginAttempts() {
-  try { return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}'); } catch(e) { return {}; }
-}
-function recordFailedLogin(ident) {
-  const attempts = getLoginAttempts();
-  const now = Date.now();
-  if (!attempts[ident]) attempts[ident] = [];
-  // Garder uniquement les tentatives des 15 dernières minutes
-  attempts[ident] = attempts[ident].filter(t => now - t < 15 * 60 * 1000);
-  attempts[ident].push(now);
-  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
-}
-function checkLoginRateLimit(ident) {
-  const attempts = getLoginAttempts();
-  const now = Date.now();
-  if (!attempts[ident]) return true;
-  const recent = attempts[ident].filter(t => now - t < 15 * 60 * 1000);
-  return recent.length < 5; // Maximum 5 tentatives par 15 minutes
-}
-function resetLoginAttempts(ident) {
-  const attempts = getLoginAttempts();
-  if(attempts[ident]) {
-    delete attempts[ident];
-    localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
-  }
-}
+function getLoginAttempts() { return {}; }
+function recordFailedLogin(ident) { /* désactivé */ }
+function checkLoginRateLimit(ident) { return true; }
+function resetLoginAttempts(ident) { /* désactivé */ }
 
-/* 🛡️ SÉCURITÉ : Validation de la complexité du mot de passe */
+/* 🛡️ Validation ASSOUPLIE — seul un mot de passe vide est refusé */
 function validatePasswordStrength(pwd) {
-  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-  if (!/[A-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins une majuscule.";
-  if (!/[a-z]/.test(pwd)) return "Le mot de passe doit contenir au moins une minuscule.";
-  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre.";
-  return null; // Null signifie que le mot de passe est valide
+  if (pwd === null || pwd === undefined || String(pwd).length < 1) {
+    return "Le mot de passe ne peut pas être vide.";
+  }
+  return null;
 }
 const APPTS_PER_PAGE = 25;
 const DOCTORS_PER_PAGE = 10;
@@ -5622,11 +5599,6 @@ function isClinicHiddenFromPatients(c){
   if(isClinicSubscriptionType(c) && !isClinicSubscriptionActive(c)) return true;
   return false;
 }
-function isClinicHiddenFromPatients(c){
-  if(!c) return true;
-  if(isClinicSubscriptionType(c) && !isClinicSubscriptionActive(c)) return true;
-  return true;
-}
 
 /* 🔒 URGENCE : vérifie s'il existe au moins une clinique disponible */
 function hasAvailableClinics(){
@@ -5783,7 +5755,11 @@ async function loadDB(){
   try {
     const results = await Promise.allSettled([
       sb.from('settings').select('*').eq('id',1).maybeSingle(),
-      sb.from('doctors_public').select('*').order('name'),
+      (async () => {
+        const _dR1 = await sb.from('doctors').select('*').order('name');
+        if(!_dR1.error && _dR1.data && _dR1.data.length > 0) return _dR1;
+        return await sb.from('doctors_public').select('*').order('name');
+      })(),
       // ⚡ OPTIMISATION EGRESS : On ne charge que le récent
       sb.from('appointments').select('*').order('date', {ascending: false}).limit(300),
       sb.from('services').select('*'),
@@ -5887,24 +5863,29 @@ async function loadDB(){
         ? s.visits
         : { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
 
-      doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
-        id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
-        commune: d.commune||'', address: d.address||'', phone: d.phone||'',
-        email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
-        password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
-passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
-passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
-        bio: d.bio||'', photo: d.photo || null, workDays: d.work_days||[], workStart: d.work_start||'08:00',
-        workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
-        billingType: d.billing_type||'none',
-        commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
-        subStart: d.sub_start, subTrialEnd: d.sub_trial_end,
-        sessionClosed: !!d.session_closed, locked: !!d.locked,
-        ownedByClinic: d.owned_by_clinic || null,
-        isClinicLocal: !!d.is_clinic_local,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at || d.created_at
-      })),
+            doctors: (docR.data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
+        const _prevDoc = (DB.doctors||[]).find(x => String(x.id) === String(d.id));
+        return {
+          id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
+          commune: d.commune||'', address: d.address||'', phone: d.phone||'',
+          email: d.email || (_prevDoc && _prevDoc.email) || '',
+          fee: Number(d.fee)||0, duration: d.duration||30,
+          password: d.password || (_prevDoc && _prevDoc.password) || null,
+          recettePassword: d.recette_password || (_prevDoc && _prevDoc.recettePassword) || null,
+          passwordPlain: d.password_plain || (_prevDoc && _prevDoc.passwordPlain) || null,
+          recettePasswordPlain: d.recette_password_plain || (_prevDoc && _prevDoc.recettePasswordPlain) || null,
+          bio: d.bio||'', photo: d.photo || null, workDays: d.work_days||[], workStart: d.work_start||'08:00',
+          workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
+          billingType: d.billing_type||'none',
+          commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
+          subStart: d.sub_start, subTrialEnd: d.sub_trial_end,
+          sessionClosed: !!d.session_closed, locked: !!d.locked,
+          ownedByClinic: d.owned_by_clinic || null,
+          isClinicLocal: !!d.is_clinic_local,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at || d.created_at
+        };
+      }),
 
       clinics: (clinicR.data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
         id: c.id, name: c.name, avatar: c.avatar||'🩺', photo: c.photo || null, description: c.description||'',
@@ -6315,8 +6296,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
           commune:d.commune||'', address:d.address||'', phone:d.phone||'',
           email:d.email||'', fee:d.fee||0, duration:d.duration||30,
-          password_plain: null,
-          recette_password_plain: null,
+          password_plain: d.passwordPlain || null,
+          recette_password_plain: d.recettePasswordPlain || null,
           bio:d.bio||'', photo: d.photo || null, work_days:d.workDays||[], work_start:d.workStart||'08:00',
           work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
           billing_type:d.billingType||'none',
@@ -6803,25 +6784,37 @@ if(state.role === 'doctor' && state.doctor) {
         }));
         return true;
       }
-      case 'doctors': {
-  const { data, error } = await sb.from('doctors_public').select('*').order('name');
-  if(error) return false;
-  DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>({
-    id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
-    commune: d.commune||'', address: d.address||'', phone: d.phone||'',
-    email: d.email||'', fee: Number(d.fee)||0, duration: d.duration||30,
-    password: d.password||DEFAULT_PWD, recettePassword: d.recette_password||DEFAULT_PWD,
-passwordPlain: d.password_plain || null, recettePasswordPlain: d.recette_password_plain || null,
-    bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
-          workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
-          billingType: d.billing_type||'none',
-          commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
-          subStart: d.sub_start, subTrialEnd: d.sub_trial_end,
-          sessionClosed: !!d.session_closed, locked: !!d.locked,
-          ownedByClinic: d.owned_by_clinic || null,
-          isClinicLocal: !!d.is_clinic_local,
-          createdAt: d.created_at
-        }));
+            case 'doctors': {
+        let data = null, error = null;
+        const _dR1 = await sb.from('doctors').select('*').order('name');
+        if(!_dR1.error && _dR1.data && _dR1.data.length > 0){ data = _dR1.data; error = null; }
+        else {
+          const _dR2 = await sb.from('doctors_public').select('*').order('name');
+          data = _dR2.data; error = _dR2.error;
+        }
+        if(error) return false;
+        DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
+          const _prevDoc = (DB.doctors||[]).find(x => String(x.id) === String(d.id));
+          return {
+            id: d.id, name: d.name, specialty: d.specialty, wilaya: d.wilaya,
+            commune: d.commune||'', address: d.address||'', phone: d.phone||'',
+            email: d.email || (_prevDoc && _prevDoc.email) || '',
+            fee: Number(d.fee)||0, duration: d.duration||30,
+            password: d.password || (_prevDoc && _prevDoc.password) || null,
+            recettePassword: d.recette_password || (_prevDoc && _prevDoc.recettePassword) || null,
+            passwordPlain: d.password_plain || (_prevDoc && _prevDoc.passwordPlain) || null,
+            recettePasswordPlain: d.recette_password_plain || (_prevDoc && _prevDoc.recettePasswordPlain) || null,
+            bio: d.bio||'', workDays: d.work_days||[], workStart: d.work_start||'08:00',
+            workEnd: d.work_end||'17:00', disabledSlots: d.disabled_slots||[],
+            billingType: d.billing_type||'none',
+            commissionAmount: d.commission_amount!=null?Number(d.commission_amount):null,
+            subStart: d.sub_start, subTrialEnd: d.sub_trial_end,
+            sessionClosed: !!d.session_closed, locked: !!d.locked,
+            ownedByClinic: d.owned_by_clinic || null,
+            isClinicLocal: !!d.is_clinic_local,
+            createdAt: d.created_at
+          };
+        });
         return true;
       }
       case 'clinics': {
@@ -8990,98 +8983,6 @@ function arrayBufferToDataURL(buffer, type){
     reader.readAsDataURL(blob);
   });
 }
-function onApptDocFile(input, target){
-  const file = input.files && input.files[0];
-  if(!file) return;
-  if(file.size > 10 * 1024 * 1024){
-    toast(t('file_too_large'), 'error');
-    input.value = '';
-    return;
-  }
-  const container = target === 'internal' ? state.internalForm
-    : target === 'clinic-internal' ? state.clinicInternalForm
-    : target === 'clinic' ? state.clinicBooking
-    : state.booking;
-  if(!container.documents) container.documents = [];
-  const reader = new FileReader();
-  reader.onload = e => {
-    container.documents.push({
-      name: file.name,
-      type: file.type || 'application/octet-stream',
-      size: file.size,
-      data: e.target.result
-    });
-    render();
-    toast('Document ajouté', 'success');
-  };
-  reader.onerror = () => toast('Erreur lors du chargement', 'error');
-  reader.readAsArrayBuffer(file);
-  input.value = '';
-}
-function removeApptDoc(index, target){
-  const container = target === 'internal' ? state.internalForm
-    : target === 'clinic-internal' ? state.clinicInternalForm
-    : target === 'clinic' ? state.clinicBooking
-    : state.booking;
-  if(container.documents){
-    container.documents.splice(index, 1);
-    render();
-  }
-}
-async function saveApptDocuments(documents){
-  const saved = [];
-  for(const d of (documents || [])){
-    const key = 'file_' + uid('F') + '_' + (d.name||'file').replace(/[^a-zA-Z0-9._-]/g,'_');
-    try {
-      await idbFiles.put(key, {name:d.name, type:d.type, size:d.size, data:d.data});
-      saved.push({key, name:d.name, type:d.type, size:d.size});
-    } catch(e){ console.error(e); }
-  }
-  return saved;
-}
-async function openApptDocuments(apptId){
-  const a = DB.appointments.find(x=>x.id===apptId);
-  if(!a || !a.documents || !a.documents.length) return;
-  openModal('📎 Documentation médicale', `${a.patientName} — ${fmtDateFR(a.date)} ${a.time}`,
-    `<div id="apptDocsViewer"><div class="empty" style="padding:30px"><div class="empty-ico">⏳</div>Chargement…</div></div>`,
-    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`, true);
-  const viewer = document.getElementById('apptDocsViewer');
-  if(!viewer) return;
-  const items = [];
-  for(const doc of a.documents){
-    const f = await idbFiles.get(doc.key);
-    if(!f){
-      items.push(`<div class="doc-view-item"><div class="doc-view-header"><span>📎</span><span class="doc-view-name">${esc(doc.name)}</span></div><div style="color:var(--text-muted);font-size:12px;text-align:center;padding:14px">${t('file_not_found')}</div></div>`);
-      continue;
-    }
-    const isImage = (doc.type||'').startsWith('image/');
-    const isPdf = (doc.type||'') === 'application/pdf';
-    let dataURL = '';
-    try { dataURL = await arrayBufferToDataURL(f.data, doc.type); }catch(e){}
-    let bodyHTML;
-    if(isImage && dataURL){
-      bodyHTML = `<img src="${dataURL}" class="doc-view-img" alt="${esc(doc.name)}">`;
-    } else if(isPdf && dataURL){
-      bodyHTML = `<iframe src="${dataURL}" class="doc-view-pdf" title="${esc(doc.name)}"></iframe>`;
-    } else if(dataURL){
-      bodyHTML = `<div class="doc-view-other">Aperçu non disponible pour ce type de fichier.<br><br><a href="${dataURL}" download="${esc(doc.name)}">⬇ Télécharger ${esc(doc.name)}</a></div>`;
-    } else {
-      bodyHTML = `<div class="doc-view-other">Impossible de charger le fichier</div>`;
-    }
-    items.push(`
-      <div class="doc-view-item">
-        <div class="doc-view-header">
-          <span>📎</span>
-          <span class="doc-view-name">${esc(doc.name)}</span>
-          <span class="doc-view-size">${fmtFileSize(doc.size)}</span>
-        </div>
-        <div>${bodyHTML}</div>
-      </div>
-    `);
-  }
-  viewer.innerHTML = items.join('') || `<div class="empty">Aucun document</div>`;
-}
-
 /* ===== Stats ===== */
 function getStatsAppts(){
   let appts = DB.appointments.filter(a=>a.status!=='deleted');
@@ -9827,29 +9728,55 @@ async function doAccountLogin(){
     return;
   }
 
-  /* 3. Médecin */
+  /* 3. Médecin — RECHERCHE LOCALE D'ABORD, puis RPC en fallback */
   let doc = null;
+
+  /* 3.a — Recherche locale dans DB.doctors */
   try {
-    const { data } = await sb.rpc('login_doctor', { ident: identLower, pwd: pwd });
-    if(data && data.length > 0) {
-      const row = data[0];
-      doc = {
-        id: row.id, name: row.name, specialty: row.specialty, wilaya: row.wilaya,
-        commune: row.commune||'', address: row.address||'', phone: row.phone||'',
-        email: row.email||'', fee: Number(row.fee)||0, duration: row.duration||30,
-        password: row.password, recettePassword: row.recette_password,
-        passwordPlain: row.password_plain, recettePasswordPlain: row.recette_password_plain,
-        bio: row.bio||'', photo: row.photo, workDays: row.work_days||[],
-        workStart: row.work_start, workEnd: row.work_end, disabledSlots: row.disabled_slots||[],
-        billingType: row.billing_type, commissionAmount: row.commission_amount,
-        subStart: row.sub_start, subTrialEnd: row.sub_trial_end,
-        sessionClosed: row.session_closed, locked: row.locked,
-        ownedByClinic: row.owned_by_clinic, isClinicLocal: row.is_clinic_local
-      };
+    const candidates = (DB.doctors || []).filter(x =>
+      String(x.email||'').toLowerCase() === identLower ||
+      String(x.name||'').toLowerCase() === identLower
+    );
+    for(const candidate of candidates){
+      const storedPwd = candidate.password || '';
+      const storedIsHash = /^[0-9a-f]{64}$/i.test(storedPwd);
+      let matched = false;
+      if(storedIsHash){
+        matched = await verifyPassword(pwd, storedPwd);
+      } else if(!storedPwd){
+        matched = (String(pwd) === String(DEFAULT_PWD));
+      } else {
+        matched = (String(pwd) === String(storedPwd));
+      }
+      if(matched){ doc = candidate; break; }
     }
-  } catch(e) { console.error('Login error', e); }
+  } catch(e){ console.warn('[login local]', e); }
+
+  /* 3.b — Fallback RPC Supabase */
+  if(!doc){
+    try {
+      const { data } = await sb.rpc('login_doctor', { ident: identLower, pwd: pwd });
+      if(data && data.length > 0) {
+        const row = data[0];
+        doc = {
+          id: row.id, name: row.name, specialty: row.specialty, wilaya: row.wilaya,
+          commune: row.commune||'', address: row.address||'', phone: row.phone||'',
+          email: row.email||'', fee: Number(row.fee)||0, duration: row.duration||30,
+          password: row.password, recettePassword: row.recette_password,
+          passwordPlain: row.password_plain, recettePasswordPlain: row.recette_password_plain,
+          bio: row.bio||'', photo: row.photo, workDays: row.work_days||[],
+          workStart: row.work_start, workEnd: row.work_end, disabledSlots: row.disabled_slots||[],
+          billingType: row.billing_type, commissionAmount: row.commission_amount,
+          subStart: row.sub_start, subTrialEnd: row.sub_trial_end,
+          sessionClosed: row.session_closed, locked: row.locked,
+          ownedByClinic: row.owned_by_clinic, isClinicLocal: row.is_clinic_local
+        };
+      }
+    } catch(e) { console.error('Login RPC error', e); }
+  }
+
   if(doc){
-    if(!/^[0-9a-f]{64}$/i.test(doc.password)){
+    if(!/^[0-9a-f]{64}$/i.test(doc.password || '')){
       doc.password = await hashPassword(pwd);
       saveDB();
     }
@@ -11046,7 +10973,6 @@ function clinicBookStep4(){
   const isDoctor = s.mode === 'doctor';
   const doc = isDoctor ? docById(s.doctorId) : null;
   const prestation = !isDoctor ? clinicPrestationById(s.prestationId) : null;
-  const docs = s.documents || [];
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">📝 ${t('your_info')}</div>
@@ -11067,25 +10993,6 @@ function clinicBookStep4(){
       <div class="field">
         <label>📝 ${t('motif')}</label>
         <input class="input" id="cpMotif" maxlength="200" value="${esc(s.motif||'')}" oninput="state.clinicBooking.motif=this.value" placeholder="Ex : contrôle…">
-      </div>
-      <div class="field">
-        <label>📎 Documentation</label>
-        <label class="file-drop" style="font-size:12.5px;padding:12px">
-          📎 Cliquez pour joindre un fichier (bilan, ordonnance, analyse…)
-          <input type="file" style="display:none" onchange="onApptDocFile(this,'clinic')">
-        </label>
-        ${docs.length ? `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
-            ${docs.map((d,i)=>`
-              <div class="msg-file" style="cursor:default">
-                <span>📎</span>
-                <span class="msg-file-name">${esc(d.name)}</span>
-                <span class="msg-file-size">${fmtFileSize(d.size)}</span>
-                <button class="mini-btn out-red" onclick="removeApptDoc(${i},'clinic')">✕</button>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
       </div>
       <div class="field">
         <label>🔒 ${t('patient_password_optional')}</label>
@@ -11158,7 +11065,6 @@ async function confirmClinicBooking(){
     showPatientBlockedModal('clinic', c.name);
     return;
   }
-  const savedDocs = await saveApptDocuments(s.documents || []);
   if(isDoctor){
     /* 🔗 Conflit MÉDECIN uniquement : le médecin peut recevoir plusieurs patients
        dans des salles différentes de la clinique, tant que SON planning est libre.
@@ -11196,7 +11102,6 @@ async function confirmClinicBooking(){
     motif: motif || (prestation ? prestation.name : 'Consultation'),
     services: isDoctor ? _clinicDoctorServices : (prestation ? [{id:prestation.id, name:prestation.name, price:prestation.price}] : []),
     servicesTotal: isDoctor ? _clinicDoctorTotal : (prestation ? prestation.price : 0),
-    documents: savedDocs,
     status: 'pending',
     createdAt: nowISO(),
     reminders:{h2:false},
@@ -11340,7 +11245,7 @@ function openDoctorProfile(id){
       <div class="section-title" style="margin-top:0">💉 ${t('services')} <span class="tag accent" style="margin-left:4px">${services.length}</span></div>
       ${services.map(s=>`
         <div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--glass-border);font-size:12.5px">
-          <div style="min-width:0"><strong>${esc(s.name)}</strong>${s.description?`<span style="color:var(--text-muted);font-size:11px"> — ${esc(s.description)}</span>`:''}</div>
+          <div style="min-width:0"><strong>${esc(s.name)}</strong>${(s.description && !(state.role === 'patient' && s.isDefault)) ? `<span style="color:var(--text-muted);font-size:11px"> — ${esc(s.description)}</span>`:''}</div>
           ${(s.price > 0 && (state.role !== 'patient' || s.showPrice !== false)) ? `<span style="font-family:var(--font-numbers);font-weight:500;color:#059669;flex-shrink:0">${n2(s.price)} DA</span>` : ''}
         </div>
       `).join('')}
@@ -11400,18 +11305,240 @@ function openDoctorProfile(id){
       }).join('')}
     </div>`;
     })()}
-    ${state.role === 'admin' ? `
-    <div class="card" style="padding:12px;margin-top:12px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(5,150,105,.04));border-color:rgba(16,185,129,.35)">
+    ${state.role === 'admin' ? (() => {
+      return `
+    <div class="card" style="padding:14px;margin-top:12px;background:linear-gradient(135deg,rgba(16,185,129,.06),rgba(5,150,105,.04));border-color:rgba(16,185,129,.35)">
       <div class="section-title" style="margin-top:0;color:#059669">🛡️ Sécurité des identifiants</div>
-      <div style="font-size:12.5px;color:var(--text-main);line-height:1.7;padding:10px 12px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:10px">
-        Les mots de passe de ce médecin sont désormais <strong>chiffrés de manière irréversible</strong> pour garantir la sécurité de la plateforme.<br><br>
-        💡 <em>Si le médecin a perdu son mot de passe, cliquez sur ✏️ (Modifier) et attribuez-lui un nouveau mot de passe.</em>
+      <div class="info-compact one-col" style="margin-top:10px">
+        <div class="ic-item" style="background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(139,92,246,.02));border-color:rgba(139,92,246,.35)">
+          <div class="ic-lbl">🔑 Identifiant de connexion (email)</div>
+          <div class="ic-val" style="font-family:var(--font-numbers);font-weight:700;font-size:13px;color:var(--accent-primary)">${esc(d.email || '(non défini)')}</div>
+          ${d.email ? `<button class="mini-btn ghost" style="margin-top:6px;font-size:11px" onclick="copyDoctorCredentials('${jsStr(d.email)}')">📋 Copier l'email</button>` : ''}
+        </div>
+        <div class="ic-item">
+          <div class="ic-lbl">🔒 Mot de passe Session</div>
+          <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;font-weight:700;color:${d.passwordPlain ? '#059669' : 'var(--text-muted)'}">
+            ${d.passwordPlain ? esc(d.passwordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Hashé — cliquez sur Réinitialiser pour afficher</em>'}
+          </div>
+        </div>
+        <div class="ic-item">
+          <div class="ic-lbl">🔒 Mot de passe Finance (Recette)</div>
+          <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;font-weight:700;color:${d.recettePasswordPlain ? '#059669' : 'var(--text-muted)'}">
+            ${d.recettePasswordPlain ? esc(d.recettePasswordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Hashé — cliquez sur Réinitialiser pour afficher</em>'}
+          </div>
+        </div>
       </div>
-    </div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="pill-btn primary" onclick="openAdminResetDoctorPwdModal('${jsStr(String(d.id))}', 'session')">🔑 Réinitialiser Session</button>
+        <button class="pill-btn" onclick="openAdminResetDoctorPwdModal('${jsStr(String(d.id))}', 'recette')">🔑 Réinitialiser Finance</button>
+      </div>
+      <div class="letter-amount" style="font-style:normal;font-size:11px;margin-top:10px;color:var(--text-muted);border-color:var(--glass-border);background:var(--glass-bg-3);text-align:left">
+        💡 Le mot de passe en clair est visible <strong>uniquement par l'admin</strong> pour faciliter le partage avec le médecin.
+      </div>
+    </div>
+    `;
+    })() : ''}
   `;
   const actions = `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`;
   openModal('🩺 '+t('doctor_profile'), d.name, body, actions);
 }
+/* ============================================================
+   🛡️ GESTION DES IDENTIFIANTS MÉDECIN — Côté Admin
+   ============================================================ */
+function copyDoctorCredentials(email){
+  if(!email){ toast('Aucun email à copier','error'); return; }
+  try {
+    navigator.clipboard.writeText(email).then(() => {
+      toast('📋 Email copié dans le presse-papier','success');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = email;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('📋 Email copié','success'); }
+      catch(e){ toast('Copie impossible — copiez manuellement','error'); }
+      document.body.removeChild(ta);
+    });
+  } catch(e){ toast('Copie impossible','error'); }
+}
+
+function openAdminResetDoctorPwdModal(doctorId, type){
+  const d = docById(doctorId);
+  if(!d){ toast('Médecin introuvable','error'); return; }
+  const isSession = type === 'session';
+  openModal(
+    isSession ? '🔑 Réinitialiser — Mot de passe Session' : '🔑 Réinitialiser — Mot de passe Finance',
+    `${d.name} — Identifiant : ${d.email || '(non défini)'}`,
+    `<div class="field">
+       <label>Nouveau mot de passe *</label>
+       <input class="input" id="resetDocPwd" type="password" placeholder="Min. 8 car., maj, min, chiffre" autocomplete="new-password">
+     </div>
+     <div class="field">
+       <label>Confirmer le nouveau mot de passe *</label>
+       <input class="input" id="resetDocPwdConfirm" type="password" placeholder="Répéter" autocomplete="new-password">
+     </div>
+     <label class="service-checkbox" style="margin-top:6px">
+       <input type="checkbox" id="resetDocPwdShow">
+       <div class="sc-info"><div class="sc-name">👁️ Afficher le mot de passe</div></div>
+     </label>
+     <div class="letter-amount" style="font-style:normal;margin-top:12px;font-size:11.5px;color:var(--warn);border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)">
+       ⚠️ Le mot de passe sera hashé et stocké de manière <strong>irréversible</strong>. Notez-le avant de valider.
+     </div>`,
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn primary" onclick="saveAdminResetDoctorPwd('${jsStr(String(doctorId))}', '${type}')">💾 Enregistrer</button>`
+  );
+  setTimeout(() => {
+    const el = document.getElementById('resetDocPwd');
+    if(el) el.focus();
+    const chk = document.getElementById('resetDocPwdShow');
+    if(chk) chk.addEventListener('change', (e) => {
+      const p1 = document.getElementById('resetDocPwd');
+      const p2 = document.getElementById('resetDocPwdConfirm');
+      if(p1) p1.type = e.target.checked ? 'text' : 'password';
+      if(p2) p2.type = e.target.checked ? 'text' : 'password';
+    });
+  }, 40);
+}
+
+async function saveAdminResetDoctorPwd(doctorId, type){
+  const nw = (document.getElementById('resetDocPwd')?.value || '').trim();
+  const cf = (document.getElementById('resetDocPwdConfirm')?.value || '').trim();
+  if(!nw || !cf){ toast('Les deux champs sont requis','error'); return; }
+  const pwdError = validatePasswordStrength(nw);
+  if(pwdError){ toast(pwdError, 'error'); return; }
+  if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
+
+  const d = DB.doctors.find(x => String(x.id) === String(doctorId));
+  if(!d){ toast('Médecin introuvable','error'); return; }
+
+  const hashed = await hashPassword(nw);
+  const isSession = type === 'session';
+
+  /* 1️⃣ Push Supabase d'abord */
+  try {
+    const updateField = isSession ? { password: hashed } : { recette_password: hashed };
+    const { error } = await sb.from('doctors').update(updateField).eq('id', doctorId);
+    if(error) throw error;
+  } catch(e) {
+    console.error('[saveAdminResetDoctorPwd]', e);
+    toast('❌ Échec Supabase : ' + (e.message || 'erreur'), 'error');
+    return;
+  }
+
+  /* 2️⃣ Mise à jour locale */
+  if(isSession){
+    d.password = hashed;
+    d.passwordPlain = null;
+    if(state.doctor && String(state.doctor.id) === String(doctorId)){
+      state.doctor.password = hashed;
+      state.doctor.passwordPlain = null;
+    }
+  } else {
+    d.recettePassword = hashed;
+    d.recettePasswordPlain = null;
+    if(state.doctor && String(state.doctor.id) === String(doctorId)){
+      state.doctor.recettePassword = hashed;
+      state.doctor.recettePasswordPlain = null;
+    }
+  }
+  saveDB();
+  closeModal();
+  toast('✅ Mot de passe mis à jour et enregistré dans Supabase','success');
+
+  /* 3️⃣ Rafraîchir la fiche */
+  setTimeout(() => {
+    if(state.role === 'admin') openDoctorProfile(doctorId);
+  }, 100);
+}
+/* ============================================================
+   🛡️ RÉINITIALISATION DU MOT DE PASSE MÉDECIN — Côté Admin
+   ============================================================ */
+function openAdminResetDoctorPwdModal(doctorId, type){
+  const d = docById(doctorId);
+  if(!d){ toast('Médecin introuvable','error'); return; }
+  const isSession = type === 'session';
+  openModal(
+    isSession ? '🔑 Réinitialiser — Mot de passe Session' : '🔑 Réinitialiser — Mot de passe Finance',
+    `${d.name} — Identifiant : ${d.email || '(non défini)'}`,
+    `<div class="field">
+       <label>Nouveau mot de passe *</label>
+       <input class="input" id="resetDocPwd" type="text" placeholder="Ex : 0000" autocomplete="new-password">
+     </div>
+     <div class="field">
+       <label>Confirmer le nouveau mot de passe *</label>
+       <input class="input" id="resetDocPwdConfirm" type="text" placeholder="Répéter" autocomplete="new-password">
+     </div>
+     <div class="letter-amount" style="font-style:normal;margin-top:12px;font-size:11.5px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
+       💡 Le mot de passe sera stocké en clair (visible par l'admin) + hashé pour la connexion sécurisée.
+     </div>`,
+    `<button class="pill-btn" onclick="closeModal()">Annuler</button>
+     <button class="pill-btn primary" onclick="saveAdminResetDoctorPwd('${jsStr(String(doctorId))}', '${type}')">💾 Enregistrer</button>`
+  );
+  setTimeout(() => { const el = document.getElementById('resetDocPwd'); if(el) el.focus(); }, 40);
+}
+
+async function saveAdminResetDoctorPwd(doctorId, type){
+  const nw = (document.getElementById('resetDocPwd')?.value || '').trim();
+  const cf = (document.getElementById('resetDocPwdConfirm')?.value || '').trim();
+  if(!nw || !cf){ toast('Les deux champs sont requis','error'); return; }
+  if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
+
+  const d = DB.doctors.find(x => String(x.id) === String(doctorId));
+  if(!d){ toast('Médecin introuvable','error'); return; }
+
+  const hashed = await hashPassword(nw);
+  const isSession = type === 'session';
+
+  /* 1️⃣ Push Supabase d'abord */
+  try {
+    const updateField = isSession
+      ? { password: hashed, password_plain: nw }
+      : { recette_password: hashed, recette_password_plain: nw };
+    const { error } = await sb.from('doctors').update(updateField).eq('id', doctorId);
+    if(error){
+      /* Si password_plain absent, fallback sans ce champ */
+      const _msg = String(error.message || '').toLowerCase();
+      if(_msg.includes('password_plain')){
+        const updateField2 = isSession ? { password: hashed } : { recette_password: hashed };
+        const { error: e2 } = await sb.from('doctors').update(updateField2).eq('id', doctorId);
+        if(e2) throw e2;
+        toast('⚠️ Colonne password_plain absente — exécutez le SQL fourni', 'error');
+      } else {
+        throw error;
+      }
+    }
+  } catch(e) {
+    console.error('[saveAdminResetDoctorPwd]', e);
+    toast('❌ Échec Supabase : ' + (e.message || 'erreur'), 'error');
+    return;
+  }
+
+  /* 2️⃣ Mise à jour locale */
+  if(isSession){
+    d.password = hashed;
+    d.passwordPlain = nw;
+    if(state.doctor && String(state.doctor.id) === String(doctorId)){
+      state.doctor.password = hashed;
+      state.doctor.passwordPlain = nw;
+    }
+  } else {
+    d.recettePassword = hashed;
+    d.recettePasswordPlain = nw;
+    if(state.doctor && String(state.doctor.id) === String(doctorId)){
+      state.doctor.recettePassword = hashed;
+      state.doctor.recettePasswordPlain = nw;
+    }
+  }
+  saveDB();
+  closeModal();
+  toast('✅ Mot de passe mis à jour','success');
+  setTimeout(() => {
+    if(state.role === 'admin') openDoctorProfile(doctorId);
+  }, 100);
+}
+
 function startBookingWith(id){
   const docCheck = docById(id);
   if(docCheck && docCheck.sessionClosed){
@@ -11821,7 +11948,6 @@ function bookStep3(){
   const servicesTotal = effectiveServices.reduce((sum,sv) => sum + sv.price, 0);
   const grandTotal = servicesTotal;
   const pricesHidden = effectiveServices.some(sv => sv.showPrice === false);
-  const docs = s.documents || [];
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">${isEdit ? '✏️ ' + t('modify_appt') : '📝 ' + t('your_info')}</div>
@@ -11844,25 +11970,6 @@ function bookStep3(){
         <input class="input" id="pMotif" maxlength="200" value="${esc(s.motif||'')}" oninput="state.booking.motif=this.value" placeholder="Ex : contrôle…">
       </div>
       <div class="field">
-        <label>📎 Documentation</label>
-        <label class="file-drop" style="font-size:12.5px;padding:12px">
-          📎 Cliquez pour joindre un fichier (bilan, ordonnance, analyse…)
-          <input type="file" style="display:none" onchange="onApptDocFile(this,'booking')">
-        </label>
-        ${docs.length ? `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
-            ${docs.map((d,i)=>`
-              <div class="msg-file" style="cursor:default">
-                <span>📎</span>
-                <span class="msg-file-name">${esc(d.name)}</span>
-                <span class="msg-file-size">${fmtFileSize(d.size)}</span>
-                <button class="mini-btn out-red" onclick="removeApptDoc(${i},'booking')">✕</button>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
-      <div class="field">
         <label>🔒 ${t('patient_password_optional')}</label>
         <input class="input" id="pPassword" type="password" autocomplete="new-password" placeholder="${t('patient_password_ph')}" value="${esc(s.patientPassword||'')}" oninput="state.booking.patientPassword=this.value">
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 ${t('patient_password_hint')}</div>
@@ -11876,8 +11983,8 @@ function bookStep3(){
           <label class="service-checkbox">
             <input type="checkbox" ${selectedServices.includes(sv.id)?'checked':''} onchange="toggleBookingService('${sv.id}', this.checked)">
             <div class="sc-info">
-              <div class="sc-name">${esc(sv.name)}${sv.isDefault ? ` <span class="tag accent" style="font-size:9px;padding:1px 5px;margin-left:4px">Par défaut</span>` : ''}</div>
-              ${sv.description?`<div class="sc-desc">${esc(sv.description)}</div>`:''}
+              <div class="sc-name">${esc(sv.name)}</div>
+              ${(sv.description && !sv.isDefault) ? `<div class="sc-desc">${esc(sv.description)}</div>`:''}
             </div>
             ${(sv.price > 0 && sv.showPrice !== false) ? `<div class="sc-price">+${n2(sv.price)} DA</div>` : ''}
           </label>
@@ -11941,7 +12048,6 @@ async function confirmBooking(){
     }
   }
   const servicesTotal = selectedServices.reduce((sum,sv)=>sum+sv.price, 0);
-  const savedDocs = await saveApptDocuments(s.documents || []);
 
   if(s.editingId){
     const a = DB.appointments.find(x=>x.id===s.editingId);
@@ -11972,7 +12078,6 @@ async function confirmBooking(){
     a.services = selectedServices;
     a.servicesTotal = servicesTotal;
     a._v2 = true;
-    a.documents = savedDocs;
     a.status = 'pending';
     a.updatedAt = nowISO();
     // ✅ Reset du badge "Transféré" (le patient a lui-même modifié son RDV)
@@ -12007,7 +12112,6 @@ async function confirmBooking(){
     date:s.date, time:s.time, motif:motif||'Consultation',
     services: selectedServices, servicesTotal: servicesTotal,
     _v2: true,
-    documents: savedDocs,
     status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:false, rating:0,
     clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
   };
@@ -12184,7 +12288,6 @@ function patientApptHTML(a){
   const canCancel = ['pending','confirmed','postponed'].includes(a.status) && !a.internal;
   const canModify = ['pending','confirmed','postponed'].includes(a.status) && !a.internal;
   const lockIcon = a.patientPassword ? ' 🔒' : '';
-  const docN = (a.documents||[]).length;
   const isClinicAppt = !!a.clinicId;
   /* 🆕 Détection urgence pour badge visuel */
   const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
@@ -12211,7 +12314,6 @@ function patientApptHTML(a){
             ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
             <span>🆔 ${a.id}${lockIcon}</span>
             ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
-            ${docN?`<span class="doc-chip">📎 ${docN}</span>`:''}
           </div>
         </div>
         <div class="pa-detail-chip">📄 ${t('appt_detail')}</div>
@@ -12410,22 +12512,6 @@ function openPatientApptDetail(id){
     }
   }
 
-  const docsBlock = (a.documents && a.documents.length) ? `
-    <div class="info-compact one-col" style="margin-top:8px">
-      <div class="ic-item">
-        <div class="ic-lbl">📎 Documentation médicale <span class="tag accent" style="margin-left:4px;font-size:9px;padding:1px 6px">${a.documents.length}</span></div>
-        <div style="margin-top:6px;display:flex;flex-direction:column;gap:5px">
-          ${a.documents.map(d => `
-            <div class="msg-file" style="cursor:default">
-              <span>📎</span>
-              <span class="msg-file-name">${esc(d.name)}</span>
-              <span class="msg-file-size">${fmtFileSize(d.size)}</span>
-            </div>`).join('')}
-          <button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptDocuments('${a.id}'),50)" style="align-self:flex-start;margin-top:4px">👁️ Consulter</button>
-        </div>
-      </div>
-    </div>` : '';
-
   /* 🆕 Bloc "transféré" si le RDV a été transféré automatiquement */
   let transferBlock = '';
   if(a.transferredFrom && a.status !== 'cancelled' && a.status !== 'deleted'){
@@ -12484,7 +12570,6 @@ function openPatientApptDetail(id){
         </div>
       </div>
     ` : ''}
-    ${docsBlock}
     ${ratingBlock}
   `;
   const canCancel = ['pending','confirmed','postponed'].includes(a.status);
@@ -12609,7 +12694,6 @@ function openNotifDetail(notifId){
   if(!a){ DB.notifications = DB.notifications.filter(x=>x.id!==notifId); saveDB(); render(); return; }
   const doc = docById(a.doctorId);
   const c = a.clinicId ? clinicById(a.clinicId) : null;
-  const docN = (a.documents||[]).length;
   const body = `
     <div style="font-size:13px;line-height:2">${a.status === 'pending' ? `<div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#8b5cf6 0%,#a855f7 40%,#ec4899 100%);border-radius:16px;padding:16px 18px;margin-bottom:14px;color:#fff;box-shadow:0 10px 24px rgba(139,92,246,.22)"><div style="position:relative;z-index:1;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.3);display:grid;place-items:center;font-size:24px;flex-shrink:0">${a.patientAge && a.patientAge < 15 ? '🧒' : a.patientAge && a.patientAge > 60 ? '🧓' : '👤'}</div><div style="flex:1;min-width:140px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:1px;font-weight:800;opacity:.85;margin-bottom:3px">📩 ${t('status_pending')}</div><div style="font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.15">${esc(a.patientName)}${a.patientAge ? ' <span style="font-size:12px;font-weight:500;opacity:.85">· ' + a.patientAge + ' ' + t('billing_years_old') + '</span>' : ''}</div><div style="font-size:11px;opacity:.9;margin-top:4px">📞 ${esc(a.patientPhone)}</div></div><div style="background:rgba(255,255,255,.24);border:1px solid rgba(255,255,255,.35);border-radius:11px;padding:9px 13px;text-align:center;flex-shrink:0"><div style="font-family:var(--font-numbers);font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1">${a.time}</div><div style="font-size:9.5px;opacity:.85;margin-top:3px;text-transform:uppercase;font-weight:600">${a.date.slice(8,10)}/${a.date.slice(5,7)}</div></div></div></div>` : ''}
       <div><strong>${t('patient')} :</strong> ${esc(a.patientName)}${a.patientAge?` (${a.patientAge} ${t('billing_years_old')})`:''}</div>
@@ -12622,7 +12706,6 @@ function openNotifDetail(notifId){
       ${a.patientWilaya?`<div><strong>${t('patient_wilaya')} :</strong> ${esc(a.patientWilaya)}</div>`:''}
       ${a.services&&a.services.length?`<div><strong>${t('services')} :</strong> ${a.services.map(sv => esc(sv.name) + ((sv.price > 0 && sv.showPrice !== false) ? ' ('+n2(sv.price)+' DA)' : '')).join(', ')}</div>`:''}
       <div style="margin-top:6px"><strong>Statut :</strong> ${statusTag(a.status)}</div>
-      ${docN?`<div style="margin-top:8px"><button class="pill-btn primary" onclick="closeModal();setTimeout(()=>openApptDocuments('${a.id}'),50)">📎 Consulter la documentation (${docN})</button></div>`:''}
       ${a.cancelReason?`<div style="margin-top:6px;padding:6px 10px;background:var(--danger-bg);border-radius:6px;color:var(--danger);border-left:3px solid var(--danger)"><strong>❌ ${t('cancel_reason')} :</strong> ${esc(a.cancelReason)}</div>`:''}
     </div>
   `;
@@ -13258,7 +13341,6 @@ function doctorApptHTML(a){
   const canDelete = a.status !== 'done';
   const cancelled = a.status === 'cancelled' && a.cancelReason;
   const eligibleValidate = canValidateAppt(a);
-  const docN = (a.documents||[]).length;
   const hasDossier = !!mfGet(a.doctorId, a.patientPhone);
   const c = a.clinicId ? clinicById(a.clinicId) : null;
   const prestation = a.prestationId ? clinicPrestationById(a.prestationId) : null;
@@ -13285,7 +13367,6 @@ function doctorApptHTML(a){
           ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
           ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
           ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
-          ${docN?`<span class="doc-chip" onclick="event.stopPropagation();openApptDocuments('${a.id}')" title="Voir la documentation">📎 ${docN} doc</span>`:''}
           ${hasDossier?`<span class="doc-chip" title="${t('dossier')}">📁 ${t('dossier')}</span>`:''}
           ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
           ${isEmergency ? `<span class="doc-chip" onclick="event.stopPropagation();showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--danger);font-weight:700">🚨 Fiche urgence</span>` : ''}
@@ -13298,7 +13379,7 @@ function doctorApptHTML(a){
       <div class="appt-actions">
         ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
         ${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁 ${t('dossier_open')}</button>
-        ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')" title="Documentation médicale">📎</button>`:''}
+
         ${a.status==='pending' && findConfirmedConflicts(a).length ? `<button class="mini-btn danger" onclick="openTransferApptModal('${a.id}')" title="⚠️ Ce créneau est occupé par un RDV confirmé — Transférer vers un autre créneau">🔄 Transférer</button>` : ''}
         ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
         ${a.status==='confirmed'?(
@@ -13721,7 +13802,6 @@ function viewDoctorInternal(){
   const services = servicesForDoctor(doc.id);
   const availDays = availableDaysFor(doc, 30);
   const slots = f.date ? slotsFor(doc.id, f.date) : [];
-  const docs = f.documents || [];
   
   let dateSectionHTML = '';
   if(f.dateMode === 'days10'){
@@ -13763,25 +13843,6 @@ function viewDoctorInternal(){
       <div class="field">
         <label>📝 ${t('motif')}</label>
         <input class="input" id="intMotif" maxlength="200" value="${esc(f.motif)}" placeholder="${t('motif')}" oninput="state.internalForm.motif=this.value">
-      </div>
-      <div class="field">
-        <label>📎 Documentation</label>
-        <label class="file-drop" style="font-size:12.5px;padding:12px">
-          📎 Cliquez pour joindre un fichier (bilan, ordonnance, analyse…)
-          <input type="file" style="display:none" onchange="onApptDocFile(this,'internal')">
-        </label>
-        ${docs.length ? `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
-            ${docs.map((d,i)=>`
-              <div class="msg-file" style="cursor:default">
-                <span>📎</span>
-                <span class="msg-file-name">${esc(d.name)}</span>
-                <span class="msg-file-size">${fmtFileSize(d.size)}</span>
-                <button class="mini-btn out-red" onclick="removeApptDoc(${i},'internal')">✕</button>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
       </div>
     </div>
     <div class="card" style="margin-bottom:14px">
@@ -13852,7 +13913,6 @@ async function createInternalAppt(){
     return sv ? {id:sv.id, name:sv.name, price:sv.price} : null;
   }).filter(Boolean);
   const servicesTotal = selectedServices.reduce((s,sv)=>s+sv.price,0);
-  const savedDocs = await saveApptDocuments(f.documents || []);
   const appt = {
     id: genApptId(),
     doctorId:doc.id, patientName:name,
@@ -13861,7 +13921,6 @@ async function createInternalAppt(){
     patientPassword: '',
     date:f.date, time:f.time, motif:f.motif||'Consultation interne',
     services: selectedServices, servicesTotal: servicesTotal,
-    documents: savedDocs,
     status:'confirmed', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:true, rating:0,
     clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
   };
@@ -14323,9 +14382,10 @@ function mfListCardHTML(f){
             </div>
           ` : ''}
         </div>
-        ${!archived && currentUserInfo() ? `
+        ${currentUserInfo() ? `
           <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
-            <button class="mini-btn purple" onclick="openSendDossierById('${f.id}')" title="Envoyer le dossier par messagerie">📤</button>
+            ${!archived ? `<button class="mini-btn purple" onclick="openSendDossierById('${f.id}')" title="Envoyer le dossier par messagerie">📤</button>` : ''}
+            ${archived ? `<button class="mini-btn red" onclick="mfPermDeleteConfirm('${f.id}')" title="Supprimer définitivement">🗑️</button>` : ''}
           </div>
         ` : ''}
       </div>
@@ -14397,6 +14457,7 @@ function viewDossierSingle(){
             <button class="pill-btn" onclick="mfOpenEditInfo()">✏️ ${t('save')}</button>
             <button class="pill-btn" onclick="mfMergeStart()">🔗 ${t('merge_dossier')}</button>
             <button class="pill-btn" style="background:var(--warn-bg);color:#92400e;border-color:rgba(245,158,11,.5)" onclick="mfArchiveConfirm('${f.id}')">📦 ${t('dossier_archive')}</button>
+            <button class="pill-btn danger" onclick="mfPermDeleteConfirm('${f.id}')">🗑️ ${t('dossier_delete_perm')}</button>
           ` : `
             <button class="pill-btn success" onclick="mfUnarchive('${f.id}')">♻️ ${t('dossier_restore')}</button>
             <button class="pill-btn danger" onclick="mfPermDeleteConfirm('${f.id}')">🗑️ ${t('dossier_delete_perm')}</button>
@@ -18004,24 +18065,34 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   
   const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
   
-  if(pwdRaw){
+    if(pwdRaw){
     if(!/^[0-9a-f]{64}$/i.test(pwdRaw)) {
       const pwdError = validatePasswordStrength(pwdRaw);
       if(pwdError){ toast(pwdError, 'error'); return; }
     }
     pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-    pwdPlain = null; // 🛡️ SÉCURITÉ : On ne stocke plus le mot de passe en clair
+    pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? null : pwdRaw;
   } else {
-    pwd = existingDoc ? (existingDoc.password || null) : DEFAULT_PWD;
-    pwdPlain = null;
+    if(existingDoc && existingDoc.password && /^[0-9a-f]{64}$/i.test(existingDoc.password)){
+      pwd = existingDoc.password;
+      pwdPlain = existingDoc.passwordPlain || null;
+    } else {
+      pwd = await hashPassword(DEFAULT_PWD);
+      pwdPlain = DEFAULT_PWD;
+    }
   }
   
   if(recettePwdRaw){
     recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
-    recettePwdPlain = null;
+    recettePwdPlain = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? null : recettePwdRaw;
   } else {
-    recettePwd = existingDoc ? (existingDoc.recettePassword || null) : DEFAULT_PWD;
-    recettePwdPlain = null;
+    if(existingDoc && existingDoc.recettePassword && /^[0-9a-f]{64}$/i.test(existingDoc.recettePassword)){
+      recettePwd = existingDoc.recettePassword;
+      recettePwdPlain = existingDoc.recettePasswordPlain || null;
+    } else {
+      recettePwd = await hashPassword(DEFAULT_PWD);
+      recettePwdPlain = DEFAULT_PWD;
+    }
   }
   const bio = ($('#fBio')?.value||'').trim();
   const workStart = $('#fStart')?.value || '08:00';
@@ -21649,7 +21720,6 @@ function adminApptRow(a){
   const isDeleted = a.status === 'deleted';
   const cancelled = a.status === 'cancelled' && a.cancelReason;
   const eligibleValidate = canValidateAppt(a);
-  const docN = (a.documents||[]).length;
   /* 🆕 FIX : la variable isEmergency n'était jamais déclarée */
   const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
@@ -21677,7 +21747,6 @@ function adminApptRow(a){
           ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
           ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
           ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
-          ${docN?`<span class="doc-chip" onclick="event.stopPropagation();openApptDocuments('${a.id}')">📎 ${docN}</span>`:''}
           ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
           <span>🆔 ${a.id}</span>
         </div>
@@ -21689,7 +21758,6 @@ function adminApptRow(a){
       <div class="appt-actions">
         ${!isDeleted ? `
           ${doc?`${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>`:''}
-          ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
           ${a.status==='pending'?`<button class="mini-btn green" onclick="confirmApptWithNotify('${a.id}')">✓ ${t('confirm_rdv')}</button>`:''}
           ${a.status==='confirmed'?(
             eligibleValidate
@@ -24791,7 +24859,6 @@ function clinicApptRow(a){
   const canDelete = a.status !== 'done';
   const cancelled = a.status === 'cancelled' && a.cancelReason;
   const eligibleValidate = canValidateAppt(a);
-  const docN = (a.documents||[]).length;
   const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   return `
     <div class="appt clinic-appt ${isSelected?'selected-row':''} ${isEmergency?'emergency-appt':''}">
@@ -24816,7 +24883,6 @@ function clinicApptRow(a){
           ${prest?`<span class="tag accent">💉 ${esc(prest.name)}</span>`:''}
           <span>📞 ${esc(a.patientPhone)}</span>
           ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
-          ${docN?`<span class="doc-chip" onclick="event.stopPropagation();openApptDocuments('${a.id}')">📎 ${docN}</span>`:''}
           <span>🆔 ${a.id}</span>
         </div>
         ${cancelled?`
@@ -24827,7 +24893,6 @@ function clinicApptRow(a){
       <div class="appt-actions">
         ${isEmergency ? `<button class="mini-btn danger" onclick="showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence">🚨</button>` : ''}
         ${(a.status !== 'done' && a.status !== 'deleted' && state.role !== 'admin') ? `<button class="mini-btn purple" onclick="printApptTicket('${a.id}')" title="🖨️ Imprimer ticket RDV">🎫</button><span style="align-self:stretch;width:1px;background:var(--glass-border);margin:0 2px;flex-shrink:0;"></span>` : ''}<button class="mini-btn purple" onclick="mfOpenDossierFromAppt('${a.id}')" title="${t('open_from_appt')}">📁</button>
-        ${docN?`<button class="mini-btn purple" onclick="openApptDocuments('${a.id}')">📎</button>`:''}
         ${(a.status==='pending'||a.status==='confirmed')?`<button class="mini-btn green" onclick="openAdmissionFromAppt('${a.id}')" title="Admettre à l'hospitalisation">📥</button>`:''}
         ${isEmergency && a.status !== 'done' && a.status !== 'cancelled' ? `<button class="mini-btn primary" onclick="openTransferEmergencyModal('${a.emergencyId}')" title="Transférer vers un service">🩺</button>` : ''}
         ${(a.status === 'confirmed' || a.status === 'done') ? `<button class="mini-btn primary" onclick="event.stopPropagation();openApptInvoiceModal('${a.id}')" title="Voir la facture">🧾</button>` : ''}
@@ -25367,7 +25432,6 @@ function confirmTransfer(apptId){
   const doc = docById(a.doctorId);
   const c = a.clinicId ? clinicById(a.clinicId) : null;
   const prest = a.prestationId ? clinicPrestationById(a.prestationId) : null;
-  const docN = (a.documents || []).length;
   const hasDossier = !!mfGet(a.doctorId, a.patientPhone);
   const isEmergency = a.apptType === 'clinic_emergency' || !!a.emergencyId;
   const eligibleValidate = canValidateAppt(a);
@@ -25444,12 +25508,6 @@ function confirmTransfer(apptId){
         </div>
       `).join('')}
     </div>` : ''}
-
-    <!-- DOCUMENTS -->
-    ${docN ? `
-    <button class="pill-btn primary" style="width:100%;justify-content:center;margin-bottom:12px;padding:11px" onclick="closeModal();setTimeout(()=>openApptDocuments('${a.id}'),50)">
-      📎 ${t('msg_files')} (${docN})
-    </button>` : ''}
 
     <!-- DOSSIER MÉDICAL -->
     ${hasDossier ? `
@@ -25568,7 +25626,6 @@ function viewClinicInternal(){
   const slots = (f.date && selectedDoctor)
     ? getSlotsForDate(f.date, 'clinic-internal')
     : [];
-  const docs = f.documents || [];
   
   /* ⚠️ RÈGLE MÉTIER : RDV interne clinique = PRESTATIONS CLINIQUE UNIQUEMENT
      ❌ JAMAIS de frais cabinet (médecin externe ou local)
@@ -25622,25 +25679,6 @@ function viewClinicInternal(){
       <div class="field">
         <label>📝 ${t('motif')}</label>
         <input class="input" maxlength="200" value="${esc(f.motif)}" oninput="state.clinicInternalForm.motif=this.value" placeholder="${t('motif')}">
-      </div>
-      <div class="field">
-        <label>📎 Documentation</label>
-        <label class="file-drop" style="font-size:12.5px;padding:12px">
-          📎 Cliquez pour joindre un fichier (bilan, ordonnance, analyse…)
-          <input type="file" style="display:none" onchange="onApptDocFile(this,'clinic-internal')">
-        </label>
-        ${docs.length ? `
-          <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
-            ${docs.map((d, i) => `
-              <div class="msg-file" style="cursor:default">
-                <span>📎</span>
-                <span class="msg-file-name">${esc(d.name)}</span>
-                <span class="msg-file-size">${fmtFileSize(d.size)}</span>
-                <button class="mini-btn out-red" onclick="removeApptDoc(${i},'clinic-internal')">✕</button>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
       </div>
     </div>
     
@@ -25808,9 +25846,6 @@ async function createClinicInternalAppt(){
   }).filter(Boolean);
   const prestationsTotal = selectedPrestations.reduce((s, p) => s + p.price, 0);
   
-  /* Documents */
-  const savedDocs = await saveApptDocuments(f.documents || []);
-  
   /* Création */
   const appt = {
     id: genApptId(),
@@ -25828,7 +25863,6 @@ async function createClinicInternalAppt(){
      Le cabinet du médecin (externe ou local) n'est JAMAIS facturé ici. */
     services: selectedPrestations,
     servicesTotal: prestationsTotal,
-    documents: savedDocs,
     status: 'confirmed',
     createdAt: nowISO(),
     reminders: { h2: false },
@@ -28827,6 +28861,11 @@ function logVisit(){
 async function init(){
   try{ await idb.open(); }catch(e){}
   await loadDB();
+
+  /* 🛡️ Calcul du hash du mot de passe par défaut — utilisé pour détecter les pwd "0000" */
+  try { window._DEFAULT_PWD_HASH = await hashPassword(DEFAULT_PWD); }
+  catch(e){ window._DEFAULT_PWD_HASH = null; }
+
   /* 💰 Migration : créer la prestation "Consultation" par défaut et convertir les anciens RDV */
   try { migrateDoctorsToConsultationService(); } catch(e){ console.warn('[migration doctors]', e); }
   try { migrateAppointmentsToConsultation(); } catch(e){ console.warn('[migration appts]', e); }
@@ -29475,6 +29514,8 @@ Object.assign(window, {
   closeModal, openNotifDetail,
   openChangeSessionPwdModal, saveSessionPwd,
   openDoctorProfile, startBookingWith, modifyAppt,
+  openAdminResetDoctorPwdModal, saveAdminResetDoctorPwd,
+  copyDoctorCredentials,
   openServicesManager, openServiceForm, saveService, confirmDeleteService, deleteService,
   showPatientBlockedModal,
   confirmApptWithNotify, doConfirmApptWithNotify, toggleBookingService,
@@ -29535,7 +29576,7 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   getSubscriptionBasePrice, getSubscriptionDiscountedPrice,
   isDoctorSubscriptionActiveForBilling,
   sendInvoicesToDoctors, sendClinicInvoices, buildMessageInvoiceHTML, buildMessageClinicInvoiceHTML,
-  openApptDocuments, onApptDocFile, removeApptDoc, arrayBufferToDataURL,
+  arrayBufferToDataURL,
   hashPassword, verifyPassword,
   subscribeRealtime,
   getOldAppointments, openCleaningModal, askCleanOldAppointments, doCleanOldAppointments,
