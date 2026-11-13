@@ -6050,6 +6050,22 @@ async function loadDB(){
     if(raw) localBackup = JSON.parse(raw);
   } catch(e){}
 
+  // ⚡ EGRESS OPTIMIZATION : Détecter le rôle et le téléphone AVANT les requêtes
+  let _dbRole = 'patient';
+  let _dbPhone = (typeof state !== 'undefined' && state.myPhone) ? state.myPhone : (localStorage.getItem('omnimed_phone') || '');
+  try {
+    const _sessStr = localStorage.getItem('omnimed_saved_session') || sessionStorage.getItem('omnimed_saved_session');
+    if(_sessStr){
+      const _sess = JSON.parse(_sessStr);
+      if(_sess && _sess.role) _dbRole = _sess.role;
+    }
+  } catch(e){}
+  // Si une session est déjà active en mémoire, elle prime
+  if(typeof state !== 'undefined' && state.role && state.role !== 'patient') _dbRole = state.role;
+  const _isPro = (_dbRole === 'doctor' || _dbRole === 'clinic' || _dbRole === 'admin');
+  const _apptLimit = _isPro ? 1500 : 0;
+  const _last9 = String(_dbPhone || '').replace(/[^0-9]/g, '').slice(-9);
+
   let remoteOK = false;
   try {
     const results = await Promise.allSettled([
@@ -6059,26 +6075,38 @@ async function loadDB(){
         if(!_dR1.error && _dR1.data && _dR1.data.length > 0) return _dR1;
         return await sb.from('doctors_public').select('*').order('name');
       })(),
-      // ⚡ OPTIMISATION EGRESS : On ne charge que le récent
-      sb.from('appointments').select('*').order('date', {ascending: false}).limit(300),
+      // ⚡ EGRESS OPTIMIZATION : 1500 pour les pros, filtré par téléphone pour les patients
+      (() => {
+        if(_isPro){
+          return sb.from('appointments').select('*').order('date', {ascending: false}).limit(_apptLimit);
+        }
+        // PATIENT : uniquement SES RDV (via les 9 derniers chiffres du téléphone)
+        if(!_last9 || _last9.length < 5) return Promise.resolve({ data: [], error: null });
+        return sb.from('appointments').select('*').ilike('patient_phone', '%' + _last9 + '%').order('date', {ascending: false});
+      })(),
       sb.from('services').select('*'),
-      sb.from('notifications').select('*').order('date',{ascending:false}).limit(50),
-      sb.from('messages').select('*').order('date',{ascending:false}).limit(100),
+      _isPro ? sb.from('notifications').select('*').order('date',{ascending:false}).limit(50) : Promise.resolve({ data: [], error: null }),
+      _isPro ? sb.from('messages').select('*').order('date',{ascending:false}).limit(100) : Promise.resolve({ data: [], error: null }),
       sb.from('specialties').select('name'),
       sb.from('wilayas').select('name'),
       sb.from('communes').select('wilaya,name'),
-      sb.from('invoice_registry').select('*'),
-      sb.from('sub_invoice_registry').select('*'),
-      sb.from('medical_files').select('*'),
+      _isPro ? sb.from('invoice_registry').select('*') : Promise.resolve({ data: [], error: null }),
+      _isPro ? sb.from('sub_invoice_registry').select('*') : Promise.resolve({ data: [], error: null }),
+      _isPro ? sb.from('medical_files').select('*') : Promise.resolve({ data: [], error: null }),
       sb.from('clinics').select('*').order('name'),
       sb.from('clinic_services').select('*'),
       sb.from('clinic_prestations').select('*'),
       sb.from('doctor_clinic_links').select('*'),
-      sb.from('clinic_invoice_registry').select('*'),
-      sb.from('emergencies').select('*').order('created_at',{ascending:false}),
-      sb.from('rooms').select('*'),
-      sb.from('admissions').select('*').order('created_at',{ascending:false}),
-      sb.from('expenses').select('*').order('date',{ascending:false}),
+      _isPro ? sb.from('clinic_invoice_registry').select('*') : Promise.resolve({ data: [], error: null }),
+      // ⚡ EGRESS OPTIMIZATION : urgences filtrées pour les patients
+      (() => {
+        if(_isPro) return sb.from('emergencies').select('*').order('created_at',{ascending:false});
+        if(!_last9 || _last9.length < 5) return Promise.resolve({ data: [], error: null });
+        return sb.from('emergencies').select('*').ilike('patient_phone', '%' + _last9 + '%').order('created_at',{ascending:false});
+      })(),
+      _isPro ? sb.from('rooms').select('*') : Promise.resolve({ data: [], error: null }),
+      _isPro ? sb.from('admissions').select('*').order('created_at',{ascending:false}) : Promise.resolve({ data: [], error: null }),
+      _isPro ? sb.from('expenses').select('*').order('date',{ascending:false}) : Promise.resolve({ data: [], error: null }),
       sb.from('blocks').select('*').order('blocked_at',{ascending:false})
     ]);
 
@@ -6391,10 +6419,94 @@ async function loadDB(){
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   📚 ADMIN UNIQUEMENT — Charger TOUT l'historique des RDV
+   Utilisé pour les factures historiques / statistiques complètes
+   ═══════════════════════════════════════════════════════════ */
+async function loadFullAppointmentsHistory(){
+  if(state.role !== 'admin'){
+    toast("🔒 Accès refusé — Réservé à l'administrateur", 'error');
+    return;
+  }
+  toast('⏳ Chargement de l\'historique complet…', 'info');
+  try {
+    const { data, error } = await sb.from('appointments').select('*').order('date', {ascending: false});
+    if(error) throw error;
+    DB.appointments = (data||[]).filter(a=>!_pendingDeletes.appointments.includes(String(a.id))).map(a=>({
+      id:a.id, doctorId:a.doctor_id, patientName:a.patient_name,
+      patientAge:a.patient_age, patientPhone:a.patient_phone,
+      patientEmail:a.patient_email||'', patientWilaya:a.patient_wilaya||'',
+      patientPassword:a.patient_password||'', date:a.date, time:a.time,
+      motif:a.motif||'', services:a.services||[], servicesTotal:Number(a.services_total)||0,
+      documents:a.documents||[], status:a.status, internal:!!a.internal,
+      clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
+      prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
+      emergencyId: a.emergency_id || null,
+      clinicRating:a.clinic_rating||0,
+      rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
+      reminders:a.reminders||{h2:false},
+      transferredFrom: a.reminders?.transferredFrom || null,
+      createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
+    }));
+    // ⚡ CRUCIAL : mettre à jour le snapshot pour NE PAS re-pousser vers Supabase
+    if(_lastPushedSnapshot){
+      _lastPushedSnapshot.appointments = JSON.stringify(DB.appointments);
+    }
+    // Sauvegarde locale uniquement (PAS de pushToSupabase)
+    try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
+    state.apptsPage = 1;
+    render();
+    toast('✅ Historique complet chargé (' + DB.appointments.length + ' RDV)', 'success');
+  } catch(e){
+    console.error('[loadFullAppointmentsHistory]', e);
+    toast('❌ Erreur : ' + (e.message || 'échec'), 'error');
+  }
+}
+
 /* ---------- SAVE (debounced full-sync) ---------- */
 function saveDB(opts){
   opts = opts || {};
-  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
+  /* ═══════════════════════════════════════════════════════
+     🛡️ PROTECTION QUOTA localStorage
+     - Détecte la taille AVANT écriture (Blob = précis)
+     - Bloque l'écriture au-delà de 4 Mo (marge de sécurité)
+     - Avertit l'utilisateur UNE fois par session
+     - Supabase reste la source de vérité
+     ═══════════════════════════════════════════════════════ */
+  try {
+    const _json = JSON.stringify(DB);
+    const _sizeBytes = new Blob([_json]).size;
+    const _sizeMB = _sizeBytes / (1024 * 1024);
+    const MAX_LOCAL_MB = 4;
+
+    if(_sizeMB > MAX_LOCAL_MB){
+      console.warn('[saveDB] ⚠️ DB trop volumineuse pour localStorage :',
+        _sizeMB.toFixed(2), 'Mo >', MAX_LOCAL_MB, 'Mo — écriture locale ignorée.');
+      if(!window._lsQuotaWarned){
+        window._lsQuotaWarned = true;
+        try { toast('⚠️ Sauvegarde locale désactivée (DB > ' + MAX_LOCAL_MB + ' Mo). Supabase reste votre source.', 'info'); } catch(e){}
+      }
+    } else {
+      try {
+        localStorage.setItem(LS_KEY, _json);
+        window._lsQuotaWarned = false;
+      } catch(e){
+        const _isQuota = (e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22));
+        if(_isQuota){
+          console.error('[saveDB] ❌ QuotaExceededError — localStorage plein (', _sizeMB.toFixed(2), 'Mo )');
+          if(!window._lsQuotaWarned){
+            window._lsQuotaWarned = true;
+            try { toast('⚠️ Mémoire locale pleine. Supabase reste votre source de données.', 'error'); } catch(e2){}
+          }
+        } else {
+          console.error('[saveDB] Erreur localStorage :', e);
+        }
+      }
+    }
+  } catch(e){
+    console.error('[saveDB] Erreur sérialisation DB :', e);
+  }
+
   if(opts.critical){
     opts.immediate = true;
     _criticalGuardUntil = Date.now() + 3000;   // 🆕 verrou anti-resync pendant 3 s
@@ -21999,6 +22111,19 @@ function viewAdminAppts(){
   const sliceIds = slice.map(a=>a.id);
   const fbtn = (v,lbl,cls) => `<button class="filter-btn ${cls} ${f.status===v?'active':''}" onclick="state.adminFilter.status='${v}';state.apptsPage=1;render()">${lbl}</button>`;
   return `
+    <div class="card" style="margin-bottom:12px; background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(236,72,153,.04)); border-color:rgba(139,92,246,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:13.5px">📚 Historique des rendez-vous</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px">
+            ${DB.appointments.length} RDV chargés en mémoire (limite initiale : 1500)
+          </div>
+        </div>
+        <button class="pill-btn primary" onclick="loadFullAppointmentsHistory()" title="Télécharge TOUS les RDV de la base — utile pour les anciennes factures et statistiques">
+          📥 Charger tout l'historique
+        </button>
+      </div>
+    </div>
     <div class="card" style="margin-bottom:12px">
       <div class="field" style="margin-bottom:12px">
         <input class="input" id="adminApptSearch" placeholder="🔎 ${t('search_appt_admin_ph')}" value="${esc(f.search||'')}" oninput="state.adminFilter.search=this.value;state.apptsPage=1;render()">
@@ -22595,6 +22720,31 @@ function viewAdminSettings(){
       </div>
     </div>
     ` : ''}
+    ${(() => {
+      const raw = localStorage.getItem('omnimed_data');
+      const size = raw ? new Blob([raw]).size : 0;
+      const sizeMB = size / (1024 * 1024);
+      const status = sizeMB > 4 ? 'danger' : sizeMB > 2 ? 'warn' : 'success';
+      const statusLbl = sizeMB > 4 ? '🔴 Critique — non persisté' : sizeMB > 2 ? '🟡 Proche de la limite' : '🟢 Sain';
+      return `
+        <div class="card" style="margin-top:14px">
+          <div class="card-title" style="font-size:15px">💾 Santé de la sauvegarde locale</div>
+          <div class="card-sub">Surveillez la taille du cache navigateur (limite 5-10 Mo)</div>
+          <div class="stats-tags" style="margin-top:12px">
+            ${statTag('Taille actuelle', sizeMB.toFixed(2) + ' Mo', status, true)}
+            ${statTag('Seuil de sécurité', '4,00 Mo', 'accent', true)}
+            ${statTag('Statut', statusLbl, status, true)}
+          </div>
+          ${sizeMB > 2 ? `
+            <div class="letter-amount" style="font-style:normal;margin-top:10px;color:var(--warn);border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06);font-size:11.5px">
+              ⚠️ Votre base locale grossit. Pour éviter le plafond :<br>
+              • Faites un export JSON manuel hebdomadaire (ci-dessus)<br>
+              • Envisagez la migration Electron pour un stockage local illimité
+            </div>
+          ` : ''}
+        </div>
+      `;
+    })()}
   `;
 }
 function openResetRestModal(){
@@ -29891,6 +30041,7 @@ function printExpenses(){
 }
 
 Object.assign(window, {
+  loadFullAppointmentsHistory,
   go, setRole, toggleDark, setLang, goHome, viewAdminAvailability,
   openAccountLogin, doAccountLogin, logoutAccount,
   openRecettePasswordModal, checkRecettePassword,
