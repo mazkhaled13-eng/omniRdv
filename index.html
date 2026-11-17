@@ -457,6 +457,31 @@ body.dark .tag.clinic{color:#f9a8d4}
 .tag.stat-tag-lg{padding:10px 16px;font-size:13px;border-radius:14px}
 .tag.stat-tag-lg .st-lbl{font-size:12.5px}
 .tag.stat-tag-lg .st-val{font-size:20px}
+/* 📊 Admin › Statistiques — sections regroupées et étiquettes en tuiles */
+.aes-head{display:flex;align-items:center;gap:10px;margin:24px 2px 12px;font-size:12px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--text-muted)}
+.aes-head::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--glass-border),transparent)}
+.aes-head .aes-ico{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:14px;background:var(--accent-light);flex-shrink:0}
+.aes .grid{margin-bottom:14px;align-items:stretch}
+.aes > .card{margin-bottom:14px}
+.aes .card-title{padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--glass-border)}
+.aes .stats-tags{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-top:0}
+.aes .stats-tags.tiles-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.aes .tag.stat-tag{--c:var(--accent-primary);position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;padding:15px 14px 12px;border-radius:14px;background:var(--glass-bg-2);border:1px solid var(--glass-border);color:var(--text-main);line-height:1.2;transition:var(--transition)}
+.aes .tag.stat-tag:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.aes .tag.stat-tag::before{content:'';position:absolute;left:0;top:0;right:0;height:3px;background:var(--c)}
+.aes .tag.stat-tag .st-lbl{font-size:11px;font-weight:600;color:var(--text-muted);opacity:1;white-space:normal}
+.aes .tag.stat-tag .st-val{font-size:22px;font-weight:700;color:var(--c)}
+.aes .tag.stat-tag.success{--c:#10b981}
+.aes .tag.stat-tag.danger{--c:#ef4444}
+.aes .tag.stat-tag.warn{--c:#f59e0b}
+.aes .tag.stat-tag.muted{--c:#94a3b8}
+.aes .tag.stat-tag.money{--c:#059669}
+.aes .tag.stat-tag.clinic{--c:#ec4899}
+body.dark .aes .tag.stat-tag.money .st-val{color:#6ee7b7}
+@media(max-width:600px){
+  .aes .tag.stat-tag .st-val{font-size:19px}
+  .aes .tag.stat-tag{padding:13px 12px 10px}
+}
 .stat-row{display:grid;grid-template-columns:minmax(100px,1.2fr) 3fr minmax(38px,auto);
   gap:12px;align-items:center;font-size:12.5px;padding:7px 0;
   border-bottom:1px solid var(--glass-border)}
@@ -656,6 +681,30 @@ body.dark .modal{
 .modal-title{font-size:16px;font-weight:700;margin-bottom:4px}
 .modal-sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+/* 🔬 Analyses — fenêtres Nouvelle analyse / Résultats */
+.lab-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:var(--radius-pill)}
+.lab-seg button{padding:9px 12px;border:none;border-radius:var(--radius-pill);background:transparent;color:var(--text-muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:var(--transition)}
+.lab-seg button:hover{color:var(--accent-primary)}
+.lab-seg button.on{background:var(--accent-primary);color:#fff;box-shadow:0 4px 12px rgba(139,92,246,.35)}
+.lab-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);margin:18px 0 8px}
+.lab-count{font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--accent-primary);background:var(--accent-light);padding:3px 10px;border-radius:var(--radius-pill)}
+.lab-picker{display:flex;flex-wrap:wrap;gap:8px;max-height:210px;overflow-y:auto;padding:12px;border-radius:var(--radius-md);background:var(--glass-bg-3);border:1px solid var(--glass-border)}
+.lab-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:var(--radius-pill);font-size:12.5px;font-weight:500;cursor:pointer;user-select:none;background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-main);transition:var(--transition)}
+.lab-chip:hover{border-color:var(--accent-primary);color:var(--accent-primary)}
+.lab-chip .ck{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--input-border);display:inline-flex;align-items:center;justify-content:center;font-size:10px;line-height:1;color:transparent;flex-shrink:0}
+.lab-chip.on{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff;box-shadow:0 4px 12px rgba(139,92,246,.3)}
+.lab-chip.on:hover{color:#fff}
+.lab-chip.on .ck{background:#fff;border-color:#fff;color:var(--accent-primary)}
+.lab-chip .x{opacity:.55;font-size:11px;padding:0 2px;margin-left:2px}
+.lab-chip .x:hover{opacity:1}
+.lab-add{display:flex;gap:8px;margin-top:10px}
+.lab-add .input{flex:1;border-radius:var(--radius-pill)}
+.lab-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--accent-light),transparent);border:1px solid var(--glass-border)}
+.lab-res{display:flex;gap:12px;padding:12px;border-radius:var(--radius-md);background:var(--glass-bg-2);border:1px solid var(--glass-border);margin-bottom:10px}
+.lab-res .num{width:26px;height:26px;border-radius:50%;background:var(--accent-primary);color:#fff;font-size:12px;font-weight:700;font-family:var(--font-numbers);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.lab-res .body{flex:1;min-width:0}
+.lab-res .nm{font-size:13px;font-weight:700;margin-bottom:6px}
+.lab-res .textarea{min-height:46px}
 #toasts{position:fixed;top:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;
   max-width:calc(100vw - 40px);align-items:center;pointer-events:none}
 .toast{padding:11px 14px;border-radius:var(--radius-md);
@@ -3810,7 +3859,7 @@ const T = {
     dossier_info:'Informations du patient',
     tab_summary:'Synthèse', tab_allergies:'Allergies', tab_antecedents:'Antécédents',
     tab_consultations:'Consultations', tab_vitals:'Constantes', tab_prescriptions:'Ordonnances',
-    tab_labtests:'Analyses', tab_documents:'Documents',
+    tab_labtests:'Analyses',
     patient_sex:'Sexe', patient_sex_m:'Masculin', patient_sex_f:'Féminin', patient_blood:'Groupe sanguin',
     allergy:'Allergie', allergies:'Allergies', allergy_add:'Ajouter une allergie',
     allergy_none:'Aucune allergie', allergy_critical:'ALLERGIES CRITIQUES',
@@ -3840,10 +3889,8 @@ const T = {
     med_form_pommade:'Pommade', med_form_autre:'Autre',
     labtest:'Analyse', labtests:'Analyses & Examens', labtest_add:'Nouvelle analyse',
     labtest_none:'Aucune analyse', labtest_type:'Type',
-    labtest_bio:'Biologie', labtest_imagerie:'Imagerie', labtest_name:'Examen',
+    labtest_bio:'Bilan', labtest_imagerie:'Imagerie', labtest_name:'Examen',
     labtest_result:'Résultat', labtest_interp:'Interprétation',
-    document:'Document', documents:'Documents', document_add:'Ajouter un document',
-    document_none:'Aucun document',
     print_prescription:"Imprimer l'ordonnance", print_consultation:'Imprimer la consultation',
     print_dossier:'Imprimer le dossier', print_dossier_period:'Imprimer par période',
     print_dossier_from:'Du', print_dossier_to:'Au', print_dossier_sections:'Sections à inclure',
@@ -4462,7 +4509,7 @@ const T = {
     dossier_info:'Patient information',
     tab_summary:'Summary', tab_allergies:'Allergies', tab_antecedents:'History',
     tab_consultations:'Consultations', tab_vitals:'Vitals', tab_prescriptions:'Prescriptions',
-    tab_labtests:'Lab tests', tab_documents:'Documents',
+    tab_labtests:'Lab tests',
     patient_sex:'Sex', patient_sex_m:'Male', patient_sex_f:'Female', patient_blood:'Blood group',
     allergy:'Allergy', allergies:'Allergies', allergy_add:'Add allergy',
     allergy_none:'No allergy', allergy_critical:'CRITICAL ALLERGIES',
@@ -4494,8 +4541,6 @@ const T = {
     labtest_none:'No lab test', labtest_type:'Type',
     labtest_bio:'Biology', labtest_imagerie:'Imaging', labtest_name:'Exam',
     labtest_result:'Result', labtest_interp:'Interpretation',
-    document:'Document', documents:'Documents', document_add:'Add document',
-    document_none:'No document',
     print_prescription:'Print prescription', print_consultation:'Print consultation',
     print_dossier:'Print file', print_dossier_period:'Print by period',
     print_dossier_from:'From', print_dossier_to:'To', print_dossier_sections:'Sections to include',
@@ -5058,7 +5103,7 @@ const T = {
     dossier_info:'معلومات المريض',
     tab_summary:'ملخص', tab_allergies:'الحساسية', tab_antecedents:'السوابق',
     tab_consultations:'الاستشارات', tab_vitals:'العلامات الحيوية', tab_prescriptions:'الوصفات',
-    tab_labtests:'التحاليل', tab_documents:'المستندات',
+    tab_labtests:'التحاليل',
     patient_sex:'الجنس', patient_sex_m:'ذكر', patient_sex_f:'أنثى', patient_blood:'فصيلة الدم',
     allergy:'حساسية', allergies:'الحساسية', allergy_add:'إضافة حساسية',
     allergy_none:'لا حساسية', allergy_critical:'حساسية خطيرة',
@@ -5090,8 +5135,6 @@ const T = {
     labtest_none:'لا تحاليل', labtest_type:'النوع',
     labtest_bio:'بيولوجيا', labtest_imagerie:'تصوير', labtest_name:'الفحص',
     labtest_result:'النتيجة', labtest_interp:'التفسير',
-    document:'مستند', documents:'المستندات', document_add:'إضافة مستند',
-    document_none:'لا مستندات',
     print_prescription:'طباعة الوصفة', print_consultation:'طباعة الاستشارة',
     print_dossier:'طباعة الملف', print_dossier_period:'طباعة حسب الفترة',
     print_dossier_from:'من', print_dossier_to:'إلى', print_dossier_sections:'الأقسام',
@@ -5989,6 +6032,7 @@ function seedData(){
     messages: [],
     medicalFiles: [],
     medications:[],
+    labCatalog: { bio:[], imagerie:[] },
     visits: { total:0, firstVisit:null, byDay:{}, byMonth:{}, byYear:{}, byHour:{}, byMinute:{} },
     emergencies: [],
     rooms: [],
@@ -6184,6 +6228,7 @@ async function loadDB(){
         blocage: s.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 }
       },
       medications: Array.isArray(s.medications) ? s.medications : [],
+      labCatalog: (s.lab_catalog && typeof s.lab_catalog === 'object' && !Array.isArray(s.lab_catalog)) ? s.lab_catalog : { bio:[], imagerie:[] },
       searchLogs: Array.isArray(s.search_logs) ? s.search_logs : [],
       expenseCategories: Array.isArray(s.expense_categories) ? s.expense_categories : null,
       visits: (s.visits && typeof s.visits === 'object')
@@ -6389,6 +6434,7 @@ async function loadDB(){
     if(!DB.notifications) DB.notifications = [];
     if(!DB.medicalFiles) DB.medicalFiles = [];
     if(!DB.medications) DB.medications = [];
+    if(!DB.labCatalog) DB.labCatalog = { bio:[], imagerie:[] };
     if(!DB.clinicInvoiceRegistry) DB.clinicInvoiceRegistry = {};
     if(!DB.emergencies) DB.emergencies = [];
     if(!DB.rooms) DB.rooms = [];
@@ -6559,6 +6605,7 @@ async function pushToSupabase(){
     };
 
     const syncSettings              = needsSync('settings');
+    const syncLabCatalog            = needsSync('labCatalog');
     const syncVisits                = needsSync('visits');
     const syncAdminProfiles         = needsSync('adminProfiles');
     const syncDoctors               = needsSync('doctors', 'doctors');
@@ -6583,7 +6630,7 @@ async function pushToSupabase(){
     const syncExpenses              = needsSync('expenses', 'expenses');
     const syncBlocks                = needsSync('blocks', 'blocks');
 
-    const anyChange = syncSettings || syncVisits || syncAdminProfiles || syncDoctors || syncAppointments || syncServices ||
+    const anyChange = syncSettings || syncLabCatalog || syncVisits || syncAdminProfiles || syncDoctors || syncAppointments || syncServices ||
       syncNotifications || syncMessages || syncSpecialties || syncWilayas || syncCommunes ||
       syncInvoiceRegistry || syncSubInvoiceRegistry || syncClinicInvoiceRegistry ||
       syncMedicalFiles || syncClinics || syncClinicServices || syncClinicPrestations ||
@@ -6592,7 +6639,7 @@ async function pushToSupabase(){
     if(!anyChange) return; // rien n'a changé → 0 requête réseau
 
     // ---- SETTINGS ----
-    if(syncSettings || syncVisits || syncAdminProfiles){
+    if(syncSettings || syncLabCatalog || syncVisits || syncAdminProfiles){
       // 🛡️ SÉCURITÉ : nettoyer les profils admin avant envoi (retirer passwordPlain)
 const _cleanAdminProfiles = (DB.adminProfiles || []).map(p => {
   const { passwordPlain, ...safe } = p;
@@ -6608,6 +6655,7 @@ const _settingsPayload = {
   admin_password: DB.admin.password,
   admin_profiles: _cleanAdminProfiles,
   medications: DB.medications || [],
+  lab_catalog: DB.labCatalog || { bio:[], imagerie:[] },
   search_logs: DB.searchLogs || [],
   expense_categories: DB.expenseCategories || null,
   visits: DB.visits || {},
@@ -6617,7 +6665,7 @@ const _settingsPayload = {
       const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
       // 🆕 Fallback robuste : retire itérativement les colonnes manquantes jusqu'à succès
-      const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications','admin_profiles'];
+      const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications','admin_profiles','lab_catalog'];
       let _upsertTries = 0;
       while(_upsertRes && _upsertRes.error && _upsertTries < _OPTIONAL_SETTINGS_COLS.length + 1){
         _upsertTries++;
@@ -6992,7 +7040,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
 
     // ---- EXPENSES ----
     if(syncExpenses && DB.expenses && DB.expenses.length){
-      await sb.from('expenses').upsert(DB.expenses.map(e=>({
+      const _expRes = await sb.from('expenses').upsert(DB.expenses.map(e=>({
         id: e.id, owner_type: e.ownerType, owner_id: String(e.ownerId),
         date: e.date, category: e.category||'autre', label: e.label,
         amount: Number(e.amount)||0, quantity: Number(e.quantity)||1, tva: Number(e.tva)||0,
@@ -7000,6 +7048,10 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
         attachment_key: e.attachmentKey||null, attachment_name: e.attachmentName||null,
         updated_at: new Date().toISOString()
       })));
+      if(_expRes && _expRes.error){
+        console.error('❌ Push dépenses échoué :', _expRes.error);
+        toast('⚠️ Dépenses non enregistrées sur Supabase : ' + (_expRes.error.message || 'erreur inconnue') + ' — exécutez le SQL fourni.', 'error');
+      }
     }
 
     if(syncBlocks && DB.blocks && DB.blocks.length){
@@ -7076,6 +7128,7 @@ function snapshotDB(){
     clinicInvoiceRegistry: JSON.stringify(DB.clinicInvoiceRegistry),
     medicalFiles:       JSON.stringify(DB.medicalFiles),
     medications:        JSON.stringify(DB.medications || []),
+    labCatalog:         JSON.stringify(DB.labCatalog || {}),
     visits:             JSON.stringify(DB.visits || {}),
     emergencies:        JSON.stringify(DB.emergencies || []),
     rooms:              JSON.stringify(DB.rooms || []),
@@ -9529,7 +9582,6 @@ function mfNewEmpty(doctorId, patientName, patientPhone, patientAge, patientWila
       vitals: [],
       prescriptions: [],
       labTests: [],
-      documents: [],
       notes: '',
       archived: false,
       archivedAt: null,
@@ -9567,8 +9619,7 @@ function mfCounts(d){
     consultations: (d.consultations||[]).length,
     vitals: (d.vitals||[]).length,
     prescriptions: (d.prescriptions||[]).filter(p=>!p.archived).length,
-    labTests: (d.labTests||[]).length,
-    documents: (d.documents||[]).length
+    labTests: (d.labTests||[]).length
   };
 }
 function mfAllDossiersForDoctor(doctorId){
@@ -9603,7 +9654,7 @@ function mfMerge(sourceId, targetId){
   const target = mfGetById(targetId);
   if(!source || !target || source === target) return false;
   const s = source.data, t = target.data;
-  ['allergies','antecedents','consultations','vitals','prescriptions','labTests','documents']
+  ['allergies','antecedents','consultations','vitals','prescriptions','labTests']
     .forEach(k => {
       if(!Array.isArray(t[k])) t[k] = [];
       if(Array.isArray(s[k])){
@@ -9612,8 +9663,7 @@ function mfMerge(sourceId, targetId){
                        k === 'consultations' ? 'CON-' :
                        k === 'vitals' ? 'VIT-' :
                        k === 'prescriptions' ? 'PRS-' :
-                       k === 'allergies' ? 'ALG-' :
-                       k === 'antecedents' ? 'ANT-' : 'DOC-';
+                       k === 'allergies' ? 'ALG-' : 'ANT-';
           item.id = mfUID(pref);
           t[k].push(item);
         });
@@ -13487,7 +13537,7 @@ function buildDossierHTMLForMessage(f){
         <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ede9fe">🔬 Analyses & Examens (${d.labTests.length})${d.labTests.length>10?' — 10 dernières':''}</div>
         ${sorted.map(l=>`
           <div style="background:#fafafa;border-left:3px solid #f59e0b;padding:6px 8px;margin-bottom:5px;border-radius:4px;font-size:11px;line-height:1.5">
-            <div style="font-weight:700;color:#d97706">${fmtDateFR(l.date||'')} — ${esc(l.name)} (${l.type==='imagerie'?'Imagerie':'Biologie'})</div>
+            <div style="font-weight:700;color:#d97706">${fmtDateFR(l.date||'')} — ${esc(l.name)} (${l.type==='imagerie'?'Imagerie':'Bilan'})</div>
             ${l.result?`<div><strong>Résultat :</strong> ${esc(l.result)}</div>`:''}
             ${l.interpretation?`<div><strong>Interprétation :</strong> ${esc(l.interpretation)}</div>`:''}
           </div>
@@ -14836,8 +14886,7 @@ function viewDossierSingle(){
     ['consultations','📝', t('tab_consultations') + (counts.consultations?` (${counts.consultations})`:'')],
     ['vitals','📊', t('tab_vitals') + (counts.vitals?` (${counts.vitals})`:'')],
     ['prescriptions','💊', t('tab_prescriptions') + (counts.prescriptions?` (${counts.prescriptions})`:'')],
-    ['labtests','🔬', t('tab_labtests') + (counts.labTests?` (${counts.labTests})`:'')],
-    ['documents','📎', t('tab_documents') + (counts.documents?` (${counts.documents})`:'')]
+    ['labtests','🔬', t('tab_labtests') + (counts.labTests?` (${counts.labTests})`:'')]
   ];
   return `
     ${isArchived ? `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06);margin-bottom:12px">
@@ -14907,7 +14956,6 @@ function renderDossierTab(tab){
   if(tab === 'vitals') return mfTabVitals(d);
   if(tab === 'prescriptions') return mfTabPrescriptions(d);
   if(tab === 'labtests') return mfTabLabTests(d);
-  if(tab === 'documents') return mfTabDocuments(d);
   return '';
 }
 function mfTabSummary(d){
@@ -15168,48 +15216,23 @@ function mfTabLabTests(d){
           <div class="di-head">
             <div class="di-title">
               <span class="tag ${l.type==='imagerie'?'accent':'success'}" style="margin-right:6px">${l.type==='imagerie'?t('labtest_imagerie'):t('labtest_bio')}</span>
-              ${esc(l.name||'—')}
+              ${(l.items && l.items.length > 1) ? l.items.length + ' examens' : esc(l.name||'—')}
             </div>
             <div class="di-date">${l.date ? fmtDateFR(l.date) : ''}</div>
           </div>
           <div class="di-body">
+            ${mfLabResultsHTML(l)}
             ${l.result?`<div><strong>${t('labtest_result')} :</strong> ${esc(l.result)}</div>`:''}
             ${l.interpretation?`<div style="margin-top:4px"><strong>${t('labtest_interp')} :</strong> ${esc(l.interpretation)}</div>`:''}
           </div>
           <div class="di-actions">
+            <button class="mini-btn purple" onclick="mfOpenLabResults('${l.id}')">📝 ${t('labtest_result')}</button>
+            <button class="mini-btn purple" onclick="mfPrintLabById('${l.id}')">🖨️ ${t('print')}</button>
             <button class="mini-btn ghost" onclick="mfOpenLabForm('${l.id}')">✏️</button>
             <button class="mini-btn out-red" onclick="mfDeleteItem('labTests','${l.id}')">🗑️</button>
           </div>
         </div>
       `).join('') : mfEmpty('🔬', t('labtest_none'))}
-    </div>
-  `;
-}
-function mfTabDocuments(d){
-  const list = (d.documents||[]).slice().sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')));
-  return `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="card-title" style="margin:0">📎 ${t('documents')} <span class="tag accent">${list.length}</span></div>
-        <label class="pill-btn primary" style="cursor:pointer">
-          + ${t('document_add')}
-          <input type="file" style="display:none" onchange="mfOnAddDocument(this)">
-        </label>
-      </div>
-      ${list.length ? `
-        <div class="msg-list" style="margin-top:10px">
-          ${list.map(doc=>`
-            <div class="msg-file" style="cursor:default">
-              <span>📎</span>
-              <span class="msg-file-name">${esc(doc.name)}</span>
-              <span class="msg-file-size">${fmtFileSize(doc.size)}</span>
-              <button class="mini-btn ghost" onclick="mfPreviewDocument('${doc.key}','${jsStr(doc.name)}','${jsStr(doc.type||'')}')">👁️</button>
-              <button class="mini-btn ghost" onclick="downloadMessageFile('${doc.key}','${jsStr(doc.name)}','${jsStr(doc.type||'')}')">⬇</button>
-              <button class="mini-btn out-red" onclick="mfDeleteItem('documents','${doc.id}')">✕</button>
-            </div>
-          `).join('')}
-        </div>
-      ` : mfEmpty('📎', t('document_none'))}
     </div>
   `;
 }
@@ -15498,41 +15521,154 @@ function mfSaveVital(id){
   render();
   toast(t('section_saved'),'success');
 }
+const MF_LAB_DEFAULTS = {
+  bio: [
+    'NFS','Glycémie à jeun','HbA1c','Bilan lipidique','Urée','Créatinine','Acide urique',
+    'Bilan hépatique (ASAT/ALAT)','CRP','VS','Ionogramme sanguin','TSH',
+    'Bilan de coagulation (TP/INR)','Groupage sanguin','ECBU','Bilan martial (ferritine)','Vitamine D'
+  ],
+  imagerie: [
+    'Radiographie thoracique','Échographie abdominale','Échographie pelvienne','Échographie obstétricale',
+    'Échographie cardiaque','Échographie thyroïdienne','Doppler vasculaire','Scanner cérébral',
+    'Scanner thoraco-abdominal','IRM cérébrale','IRM rachis lombaire','Mammographie','Panoramique dentaire'
+  ]
+};
+const MF_LAB_LS_KEY = 'omnimed_lab_catalog';
+function mfLabCatalog(){
+  if(!DB.labCatalog || typeof DB.labCatalog !== 'object' || Array.isArray(DB.labCatalog)) DB.labCatalog = { bio:[], imagerie:[] };
+  if(!Array.isArray(DB.labCatalog.bio)) DB.labCatalog.bio = [];
+  if(!Array.isArray(DB.labCatalog.imagerie)) DB.labCatalog.imagerie = [];
+  try{
+    const old = localStorage.getItem(MF_LAB_LS_KEY);
+    if(old){
+      const o = JSON.parse(old) || {};
+      ['bio','imagerie'].forEach(k => {
+        (Array.isArray(o[k]) ? o[k] : []).forEach(n => {
+          if(!DB.labCatalog[k].some(x => String(x).toLowerCase() === String(n).toLowerCase())) DB.labCatalog[k].push(n);
+        });
+      });
+      localStorage.removeItem(MF_LAB_LS_KEY);
+      saveDB();
+    }
+  }catch(e){}
+  return DB.labCatalog;
+}
+function mfLabCatalogSave(){
+  saveDB();
+}
+let _mfLabItems = [];
+function mfLabInitItems(type, checkedNames){
+  const names = checkedNames || [];
+  const low = names.map(n => String(n).toLowerCase());
+  const cat = mfLabCatalog();
+  const base = (MF_LAB_DEFAULTS[type] || []).map(n => ({ name:n, checked:false, custom:false }));
+  const custom = (cat[type] || []).map(n => ({ name:n, checked:false, custom:true }));
+  _mfLabItems = base.concat(custom);
+  _mfLabItems.forEach(it => { if(low.includes(it.name.toLowerCase())) it.checked = true; });
+  names.forEach(n => {
+    if(!_mfLabItems.some(it => it.name.toLowerCase() === String(n).toLowerCase())){
+      _mfLabItems.push({ name:n, checked:true, custom:false });
+    }
+  });
+}
+function mfLabPickerHTML(){
+  return _mfLabItems.map((it,i)=>`<div class="lab-chip ${it.checked?'on':''}" onclick="mfLabToggle(${i})"><span class="ck">✓</span>${esc(it.name)}${it.custom?`<span class="x" title="Retirer de la liste" onclick="event.stopPropagation();mfLabRemoveExtra(${i})">✕</span>`:''}</div>`).join('');
+}
+function mfLabCountText(){
+  const n = _mfLabItems.filter(x=>x.checked).length;
+  return n + ' sélectionné' + (n > 1 ? 's' : '');
+}
+function mfLabRender(){
+  const box = $('#laPicker'); if(!box) return;
+  const top = box.scrollTop;
+  box.innerHTML = mfLabPickerHTML();
+  box.scrollTop = top;
+  const c = $('#laCount'); if(c) c.textContent = mfLabCountText();
+}
+function mfLabTypeChange(){
+  mfLabInitItems($('#laType')?.value || 'bio');
+  mfLabRender();
+}
+function mfLabToggle(i){
+  if(_mfLabItems[i]) _mfLabItems[i].checked = !_mfLabItems[i].checked;
+  mfLabRender();
+}
+function mfLabSetType(v){
+  const h = $('#laType'); if(h) h.value = v;
+  document.querySelectorAll('#laSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  mfLabTypeChange();
+}
+function mfLabAddExtra(){
+  const inp = $('#laAddInput'); if(!inp) return;
+  const name = (inp.value||'').trim();
+  if(!name) return;
+  const ex = _mfLabItems.find(x => x.name.toLowerCase() === name.toLowerCase());
+  if(ex){ ex.checked = true; }
+  else {
+    _mfLabItems.push({ name, checked:true, custom:true });
+    const type = $('#laType')?.value || 'bio';
+    const cat = mfLabCatalog();
+    cat[type].push(name);
+    mfLabCatalogSave(cat);
+  }
+  inp.value = '';
+  mfLabRender();
+  inp.focus();
+}
+function mfLabRemoveExtra(i){
+  const it = _mfLabItems[i];
+  if(it && it.custom){
+    const type = $('#laType')?.value || 'bio';
+    const cat = mfLabCatalog();
+    cat[type] = cat[type].filter(n => n.toLowerCase() !== it.name.toLowerCase());
+    mfLabCatalogSave(cat);
+    _mfLabItems.splice(i,1);
+    mfLabRender();
+  }
+}
 function mfOpenLabForm(id){
   const d = mfData(); if(!d) return;
   const isEdit = !!id;
-  const l = isEdit ? (d.labTests||[]).find(x=>x.id===id) : {id: mfUID('LAB-'), type:'bio', name:'', date: todayISO(), result:'', interpretation:''};
+  const l = isEdit ? (d.labTests||[]).find(x=>x.id===id) : {id: mfUID('LAB-'), type:'bio', name:'', date: todayISO()};
   if(!l) return;
-  openModal(isEdit?t('labtest'):t('labtest_add'), '', `
-    <div class="field"><label>${t('labtest_type')}</label>
-      <select class="select" id="laType">
-        <option value="bio" ${l.type==='bio'?'selected':''}>🧪 ${t('labtest_bio')}</option>
-        <option value="imagerie" ${l.type==='imagerie'?'selected':''}>📷 ${t('labtest_imagerie')}</option>
-      </select>
+  mfLabInitItems(l.type, isEdit ? mfLabItemsOf(l) : []);
+  openModal(isEdit?t('labtest'):t('labtest_add'), d.patientName || '', `
+    <div class="lab-seg" id="laSeg">
+      <button type="button" data-v="bio" class="${l.type==='bio'?'on':''}" onclick="mfLabSetType('bio')">🧪 ${t('labtest_bio')}</button>
+      <button type="button" data-v="imagerie" class="${l.type==='imagerie'?'on':''}" onclick="mfLabSetType('imagerie')">📷 ${t('labtest_imagerie')}</button>
     </div>
-    <div class="field"><label>${t('labtest_name')} *</label><input class="input" id="laName" value="${esc(l.name)}"></div>
-    <div class="field"><label>${t('billing_date')}</label><input class="input" id="laDate" type="date" value="${l.date||''}"></div>
-    <div class="field"><label>${t('labtest_result')}</label><textarea class="textarea" id="laResult" style="min-height:70px">${esc(l.result||'')}</textarea></div>
-    <div class="field"><label>${t('labtest_interp')}</label><textarea class="textarea" id="laInterp" style="min-height:60px">${esc(l.interpretation||'')}</textarea></div>
+    <input type="hidden" id="laType" value="${l.type==='imagerie'?'imagerie':'bio'}">
+    <div class="lab-sec"><span>${t('labtest_name')} *</span><span class="lab-count" id="laCount">${mfLabCountText()}</span></div>
+    <div class="lab-picker" id="laPicker">${mfLabPickerHTML()}</div>
+    <div class="lab-add">
+      <input class="input" id="laAddInput" placeholder="Ajouter un examen à la liste…" onkeydown="if(event.key==='Enter'){event.preventDefault();mfLabAddExtra();}">
+      <button type="button" class="pill-btn" onclick="mfLabAddExtra()">+ Ajouter</button>
+    </div>
+    <div class="lab-sec"><span>${t('billing_date')}</span></div>
+    <input class="input" id="laDate" type="date" value="${l.date||''}">
   `,
   `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   ${isEdit?`<button class="pill-btn" onclick="mfPrintLabFromForm()">🖨️ ${t('print')}</button>`:''}
    <button class="pill-btn primary" onclick="mfSaveLab('${isEdit?id:'new'}')">💾 ${t('save')}</button>`);
 }
 function mfSaveLab(id){
   const d = mfData(); if(!d) return;
-  const name = ($('#laName')?.value||'').trim();
-  if(!name){ toast(t('required_fields'),'error'); return; }
+  d.labTests = d.labTests || [];
+  const items = _mfLabItems.filter(x=>x.checked).map(x=>x.name);
+  const pending = ($('#laAddInput')?.value||'').trim();
+  if(pending && !items.some(n => n.toLowerCase() === pending.toLowerCase())) items.push(pending);
+  if(!items.length){ toast(t('required_fields'),'error'); return; }
   const obj = {
     type: $('#laType')?.value || 'bio',
-    name,
-    date: $('#laDate')?.value || '',
-    result: ($('#laResult')?.value||'').trim(),
-    interpretation: ($('#laInterp')?.value||'').trim()
+    name: items.join(', '),
+    items,
+    date: $('#laDate')?.value || ''
   };
-  d.labTests = d.labTests || [];
+  let saved = null;
   if(id === 'new'){
     obj.id = mfUID('LAB-');
     d.labTests.push(obj);
+    saved = obj;
   } else {
     const idx = d.labTests.findIndex(x=>x.id===id);
     if(idx >= 0) d.labTests[idx] = { ...d.labTests[idx], ...obj };
@@ -15541,6 +15677,156 @@ function mfSaveLab(id){
   closeModal();
   render();
   toast(t('section_saved'),'success');
+  if(saved) mfPrintLab(saved);
+}
+function mfLabItemsOf(l){
+  return (l.items && l.items.length) ? l.items : (l.name ? [l.name] : []);
+}
+function mfLabResultsHTML(l){
+  const names = mfLabItemsOf(l);
+  const res = l.itemResults || {};
+  if(names.length > 1){
+    return `<div style="margin-bottom:4px">${names.map(n=>`<div>• ${esc(n)}${res[n] ? ' : <strong>' + esc(res[n]) + '</strong>' : ''}</div>`).join('')}</div>`;
+  }
+  if(names.length === 1 && res[names[0]]){
+    return `<div><strong>${t('labtest_result')} :</strong> ${esc(res[names[0]])}</div>`;
+  }
+  return '';
+}
+function mfOpenLabResults(id){
+  const d = mfData(); if(!d) return;
+  const l = (d.labTests||[]).find(x=>x.id===id); if(!l) return;
+  const names = mfLabItemsOf(l);
+  const res = l.itemResults || {};
+  openModal('📝 ' + t('labtest_result'), d.patientName || '', `
+    <div class="lab-head">
+      <span class="tag ${l.type==='imagerie'?'accent':'success'}">${l.type==='imagerie'?t('labtest_imagerie'):t('labtest_bio')}</span>
+      <span style="font-size:12px;color:var(--text-muted)">${l.date ? fmtDateFR(l.date) : ''}</span>
+      <span class="lab-count" style="margin-left:auto">${names.length} examen${names.length>1?'s':''}</span>
+    </div>
+    <div class="lab-sec"><span>${t('labtest_result')}</span></div>
+    ${names.map((n,i)=>`
+      <div class="lab-res">
+        <div class="num">${i+1}</div>
+        <div class="body">
+          <div class="nm">${esc(n)}</div>
+          <textarea class="textarea" id="laRes_${i}" placeholder="Saisir le résultat…">${esc(res[n]||'')}</textarea>
+        </div>
+      </div>
+    `).join('')}
+    ${l.result ? `
+      <div class="lab-sec"><span>Résultat général</span></div>
+      <textarea class="textarea" id="laResGen" style="min-height:60px">${esc(l.result)}</textarea>
+    ` : ''}
+    <div class="lab-sec"><span>${t('labtest_interp')}</span></div>
+    <textarea class="textarea" id="laInterp" style="min-height:70px" placeholder="Saisir l'interprétation…">${esc(l.interpretation||'')}</textarea>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSaveLabResults('${id}')">💾 ${t('save')}</button>`);
+}
+function mfSaveLabResults(id){
+  const d = mfData(); if(!d) return;
+  const l = (d.labTests||[]).find(x=>x.id===id); if(!l) return;
+  const out = {};
+  mfLabItemsOf(l).forEach((n,i)=>{
+    const v = ($('#laRes_'+i)?.value||'').trim();
+    if(v) out[n] = v;
+  });
+  l.itemResults = out;
+  if($('#laResGen')) l.result = ($('#laResGen').value||'').trim();
+  l.interpretation = ($('#laInterp')?.value||'').trim();
+  mfSave();
+  closeModal();
+  render();
+  toast(t('section_saved'),'success');
+}
+function mfPrintLabById(id){
+  const d = mfData(); if(!d) return;
+  const l = (d.labTests||[]).find(x=>x.id===id);
+  if(l) mfPrintLab(l);
+}
+function mfPrintLabFromForm(){
+  const items = _mfLabItems.filter(x=>x.checked).map(x=>x.name);
+  const pending = ($('#laAddInput')?.value||'').trim();
+  if(pending && !items.some(n => n.toLowerCase() === pending.toLowerCase())) items.push(pending);
+  if(!items.length){ toast(t('required_fields'),'error'); return; }
+  mfPrintLab({
+    type: $('#laType')?.value || 'bio',
+    name: items.join(', '),
+    items,
+    date: $('#laDate')?.value || ''
+  });
+}
+function mfPrintLab(l){
+  const d = mfData(); if(!d || !l) return;
+  const patientName = d.patientName || '—';
+  const age = d.patientAge ? d.patientAge + ' ' + t('billing_years_old') : '';
+  const dateFR = fmtDateFR(l.date || todayISO());
+  const title = l.type === 'imagerie' ? 'IMAGERIE' : 'BILAN';
+  const names = (l.items && l.items.length) ? l.items : [l.name];
+  const rows = names.map((n,i)=>`
+    <div class="med">
+      <div class="med-header">
+        <span class="num">${i+1}.</span>
+        <span class="name">${esc(n)}</span>
+      </div>
+      <div class="med-line"></div>
+    </div>
+  `).join('');
+  printHTML(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${title}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A5 portrait;margin:8mm}
+  html,body{width:100%;height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;color:#111827;padding:0;font-size:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{padding:10mm}
+  /* 4 cm d'espace vide en haut */
+  .top-space{height:40mm}
+  .patient-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;font-size:12px;margin-bottom:8px}
+  .patient-row .p-left{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .patient-row .p-name{font-weight:800;font-size:13.5px;color:#111827;letter-spacing:-.2px}
+  .patient-row .p-age{color:#6b7280;font-family:'Rubik',sans-serif;font-size:11px;font-weight:600}
+  .patient-row .p-date{font-weight:700;font-family:'Rubik',sans-serif;color:#111827;font-size:10.5px;white-space:nowrap}
+  .ord-title{
+    text-align:center;
+    font-size:26px;
+    font-weight:900;
+    letter-spacing:8px;
+    color:#8b5cf6;
+    margin:18px 0 14px;
+    text-transform:uppercase;
+    text-shadow:0 2px 6px rgba(139,92,246,.25);
+    border-top:2px solid #8b5cf6;
+    border-bottom:2px solid #8b5cf6;
+    padding:10px 0;
+  }
+  .sep{height:1.5px;background:#8b5cf6;margin-bottom:14px}
+  .med{margin-bottom:14px;page-break-inside:avoid}
+  .med-header{display:flex;gap:8px;align-items:baseline;font-size:12.5px;font-weight:700;line-height:1.3}
+  .med-header .num{color:#8b5cf6;font-family:'Rubik',sans-serif;font-weight:800;flex-shrink:0}
+  .med-header .name{color:#111827}
+  .med-line{height:1px;background:#e5e7eb;margin:4px 0 6px}
+</style></head>
+<body>
+  <div class="page">
+    <div class="top-space"></div>
+
+    <div class="patient-row">
+      <div class="p-left">
+        <span class="p-name">${esc(patientName)}</span>
+        ${age?`<span class="p-age">(${age})</span>`:''}
+      </div>
+      <div class="p-date">${dateFR}</div>
+    </div>
+
+    <div class="ord-title">${title}</div>
+    <div class="sep"></div>
+
+    ${rows}
+  </div>
+</body></html>`);
 }
 function mfDeleteItem(collection, id){
   const d = mfData(); if(!d) return;
@@ -15748,53 +16034,6 @@ function mfUnarchivePrescription(id){
   render();
   toast(t('unarchive_done'),'success');
 }
-function mfOnAddDocument(input){
-  const file = input.files && input.files[0];
-  if(!file) return;
-  if(file.size > 10 * 1024 * 1024){ toast(t('file_too_large'),'error'); input.value=''; return; }
-  const d = mfData(); if(!d) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    const key = 'mf_' + uid('F') + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    try{
-      await idbFiles.put(key, {name:file.name, type:file.type, size:file.size, data: e.target.result});
-      d.documents = d.documents || [];
-      d.documents.push({
-        id: mfUID('DOC-'),
-        key,
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-        size: file.size,
-        uploadedAt: nowISO()
-      });
-      mfSave();
-      render();
-      toast(t('section_saved'),'success');
-    }catch(err){ console.error(err); toast(t('file_not_found'),'error'); }
-  };
-  reader.readAsArrayBuffer(file);
-  input.value = '';
-}
-async function mfPreviewDocument(key, name, type){
-  const f = await idbFiles.get(key);
-  if(!f){ toast(t('file_not_found'),'error'); return; }
-  const isImage = (type||'').startsWith('image/');
-  const isPdf = (type||'') === 'application/pdf';
-  let dataURL = '';
-  try{ dataURL = await arrayBufferToDataURL(f.data, type); }catch(e){}
-  let html;
-  if(isImage && dataURL){
-    html = `<img src="${dataURL}" class="doc-view-img" alt="${esc(name)}">`;
-  } else if(isPdf && dataURL){
-    html = `<iframe src="${dataURL}" class="doc-view-pdf"></iframe>`;
-  } else if(dataURL){
-    html = `<div class="doc-view-other">Aperçu indisponible<br><br><a href="${dataURL}" download="${esc(name)}">⬇ ${esc(name)}</a></div>`;
-  } else {
-    html = `<div class="doc-view-other">Erreur de chargement</div>`;
-  }
-  openModal('📎 ' + name, '', `<div>${html}</div>`,
-    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`);
-}
 function mfArchiveConfirm(id){
   openModal('📦 ' + t('dossier_archive'), t('archive_confirm'), '',
     `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
@@ -15823,14 +16062,13 @@ function mfPermDeleteConfirm(id){
   openModal('🗑️ ' + t('dossier_delete_perm'),
     t('perm_delete_confirm'),
     `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)">
-      ⚠️ Cette action est <strong>IRRÉVERSIBLE</strong>. Toutes les données du dossier (consultations, ordonnances, documents…) seront <strong>définitivement supprimées</strong>.
+      ⚠️ Cette action est <strong>IRRÉVERSIBLE</strong>. Toutes les données du dossier (consultations, ordonnances…) seront <strong>définitivement supprimées</strong>.
     </div>`,
     `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
      <button class="pill-btn danger" onclick="mfPermDeleteDo('${id}')">🗑️ ${t('dossier_delete_perm')}</button>`);
 }
 function mfPermDeleteDo(id){
   const f = mfGetById(id); if(!f) return;
-  (f.data.documents||[]).forEach(doc => { if(doc.key) idbFiles.del(doc.key); });
   _pendingDeletes.medicalFiles = _pendingDeletes.medicalFiles || [];
   _pendingDeletes.medicalFiles.push(id);
   savePendingDeletes();
@@ -17189,7 +17427,7 @@ function renderDoctorExtraSections(appts, doc){
   const maxType = Math.max(1, ...typeEntries.map(e=>e[1]));
 
   const files = mfAllDossiersForDoctor(doc.id);
-  let totalConsult = 0, totalPresc = 0, totalVitals = 0, totalLab = 0, totalAllergies = 0, totalDocs = 0;
+  let totalConsult = 0, totalPresc = 0, totalVitals = 0, totalLab = 0, totalAllergies = 0;
   files.forEach(f => {
     const d = f.data || {};
     totalConsult += (d.consultations||[]).length;
@@ -17197,7 +17435,6 @@ function renderDoctorExtraSections(appts, doc){
     totalVitals += (d.vitals||[]).length;
     totalLab += (d.labTests||[]).length;
     totalAllergies += (d.allergies||[]).length;
-    totalDocs += (d.documents||[]).length;
   });
 
   const meKey = `doctor_${doc.id}`;
@@ -17246,7 +17483,6 @@ function renderDoctorExtraSections(appts, doc){
             ${statTag('📊 Constantes', totalVitals, 'accent', true)}
             ${statTag('🔬 Analyses', totalLab, 'accent', true)}
             ${totalAllergies > 0 ? statTag('⚠️ Allergies', totalAllergies, 'danger', true) : ''}
-            ${totalDocs > 0 ? statTag('📎 Documents', totalDocs, 'muted', true) : ''}
           </div>
         </div>` : ''}
     </div>
@@ -17520,110 +17756,116 @@ function renderAdminExtraSections(appts){
   const maxRating = Math.max(1, ...ratingEntries.map(e=>e[1]));
 
   return `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">📋 Types de rendez-vous (plateforme)</div>
-      <div style="margin-top:8px">
-        ${typeEntries.map(([lbl,v,color]) => statBarRow(lbl, v, maxType, color)).join('')}
-      </div>
-    </div>
-
-    ${s.emgTotal > 0 ? `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">🚨 Urgences plateforme</div>
-      <div class="stats-tags" style="margin-top:10px">
-        ${statTag('Total', s.emgTotal, 'danger', true)}
-        ${statTag('⏳ En attente', s.emgPending, 'warn', true)}
-        ${statTag('✅ Acceptées', s.emgAccepted, 'success', true)}
-        ${statTag('❌ Refusées', s.emgDeclined, 'danger', true)}
-        ${statTag('✕ Annulées', s.emgCancelled, 'muted', true)}
-        ${statTag('Taux accept.', s.emgRate + '%', s.emgRate >= 70 ? 'success' : s.emgRate >= 40 ? 'warn' : 'danger', true)}
-      </div>
-    </div>` : ''}
-
-    <div class="grid grid-2" style="margin-bottom:14px">
-      <div class="card">
-        <div class="card-title">✉️ Messagerie plateforme</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('Total messages', s.totalMessages, 'accent', true)}
-          ${statTag('Avec pièces jointes', s.messagesWithFiles, 'muted', true)}
+    <div class="aes">
+      <div class="aes-head"><span class="aes-ico">🌐</span> Plateforme</div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">👁️ Compteur de visites</div>
+          <div class="stats-tags tiles-2">
+            ${statTag('Total depuis lancement', (_v.total||0).toLocaleString('fr-FR'), 'success', true)}
+            ${statTag('Aujourd\'hui', _visitsToday, 'accent', true)}
+            ${statTag('Ce mois', _visitsMonth, 'accent', true)}
+            ${statTag('Cette année', _visitsYear, 'accent', true)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">💳 Abonnements actifs</div>
+          <div class="stats-tags tiles-2">
+            ${statTag('🩺 Médecins (actif/expiré)', s.subDoctorsActive + ' / ' + s.subDoctorsExpired, s.subDoctorsExpired > 0 ? 'warn' : 'success', true)}
+            ${statTag('🩺 Cliniques (actif/expiré)', s.subClinicsActive + ' / ' + s.subClinicsExpired, s.subClinicsExpired > 0 ? 'warn' : 'success', true)}
+            ${statTag('Total médecins abonnés', s.subDoctorsCount, 'accent', true)}
+            ${statTag('Total cliniques abonnées', s.subClinicsCount, 'accent', true)}
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">📁 Dossiers médicaux</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('Dossiers', s.filesCount, 'accent', true)}
-          ${statTag('💊 Ordonnances', s.totalPrescCount, 'success', true)}
-          ${s.totalAllergyCount > 0 ? statTag('⚠️ Allergies', s.totalAllergyCount, 'danger', true) : ''}
-        </div>
-      </div>
-    </div>
 
-    <div class="grid grid-2" style="margin-bottom:14px">
-      <div class="card">
-        <div class="card-title">🚫 Patients bloqués</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('Total', s.totalBlocks, s.totalBlocks > 0 ? 'danger' : 'muted', true)}
+      <div class="aes-head"><span class="aes-ico">📅</span> Activité</div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">📋 Types de rendez-vous (plateforme)</div>
+          <div style="margin-top:8px">
+            ${typeEntries.map(([lbl,v,color]) => statBarRow(lbl, v, maxType, color)).join('')}
+          </div>
         </div>
-        ${s.topBlockReasons.length ? `<div style="margin-top:10px">
-          ${s.topBlockReasons.map(([lbl,v]) => statBarRow(lbl, v, Math.max(1, ...s.topBlockReasons.map(e=>e[1])), '#ef4444')).join('')}
+        ${s.emgTotal > 0 ? `
+        <div class="card">
+          <div class="card-title">🚨 Urgences plateforme</div>
+          <div class="stats-tags">
+            ${statTag('Total', s.emgTotal, 'danger', true)}
+            ${statTag('⏳ En attente', s.emgPending, 'warn', true)}
+            ${statTag('✅ Acceptées', s.emgAccepted, 'success', true)}
+            ${statTag('❌ Refusées', s.emgDeclined, 'danger', true)}
+            ${statTag('✕ Annulées', s.emgCancelled, 'muted', true)}
+            ${statTag('Taux accept.', s.emgRate + '%', s.emgRate >= 70 ? 'success' : s.emgRate >= 40 ? 'warn' : 'danger', true)}
+          </div>
         </div>` : ''}
       </div>
-      <div class="card">
-        <div class="card-title">💰 Dépenses (tous comptes)</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('Total', fmtDA(s.totalExpenses), 'money', true)}
-          ${statTag('🩺 Médecins', fmtDA(s.expenseByOwner.doctor), 'warn', true)}
-          ${statTag('🩺 Cliniques', fmtDA(s.expenseByOwner.clinic), 'warn', true)}
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">✉️ Messagerie plateforme</div>
+          <div class="stats-tags tiles-2">
+            ${statTag('Total messages', s.totalMessages, 'accent', true)}
+            ${statTag('Avec pièces jointes', s.messagesWithFiles, 'muted', true)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📁 Dossiers médicaux</div>
+          <div class="stats-tags">
+            ${statTag('Dossiers', s.filesCount, 'accent', true)}
+            ${statTag('💊 Ordonnances', s.totalPrescCount, 'success', true)}
+            ${s.totalAllergyCount > 0 ? statTag('⚠️ Allergies', s.totalAllergyCount, 'danger', true) : ''}
+          </div>
         </div>
       </div>
-    </div>
-
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">💳 Abonnements actifs</div>
-      <div class="stats-tags" style="margin-top:10px">
-        ${statTag('🩺 Médecins (actif/expiré)', s.subDoctorsActive + ' / ' + s.subDoctorsExpired, s.subDoctorsExpired > 0 ? 'warn' : 'success', true)}
-        ${statTag('🩺 Cliniques (actif/expiré)', s.subClinicsActive + ' / ' + s.subClinicsExpired, s.subClinicsExpired > 0 ? 'warn' : 'success', true)}
-        ${statTag('Total médecins abonnés', s.subDoctorsCount, 'accent', true)}
-        ${statTag('Total cliniques abonnées', s.subClinicsCount, 'accent', true)}
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">👁️ Compteur de visites</div>
-      <div class="stats-tags" style="margin-top:10px">
-        ${statTag('Total depuis lancement', (_v.total||0).toLocaleString('fr-FR'), 'success', true)}
-        ${statTag('Aujourd\'hui', _visitsToday, 'accent', true)}
-        ${statTag('Ce mois', _visitsMonth, 'accent', true)}
-        ${statTag('Cette année', _visitsYear, 'accent', true)}
-      </div>
-    </div>
-
-    ${s.ratingsCount > 0 ? `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">⭐ Distribution des notes médecins <span class="tag rating" style="margin-left:6px">${s.avgRating} / 5</span></div>
-      <div class="stats-tags" style="margin-top:10px">
-        ${statTag('Total notes', s.ratingsCount, 'accent', true)}
-        ${s.clinicRatingsCount > 0 ? statTag('Notes cliniques', s.clinicRatingsCount + ' · moy. ' + s.avgClinicRating, 'clinic', true) : ''}
-      </div>
-      <div style="margin-top:10px">
-        ${ratingEntries.map(([lbl,v]) => statBarRow(lbl, v, maxRating, '#f59e0b')).join('')}
-      </div>
-    </div>` : ''}
-
-    <div class="grid grid-2" style="margin-bottom:14px">
-      <div class="card">
-        <div class="card-title">📊 Moyennes par entité</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('RDV / médecin externe', s.avgApptsPerDoctor, 'accent', true)}
-          ${statTag('RDV / clinique', s.avgApptsPerClinic, 'accent', true)}
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">📊 Moyennes par entité</div>
+          <div class="stats-tags tiles-2">
+            ${statTag('RDV / médecin externe', s.avgApptsPerDoctor, 'accent', true)}
+            ${statTag('RDV / clinique', s.avgApptsPerClinic, 'accent', true)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔔 Notifications</div>
+          <div class="stats-tags">
+            ${statTag('Total notifications', s.totalNotifs, 'accent', true)}
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">🔔 Notifications</div>
-        <div class="stats-tags" style="margin-top:10px">
-          ${statTag('Total notifications', s.totalNotifs, 'accent', true)}
+
+      <div class="aes-head"><span class="aes-ico">💰</span> Finances &amp; sécurité</div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">💰 Dépenses (tous comptes)</div>
+          <div class="stats-tags">
+            ${statTag('Total', fmtDA(s.totalExpenses), 'money', true)}
+            ${statTag('🩺 Médecins', fmtDA(s.expenseByOwner.doctor), 'warn', true)}
+            ${statTag('🩺 Cliniques', fmtDA(s.expenseByOwner.clinic), 'warn', true)}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🚫 Patients bloqués</div>
+          <div class="stats-tags">
+            ${statTag('Total', s.totalBlocks, s.totalBlocks > 0 ? 'danger' : 'muted', true)}
+          </div>
+          ${s.topBlockReasons.length ? `<div style="margin-top:12px">
+            ${s.topBlockReasons.map(([lbl,v]) => statBarRow(lbl, v, Math.max(1, ...s.topBlockReasons.map(e=>e[1])), '#ef4444')).join('')}
+          </div>` : ''}
         </div>
       </div>
+
+      ${s.ratingsCount > 0 ? `
+      <div class="aes-head"><span class="aes-ico">⭐</span> Qualité</div>
+      <div class="card">
+        <div class="card-title">⭐ Distribution des notes médecins <span class="tag rating" style="margin-left:6px">${s.avgRating} / 5</span></div>
+        <div class="stats-tags tiles-2">
+          ${statTag('Total notes', s.ratingsCount, 'accent', true)}
+          ${s.clinicRatingsCount > 0 ? statTag('Notes cliniques', s.clinicRatingsCount + ' · moy. ' + s.avgClinicRating, 'clinic', true) : ''}
+        </div>
+        <div style="margin-top:12px">
+          ${ratingEntries.map(([lbl,v]) => statBarRow(lbl, v, maxRating, '#f59e0b')).join('')}
+        </div>
+      </div>` : ''}
     </div>
   `;
 }
@@ -17798,19 +18040,18 @@ function printDoctorStats(){
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 portrait;margin:10mm}
   body{font-family:'Inter',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .cover{position:relative;background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 45%,#ec4899 100%);color:#fff;padding:28px 30px;border-radius:20px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid}
-  .cover::before{content:'';position:absolute;top:-70px;right:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,rgba(255,255,255,0) 70%)}
+  .cover{position:relative;background:none;color:#111827;padding:28px 30px;border:1.5px solid #e5e7eb;border-radius:20px;margin-bottom:24px;overflow:hidden;page-break-inside:avoid}
   .cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
   .cover .logo-box{display:flex;gap:16px;align-items:center}
-  .cover .logo{width:68px;height:68px;border-radius:18px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
+  .cover .logo{width:68px;height:68px;border-radius:18px;background:none;display:grid;place-items:center;font-size:36px;flex-shrink:0;border:1.5px solid #e5e7eb}
   .cover h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin-bottom:4px;font-family:'Playfair Display',Georgia,serif}
   .cover .sub{font-size:12.5px;opacity:.94;font-weight:500}
   .cover .ref{margin-top:6px;font-family:'Rubik',sans-serif;font-size:11px;opacity:.9}
-  .cover .date-box{background:rgba(255,255,255,.18);padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;flex-shrink:0;border:1px solid rgba(255,255,255,.25);min-width:170px}
+  .cover .date-box{background:none;padding:13px 18px;border-radius:14px;text-align:right;font-size:10px;flex-shrink:0;border:1px solid #e5e7eb;min-width:170px}
   .cover .date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:9px}
   .cover .date-box strong{display:block;font-size:14.5px;font-family:'Rubik',sans-serif;font-weight:700;margin-top:5px;text-transform:capitalize}
   .cover .date-box .time{opacity:.85;font-size:10px;margin-top:4px;font-family:'Rubik',sans-serif}
-  .cover-bottom{position:relative;z-index:1;margin-top:22px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22);display:flex;gap:22px;flex-wrap:wrap;font-size:11px}
+  .cover-bottom{position:relative;z-index:1;margin-top:22px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;gap:22px;flex-wrap:wrap;font-size:11px}
   .cover-bottom .cb-item{display:flex;align-items:center;gap:8px;opacity:.95}
   .cover-bottom strong{font-family:'Rubik',sans-serif;font-weight:700;font-size:13px}
   .section-head{display:flex;align-items:center;gap:11px;font-size:12.5px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;padding:10px 0;border-bottom:2px solid #ede9fe;margin:26px 0 16px}
@@ -29754,7 +29995,6 @@ function viewExpensesGeneric(){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="pill-btn primary" onclick="openExpenseForm(null)">+ Nouvelle dépense</button>
           <button class="pill-btn" onclick="exportExpensesCSV()">📤 CSV</button>
-          <button class="pill-btn" onclick="printExpenses()">🖨️ Imprimer</button>
         </div>
       </div>
     </div>
@@ -29777,7 +30017,10 @@ function viewExpensesGeneric(){
       ${f.periodType === 'day' ? `<div class="field" style="margin-bottom:0;max-width:300px"><label>Jour</label><input class="input" type="date" value="${f.dayDate||''}" onchange="state.expenseFilter.dayDate=this.value;state.expensePage=1;render()"></div>` : f.periodType === 'month' ? `<div class="month-picker" style="max-width:420px;margin-top:8px"><select class="select" onchange="state.expenseFilter.month=parseInt(this.value,10);state.expensePage=1;render()">${MONTH_NAMES.map((m,i)=>'<option value="'+(i+1)+'" '+(f.month===i+1?'selected':'')+'>'+m+'</option>').join('')}</select><select class="select" onchange="state.expenseFilter.year=parseInt(this.value,10);state.expensePage=1;render()">${years.map(y=>'<option value="'+y+'" '+(f.year===y?'selected':'')+'>'+y+'</option>').join('')}</select></div>` : f.periodType === 'year' ? `<div style="max-width:200px;margin-top:8px"><select class="select" onchange="state.expenseFilter.year=parseInt(this.value,10);state.expensePage=1;render()">${years.map(y=>'<option value="'+y+'" '+(f.year===y?'selected':'')+'>'+y+'</option>').join('')}</select></div>` : f.periodType === 'interval' ? `<div class="field-row" style="margin-top:8px"><div class="field" style="margin-bottom:0"><label>Du</label><input class="input" type="date" value="${f.startDate||''}" onchange="state.expenseFilter.startDate=this.value;state.expensePage=1;render()"></div><div class="field" style="margin-bottom:0"><label>Au</label><input class="input" type="date" value="${f.endDate||''}" onchange="state.expenseFilter.endDate=this.value;state.expensePage=1;render()"></div></div>` : ''}
       <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--glass-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;color:var(--text-muted)">📅 <strong>${esc(periodLabel)}</strong> · ${list.length} dépense(s)</div>
-        <div style="font-family:var(--font-numbers);font-weight:700;color:#dc2626;font-size:15px">${n2(filteredTotal)} DA</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <button class="pill-btn" onclick="printExpenses()">🖨️ Imprimer</button>
+          <div style="font-family:var(--font-numbers);font-weight:700;color:#dc2626;font-size:15px">${n2(filteredTotal)} DA</div>
+        </div>
       </div>
     </div>
     ${slice.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:28px">#</th><th>Date</th><th>Catégorie</th><th>Libellé</th><th>Fournisseur</th><th>Référence</th><th style="text-align:right">Montant</th><th style="width:100px;text-align:center">Actions</th></tr></thead><tbody>${slice.map((e,i)=>{const cat = getExpenseCatMeta(e.category);const attach = e.attachmentKey ? `<span title="Pièce jointe" style="cursor:pointer;margin-left:4px" onclick="event.stopPropagation();openExpenseAttachment('${e.id}')">📎</span>` : '';return `<tr><td style="color:var(--text-muted);font-weight:600">${(page-1)*perPage+i+1}</td><td style="white-space:nowrap"><strong>${fmtDateFR(e.date)}</strong></td><td><span class="tag accent" style="font-size:10.5px">${cat.ico} ${esc(cat.label)}</span></td><td style="font-weight:600">${esc(e.label||'—')}${attach}</td><td style="font-size:11.5px;color:var(--text-muted)">${esc(e.supplier||'—')}</td><td style="font-family:var(--font-numbers);font-size:11px;color:var(--text-muted)">${esc(e.reference||'—')}</td><td style="text-align:right;font-family:var(--font-numbers);font-weight:700;color:#dc2626">${n2(e.amount)} DA</td><td style="text-align:center;white-space:nowrap"><button class="mini-btn ghost" onclick="openExpenseForm('${e.id}')" title="Modifier">✏️</button><button class="mini-btn out-red" onclick="confirmDeleteExpense('${e.id}')" title="Supprimer">🗑️</button></td></tr>`;}).join('')}</tbody><tfoot><tr><td colspan="6" style="text-align:right;font-weight:800">Total filtré :</td><td style="text-align:right;font-family:var(--font-numbers);font-weight:800;color:#dc2626;font-size:14px">${n2(filteredTotal)} DA</td><td></td></tr></tfoot></table></div>${totalPages > 1 ? `<div class="pagination" style="margin-top:12px"><button class="page-btn" ${page===1?'disabled':''} onclick="state.expensePage=${page-1};render()">‹</button><span class="page-info">Page ${page} / ${totalPages} · ${list.length} dépense(s)</span><button class="page-btn" ${page===totalPages?'disabled':''} onclick="state.expensePage=${page+1};render()">›</button></div>` : ''}` : `<div class="card"><div class="empty" style="padding:40px"><div class="empty-ico">💰</div>Aucune dépense pour cette période<br><button class="pill-btn primary" style="margin-top:14px" onclick="openExpenseForm(null)">+ Ajouter une dépense</button></div></div>`}
@@ -30036,7 +30279,7 @@ function printExpenses(){
   list.forEach(e => { catTotals[e.category] = (catTotals[e.category]||0) + (Number(e.amount)||0); });
   const rows = list.map((e,i) => { const cat = getExpenseCatMeta(e.category); return '<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:center;white-space:nowrap">'+fmtDateFR(e.date)+'</td><td>'+cat.ico+' '+esc(cat.label)+'</td><td><strong>'+esc(e.label||'—')+'</strong>'+(e.notes?'<div style="font-size:9px;color:#6b7280;margin-top:2px">'+esc(e.notes)+'</div>':'')+'</td><td>'+esc(e.supplier||'—')+'</td><td style="text-align:center;font-family:\'Rubik\',sans-serif">'+esc(e.reference||'—')+'</td><td style="text-align:right;font-family:\'Rubik\',sans-serif;font-weight:700;color:#dc2626;white-space:nowrap">'+n2(e.amount)+'</td></tr>'; }).join('');
   const catRows = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{ const cat = getExpenseCatMeta(k); const pct = total > 0 ? ((v/total)*100).toFixed(1) : 0; return '<tr><td>'+cat.ico+' '+esc(cat.label)+'</td><td style="text-align:right;font-family:\'Rubik\',sans-serif">'+n2(v)+' DA</td><td style="text-align:right;font-family:\'Rubik\',sans-serif;color:#7c3aed">'+pct+'%</td></tr>'; }).join('');
-  printHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dépenses — '+esc(owner.label)+'</title><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}@page{size:A4 portrait;margin:10mm}body{font-family:\'Inter\',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{position:relative;background:linear-gradient(135deg,#ef4444 0%,#f59e0b 100%);color:#fff;padding:22px 26px;border-radius:18px;margin-bottom:18px;overflow:hidden}.cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.logo-box{display:flex;gap:14px;align-items:center}.logo{width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}.cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:\'Playfair Display\',Georgia,serif;line-height:1.05}.cover .sub{font-size:11.5px;opacity:.94}.cover .ref{margin-top:4px;font-family:\'Rubik\',sans-serif;font-size:10.5px;opacity:.9}.date-box{background:rgba(255,255,255,.18);padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid rgba(255,255,255,.25);min-width:150px}.date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}.date-box strong{display:block;font-size:13px;font-family:\'Rubik\',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize}.section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#7c2d12;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #fed7aa;margin:20px 0 12px}.section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#ef4444,#f59e0b);display:grid;place-items:center;font-size:14px}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:12px;padding:11px 12px}.kpi::after{content:\'\';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ef4444,#f59e0b)}.kpi .k-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;margin-bottom:4px}.kpi .k-val{font-family:\'Rubik\',sans-serif;font-weight:700;font-size:15px;color:#dc2626}table.data{width:100%;border-collapse:collapse;font-size:9.5px}thead th{background:#fef3c7;color:#7c2d12;font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:.3px;padding:7px 5px;text-align:left;border-bottom:1.5px solid #fed7aa}tbody td{padding:6px 5px;border-bottom:1px solid #f3f4f6}tbody tr:nth-child(even){background:#fffbeb}tfoot td{padding:8px 5px;font-weight:700;background:#fef3c7;border-top:2px solid #ef4444;font-family:\'Rubik\',sans-serif}.letter-amount{background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:10.5px;line-height:1.5;font-style:italic}.letter-amount strong{color:#dc2626;font-style:normal}.footer{margin-top:26px;padding-top:12px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;font-size:9px;color:#6b7280}</style></head><body><div class="cover"><div class="cover-top"><div class="logo-box"><div class="logo">💰</div><div><h1>Dépenses</h1><div class="sub">'+(owner.type === 'doctor' ? 'Cabinet médical' : 'Clinique')+' — '+esc(owner.label)+'</div><div class="ref">Réf. '+refNo+' · '+esc(periodLabel)+'</div></div></div><div class="date-box"><div class="lbl">Imprimé le</div><strong>'+printDate+'</strong></div></div></div><div class="section-head"><span class="ico-badge">📊</span> Synthèse — '+esc(periodLabel)+'</div><div class="kpi-grid"><div class="kpi"><div class="k-lbl">Nombre de dépenses</div><div class="k-val">'+list.length+'</div></div><div class="kpi"><div class="k-lbl">Total</div><div class="k-val">'+n2(total)+' DA</div></div><div class="kpi"><div class="k-lbl">Catégories</div><div class="k-val">'+Object.keys(catTotals).length+'</div></div><div class="kpi"><div class="k-lbl">Moyenne / dépense</div><div class="k-val">'+n2(list.length ? total/list.length : 0)+' DA</div></div></div><div class="section-head"><span class="ico-badge">📋</span> Détail des dépenses</div><table class="data"><thead><tr><th style="width:24px;text-align:center">#</th><th style="width:56px">Date</th><th style="width:110px">Catégorie</th><th>Libellé</th><th style="width:100px">Fournisseur</th><th style="width:80px;text-align:center">Référence</th><th style="width:80px;text-align:right">Montant</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="6" style="text-align:right">TOTAL :</td><td style="text-align:right;color:#dc2626">'+n2(total)+' DA</td></tr></tfoot></table><div class="section-head"><span class="ico-badge">🏷️</span> Répartition par catégorie</div><table class="data"><thead><tr><th>Catégorie</th><th style="text-align:right;width:130px">Montant</th><th style="text-align:right;width:80px">Part</th></tr></thead><tbody>'+catRows+'</tbody></table><div class="letter-amount"><strong>Arrêtée la présente liste à la somme de :</strong> '+esc(totalWords)+'</div><div class="footer">OmniMed — Document généré automatiquement le '+new Date().toLocaleString('fr-FR')+'</div></body></html>');
+  printHTML('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dépenses — '+esc(owner.label)+'</title><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}@page{size:A4 portrait;margin:10mm}body{font-family:\'Inter\',system-ui,sans-serif;color:#111827;background:#fff;font-size:10.5px;line-height:1.5;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover{position:relative;background:none;color:#111827;padding:22px 26px;border:1.5px solid #e5e7eb;border-radius:18px;margin-bottom:18px;overflow:hidden}.cover-top{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.logo-box{display:flex;gap:14px;align-items:center}.logo{width:58px;height:58px;border-radius:16px;background:none;display:grid;place-items:center;font-size:30px;flex-shrink:0;border:1.5px solid #e5e7eb}.cover h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px;font-family:\'Playfair Display\',Georgia,serif;line-height:1.05}.cover .sub{font-size:11.5px;opacity:.94}.cover .ref{margin-top:4px;font-family:\'Rubik\',sans-serif;font-size:10.5px;opacity:.9}.date-box{background:none;padding:11px 15px;border-radius:12px;text-align:right;font-size:9.5px;border:1px solid #e5e7eb;min-width:150px}.date-box .lbl{text-transform:uppercase;letter-spacing:.8px;opacity:.85;font-weight:700;font-size:8.5px}.date-box strong{display:block;font-size:13px;font-family:\'Rubik\',sans-serif;font-weight:700;margin-top:4px;text-transform:capitalize}.section-head{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;color:#7c2d12;text-transform:uppercase;letter-spacing:.9px;padding:8px 0;border-bottom:2px solid #fed7aa;margin:20px 0 12px}.section-head .ico-badge{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#ef4444,#f59e0b);display:grid;place-items:center;font-size:14px}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.kpi{position:relative;background:#fff;border:1.5px solid #f3f4f6;border-radius:12px;padding:11px 12px}.kpi::after{content:\'\';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ef4444,#f59e0b)}.kpi .k-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:700;margin-bottom:4px}.kpi .k-val{font-family:\'Rubik\',sans-serif;font-weight:700;font-size:15px;color:#dc2626}table.data{width:100%;border-collapse:collapse;font-size:9.5px}thead th{background:#fef3c7;color:#7c2d12;font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:.3px;padding:7px 5px;text-align:left;border-bottom:1.5px solid #fed7aa}tbody td{padding:6px 5px;border-bottom:1px solid #f3f4f6}tbody tr:nth-child(even){background:#fffbeb}tfoot td{padding:8px 5px;font-weight:700;background:#fef3c7;border-top:2px solid #ef4444;font-family:\'Rubik\',sans-serif}.letter-amount{background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:10.5px;line-height:1.5;font-style:italic}.letter-amount strong{color:#dc2626;font-style:normal}.footer{margin-top:26px;padding-top:12px;border-top:1.5px dashed #d1d5db;display:flex;justify-content:center;font-size:9px;color:#6b7280}</style></head><body><div class="cover"><div class="cover-top"><div class="logo-box"><div class="logo">💰</div><div><h1>Dépenses</h1><div class="sub">'+(owner.type === 'doctor' ? 'Cabinet médical' : 'Clinique')+' — '+esc(owner.label)+'</div><div class="ref">Réf. '+refNo+' · '+esc(periodLabel)+'</div></div></div><div class="date-box"><div class="lbl">Imprimé le</div><strong>'+printDate+'</strong></div></div></div><div class="section-head"><span class="ico-badge">📊</span> Synthèse — '+esc(periodLabel)+'</div><div class="kpi-grid"><div class="kpi"><div class="k-lbl">Nombre de dépenses</div><div class="k-val">'+list.length+'</div></div><div class="kpi"><div class="k-lbl">Total</div><div class="k-val">'+n2(total)+' DA</div></div><div class="kpi"><div class="k-lbl">Catégories</div><div class="k-val">'+Object.keys(catTotals).length+'</div></div><div class="kpi"><div class="k-lbl">Moyenne / dépense</div><div class="k-val">'+n2(list.length ? total/list.length : 0)+' DA</div></div></div><div class="section-head"><span class="ico-badge">📋</span> Détail des dépenses</div><table class="data"><thead><tr><th style="width:24px;text-align:center">#</th><th style="width:56px">Date</th><th style="width:110px">Catégorie</th><th>Libellé</th><th style="width:100px">Fournisseur</th><th style="width:80px;text-align:center">Référence</th><th style="width:80px;text-align:right">Montant</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="6" style="text-align:right">TOTAL :</td><td style="text-align:right;color:#dc2626">'+n2(total)+' DA</td></tr></tfoot></table><div class="section-head"><span class="ico-badge">🏷️</span> Répartition par catégorie</div><table class="data"><thead><tr><th>Catégorie</th><th style="text-align:right;width:130px">Montant</th><th style="text-align:right;width:80px">Part</th></tr></thead><tbody>'+catRows+'</tbody></table><div class="letter-amount"><strong>Arrêtée la présente liste à la somme de :</strong> '+esc(totalWords)+'</div><div class="footer">OmniMed — Document généré automatiquement le '+new Date().toLocaleString('fr-FR')+'</div></body></html>');
   toast('🖨️ Impression générée','success');
 }
 
@@ -30126,13 +30369,13 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   mfOpenAntecedentForm, mfSaveAntecedent,
   mfOpenConsultationForm, mfSaveConsultation,
   mfOpenVitalForm, mfSaveVital,
-  mfOpenLabForm, mfSaveLab,
+  mfOpenLabForm, mfSaveLab, mfLabTypeChange, mfLabToggle, mfLabAddExtra, mfLabRemoveExtra, mfPrintLab,
+  mfOpenLabResults, mfSaveLabResults, mfPrintLabById, mfPrintLabFromForm, mfLabSetType,
   mfOpenPrescriptionForm, mfSavePrescription, mfDuplicatePrescription,
   mfArchivePrescription, mfUnarchivePrescription,
   mfAddMedRow, mfRemoveMedRow,
   mfShowMedSuggest, mfHideMedSuggest, mfPickMed,
   mfDeleteItem, mfDoDelete,
-  mfOnAddDocument, mfPreviewDocument,
   mfArchiveConfirm, mfArchiveDo, mfUnarchive,
   mfPermDeleteConfirm, mfPermDeleteDo,
   mfMergeStart, mfMergeRowHTML, mfMergeFilter, mfMergeChoose, mfMergeSwap, mfMergeDo,
