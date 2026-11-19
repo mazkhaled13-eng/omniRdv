@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Rubik:wght@500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -3182,12 +3182,93 @@ body.admin-readonly .appt-checkbox-wrap{
    ============================================================ */
 const SUPABASE_URL = 'https://cbvzfkntznlrffyacmil.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNidnpma250em5scmZmeWFjbWlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0NTExNzQsImV4cCI6MjEwNzAyNzE3NH0.slHetHt0OhRAWJHZU4I6Mm-X1W4jc-03kVliEWhHkAM';
+/* 🔐 Stockage de la session Supabase Auth : "Se souvenir de moi" → localStorage, sinon sessionStorage */
+const _authStorage = {
+  getItem: k => { try{ const v = sessionStorage.getItem(k); return v !== null ? v : localStorage.getItem(k); }catch(e){ return null; } },
+  setItem: (k, v) => {
+    try{
+      if(localStorage.getItem('omnimed_remember') === '0'){ sessionStorage.setItem(k, v); localStorage.removeItem(k); }
+      else { localStorage.setItem(k, v); sessionStorage.removeItem(k); }
+    }catch(e){}
+  },
+  removeItem: k => { try{ sessionStorage.removeItem(k); localStorage.removeItem(k); }catch(e){} }
+};
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storage: _authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
   realtime: {
     params: {
       eventsPerSecond: 50,
       heartbeatIntervalMs: 15000
     }
+  }
+});
+
+/* ============================================================
+   🔐 SUPABASE AUTH — session, rôle et gestion des comptes
+   ============================================================ */
+let _authMeta = null;   // { role, entityId, email, id } — issu du jeton de connexion (non modifiable par l'utilisateur)
+function _metaFromUser(user){
+  const m = (user && user.app_metadata) || {};
+  return { role: m.role || null, entityId: m.entity_id != null ? String(m.entity_id) : null, email: user ? user.email : null, id: user ? user.id : null };
+}
+const _EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/* Appel de la fonction serveur "admin-users" (création / modification / suppression de comptes) */
+async function authAdminCall(action, payload){
+  try{
+    const { data, error } = await sb.functions.invoke('admin-users', { body: { action, ...payload } });
+    if(error){
+      let msg = error.message || 'Erreur';
+      try{ const j = await error.context.json(); if(j && j.error) msg = j.error; }catch(e){}
+      return { ok:false, error: msg };
+    }
+    if(data && data.error) return { ok:false, error: data.error };
+    return { ok:true, data };
+  }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
+}
+
+/* Crée ou met à jour le compte de connexion associé à un médecin / une clinique / un profil admin */
+async function syncAuthAccount({ role, oldEmail, email, entityId, password }){
+  const em = String(email || '').trim();
+  const old = String(oldEmail || '').trim();
+  if(!_EMAIL_RE.test(em)) return { ok:false, error:'E-mail invalide' };
+  const hadAccount = _EMAIL_RE.test(old);
+  if(!hadAccount){
+    if(!password) return { ok:false, error:'Mot de passe requis' };
+    return await authAdminCall('create_user', { email: em, password, role, entity_id: String(entityId) });
+  }
+  let missing = false;
+  if(old.toLowerCase() !== em.toLowerCase()){
+    const r = await authAdminCall('update_email', { email: old, new_email: em, new_entity_id: String(entityId) });
+    if(!r.ok){ if(/introuvable/i.test(r.error || '')) missing = true; else return r; }
+  }
+  if(password){
+    if(!missing){
+      const r2 = await authAdminCall('reset_password', { email: em, password });
+      if(r2.ok) return r2;
+      if(!/introuvable/i.test(r2.error || '')) return r2;
+    }
+    return await authAdminCall('create_user', { email: em, password, role, entity_id: String(entityId) });
+  }
+  return { ok:true };
+}
+
+/* Changement de MON mot de passe (vérifie l'ancien, puis met à jour) */
+async function _authChangeOwnPassword(cur, nw){
+  const email = _authMeta && _authMeta.email;
+  if(!email) return { ok:false, error:'Session expirée : reconnectez-vous' };
+  const chk = await sb.auth.signInWithPassword({ email, password: cur });
+  if(chk.error) return { ok:false, error:'Mot de passe actuel incorrect' };
+  const up = await sb.auth.updateUser({ password: nw });
+  if(up.error) return { ok:false, error: up.error.message || 'Échec de la mise à jour' };
+  return { ok:true };
+}
+
+/* Si la session est fermée ailleurs (autre onglet, jeton révoqué) → retour à l'écran public */
+sb.auth.onAuthStateChange((event) => {
+  if(event === 'SIGNED_OUT' && _authMeta){
+    _authMeta = null;
+    try{ if(typeof state !== 'undefined' && state.role !== 'patient') logoutAccount(); }catch(e){}
   }
 });
 
@@ -3218,20 +3299,33 @@ const SUB_YEARLY_DEFAULT = 20000;
 const SUB_DISCOUNT_DEFAULT = 0;
 const DEFAULT_PWD = '0000';
 
-/* 🛡️ Anti-brute-force DÉSACTIVÉ — pas de blocage */
+/* 🛡️ Anti-brute-force (côté navigateur ; Supabase Auth applique en plus ses propres limites côté serveur) */
 const LOGIN_ATTEMPTS_KEY = 'omnimed_login_attempts';
-function getLoginAttempts() { return {}; }
-function recordFailedLogin(ident) { /* désactivé */ }
-function checkLoginRateLimit(ident) { return true; }
-function resetLoginAttempts(ident) { /* désactivé */ }
-
-/* 🛡️ Validation ASSOUPLIE — seul un mot de passe vide est refusé */
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+function _readLoginAttempts(){ try{ return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}') || {}; }catch(e){ return {}; } }
+function _writeLoginAttempts(o){ try{ localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(o)); }catch(e){} }
+function recordFailedLogin(ident){
+  const o = _readLoginAttempts(); const k = String(ident||'').toLowerCase(); const now = Date.now();
+  const e = o[k] || { count:0, first:now, last:now };
+  if(now - e.first > LOGIN_WINDOW_MS){ e.count = 0; e.first = now; }
+  e.count++; e.last = now; o[k] = e; _writeLoginAttempts(o);
+}
+function checkLoginRateLimit(ident){
+  const e = _readLoginAttempts()[String(ident||'').toLowerCase()];
+  if(!e) return true;
+  if(Date.now() - e.last > LOGIN_WINDOW_MS) return true;
+  return e.count < LOGIN_MAX_ATTEMPTS;
+}
+function resetLoginAttempts(ident){
+  const o = _readLoginAttempts(); delete o[String(ident||'').toLowerCase()]; _writeLoginAttempts(o);
+}
 function validatePasswordStrength(pwd) {
-  if (pwd === null || pwd === undefined || String(pwd).length < 1) {
-    return "Le mot de passe ne peut pas être vide.";
-  }
+  const p = String(pwd ?? '');
+  if (p.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères.';
   return null;
 }
+
 const APPTS_PER_PAGE = 25;
 const DOCTORS_PER_PAGE = 10;
 const CLINICS_PER_PAGE = 10;
@@ -6094,31 +6188,29 @@ async function loadDB(){
     if(raw) localBackup = JSON.parse(raw);
   } catch(e){}
 
-  // ⚡ EGRESS OPTIMIZATION : Détecter le rôle et le téléphone AVANT les requêtes
+  // Détecter le rôle (jeton Supabase Auth) et le téléphone AVANT les requêtes
+  if(!_authMeta){
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      if(session && session.user) _authMeta = _metaFromUser(session.user);
+    }catch(e){}
+  }
   let _dbRole = 'patient';
   let _dbPhone = (typeof state !== 'undefined' && state.myPhone) ? state.myPhone : (localStorage.getItem('omnimed_phone') || '');
-  try {
-    const _sessStr = localStorage.getItem('omnimed_saved_session') || sessionStorage.getItem('omnimed_saved_session');
-    if(_sessStr){
-      const _sess = JSON.parse(_sessStr);
-      if(_sess && _sess.role) _dbRole = _sess.role;
-    }
-  } catch(e){}
-  // Si une session est déjà active en mémoire, elle prime
-  if(typeof state !== 'undefined' && state.role && state.role !== 'patient') _dbRole = state.role;
+  if(_authMeta && _authMeta.role){
+    _dbRole = (_authMeta.role === 'subadmin') ? 'admin' : _authMeta.role;
+  }
   const _isPro = (_dbRole === 'doctor' || _dbRole === 'clinic' || _dbRole === 'admin');
   const _apptLimit = _isPro ? 1500 : 0;
   const _last9 = String(_dbPhone || '').replace(/[^0-9]/g, '').slice(-9);
 
+  const _loadDirectory = (table, pubView) => _dirLoad(table, pubView);
+
   let remoteOK = false;
   try {
     const results = await Promise.allSettled([
-      sb.from('settings').select('*').eq('id',1).maybeSingle(),
-      (async () => {
-        const _dR1 = await sb.from('doctors').select('*').order('name');
-        if(!_dR1.error && _dR1.data && _dR1.data.length > 0) return _dR1;
-        return await sb.from('doctors_public').select('*').order('name');
-      })(),
+      _isPro ? sb.from('settings').select('*').eq('id',1).maybeSingle() : sb.from('settings_pub').select('*').eq('id',1).maybeSingle(),
+      _loadDirectory('doctors', 'doctors_pub'),
       // ⚡ EGRESS OPTIMIZATION : 1500 pour les pros, filtré par téléphone pour les patients
       (() => {
         if(_isPro){
@@ -6137,7 +6229,7 @@ async function loadDB(){
       _isPro ? sb.from('invoice_registry').select('*') : Promise.resolve({ data: [], error: null }),
       _isPro ? sb.from('sub_invoice_registry').select('*') : Promise.resolve({ data: [], error: null }),
       _isPro ? sb.from('medical_files').select('*') : Promise.resolve({ data: [], error: null }),
-      sb.from('clinics').select('*').order('name'),
+      _loadDirectory('clinics', 'clinics_pub'),
       sb.from('clinic_services').select('*'),
       sb.from('clinic_prestations').select('*'),
       sb.from('doctor_clinic_links').select('*'),
@@ -6218,7 +6310,7 @@ async function loadDB(){
       specialties: (specR.data||[]).map(r=>r.name),
       wilayas: (wilR.data||[]).map(r=>r.name),
       communes: {},
-      admin: { username: s.admin_username || 'admin', password: s.admin_password || DEFAULT_PWD },
+      admin: { username: s.admin_username || 'admin', password: '' },
       adminProfiles: Array.isArray(s.admin_profiles) ? s.admin_profiles : [],
       settings: {
         commission: s.commission ?? COMMISSION_GENERAL_DEFAULT,
@@ -6588,6 +6680,67 @@ const PUSH_GRACE_MS = 400;
 let _lastPushedSnapshot = null;
 let _needRepush = false; // 🆕 : si un push est demandé pendant un push en cours
 
+/* 🔐 Portée des envois vers Supabase : chaque rôle n'envoie que les lignes qu'il a le droit d'écrire
+   (les règles RLS refuseraient sinon le lot entier). */
+function _pushCtx(){
+  const role = _authMeta ? _authMeta.role : null;
+  return { role, eid: (_authMeta && _authMeta.entityId != null) ? String(_authMeta.entityId) : '', isAdm: role === 'admin' || role === 'subadmin' };
+}
+function _clinicOwnsDoctor(clinicId, doctorId){
+  const d = (DB.doctors || []).find(x => String(x.id) === String(doctorId));
+  return !!d && String(d.ownedByClinic || '') === String(clinicId);
+}
+function _scoped(key, rows){
+  rows = rows || [];
+  const c = _pushCtx();
+  if(c.isAdm) return rows;
+  const same = (a, b) => a != null && String(a) === String(b);
+  const isDoc = c.role === 'doctor', isCli = c.role === 'clinic';
+  switch(key){
+    case 'doctors':          return rows.filter(d => (isDoc && same(d.id, c.eid)) || (isCli && same(d.ownedByClinic, c.eid)));
+    case 'clinics':          return rows.filter(x => isCli && same(x.id, c.eid));
+    case 'appointments':     if(!c.role) return rows;
+                             return rows.filter(a => (isDoc && same(a.doctorId, c.eid)) || (isCli && (same(a.clinicId, c.eid) || _clinicOwnsDoctor(c.eid, a.doctorId))));
+    case 'services':         return rows.filter(s => (isDoc && same(s.doctorId, c.eid)) || (isCli && _clinicOwnsDoctor(c.eid, s.doctorId)));
+    case 'messages':         return rows.filter(m => m && ((m.from && same(m.from.id, c.eid)) || (m.to && same(m.to.id, c.eid))));
+    case 'medicalFiles':     return rows.filter(m => (isDoc && same(m.doctorId, c.eid)) || (isCli && same(m.clinicId, c.eid)));
+    case 'clinicServices':
+    case 'clinicPrestations':
+    case 'rooms':
+    case 'admissions':       return rows.filter(x => isCli && same(x.clinicId, c.eid));
+    case 'doctorClinicLinks':return rows.filter(l => (isDoc && same(l.doctorId, c.eid)) || (isCli && same(l.clinicId, c.eid)));
+    case 'expenses':         return rows.filter(e => same(e.ownerType, c.role) && same(e.ownerId, c.eid));
+    case 'blocks':           if(!c.role) return rows;
+                             return rows.filter(b => (isDoc && same(b.doctorId, c.eid)) || (isCli && same(b.clinicId, c.eid)));
+    default:                 return rows;
+  }
+}
+function _canPushKey(key){
+  const c = _pushCtx();
+  if(c.isAdm) return true;
+  if(c.role === 'doctor' || c.role === 'clinic') return key !== 'adminProfiles';
+  return ['appointments','emergencies','blocks','notifications','visits'].includes(key);   // visiteur (patient)
+}
+
+/* Annuaire médecins / cliniques : le public lit des vues SANS mot de passe ;
+   le personnel y superpose ses propres lignes complètes (selon ses droits) ; l'admin lit tout. */
+async function _dirLoad(table, pubView){
+  const role = _authMeta ? _authMeta.role : null;
+  const isAdm = role === 'admin' || role === 'subadmin';
+  const isPro = isAdm || role === 'doctor' || role === 'clinic';
+  if(isAdm){
+    const full = await sb.from(table).select('*').order('name');
+    if(!full.error) return full;
+  }
+  const pub = await sb.from(pubView).select('*').order('name');
+  if(!isPro || isAdm) return pub;
+  const own = await sb.from(table).select('*');
+  if(own.error || !own.data || !own.data.length) return pub;
+  const byId = new Map((pub.data || []).map(r => [String(r.id), r]));
+  own.data.forEach(r => byId.set(String(r.id), r));
+  return { data: Array.from(byId.values()).sort((a,b) => String(a.name||'').localeCompare(String(b.name||''))), error: pub.error };
+}
+
 async function pushToSupabase(){
   if(_isPushing){ _needRepush = true; return; }
   _isPushing = true;
@@ -6598,6 +6751,7 @@ async function pushToSupabase(){
 
     // ⚡ Helper : cette table doit-elle être synchronisée ?
     const needsSync = (snapKey, deleteKey) => {
+      if(!_canPushKey(snapKey)) return false;                  // 🔐 table non autorisée pour ce rôle
       if(!prev) return true;                                   // 1er push → tout
       if(current[snapKey] !== prev[snapKey]) return true;      // données changées
       if(deleteKey && _pendingDeletes[deleteKey]?.length) return true; // suppressions en attente
@@ -6642,17 +6796,20 @@ async function pushToSupabase(){
     if(syncSettings || syncLabCatalog || syncVisits || syncAdminProfiles){
       // 🛡️ SÉCURITÉ : nettoyer les profils admin avant envoi (retirer passwordPlain)
 const _cleanAdminProfiles = (DB.adminProfiles || []).map(p => {
-  const { passwordPlain, ...safe } = p;
+  const { passwordPlain, password, ...safe } = p;
   return safe;
 });
-const _settingsPayload = {
+const _role = _authMeta ? _authMeta.role : null;
+const _isAdminRole = (_role === 'admin' || _role === 'subadmin');
+const _isStaffRole = _isAdminRole || _role === 'doctor' || _role === 'clinic';
+const _now = new Date().toISOString();
+/* Chaque rôle n'envoie QUE ce qu'il a le droit de modifier (évite d'écraser les réglages de l'admin) */
+const _settingsPayload = _isAdminRole ? {
   id: 1,
   commission: DB.settings.commission,
   sub_monthly: DB.settings.subMonthly,
   sub_yearly: DB.settings.subYearly,
   sub_discount: DB.settings.subDiscount,
-  admin_username: DB.admin.username,
-  admin_password: DB.admin.password,
   admin_profiles: _cleanAdminProfiles,
   medications: DB.medications || [],
   lab_catalog: DB.labCatalog || { bio:[], imagerie:[] },
@@ -6660,14 +6817,27 @@ const _settingsPayload = {
   expense_categories: DB.expenseCategories || null,
   visits: DB.visits || {},
   blocage: DB.settings.blocage || { cancelThreshold:5, absentThreshold:5, periodDays:30 },
-  updated_at: new Date().toISOString()
+  updated_at: _now
+} : _isStaffRole ? {
+  id: 1,
+  medications: DB.medications || [],
+  lab_catalog: DB.labCatalog || { bio:[], imagerie:[] },
+  expense_categories: DB.expenseCategories || null,
+  visits: DB.visits || {},
+  updated_at: _now
+} : {
+  id: 1,
+  visits: DB.visits || {},
+  updated_at: _now
 };
-      const _upsertRes = await sb.from('settings').upsert(_settingsPayload);
+      let _upsertRes = _isStaffRole
+        ? await sb.from('settings').upsert(_settingsPayload)
+        : await sb.rpc('register_visit', { p_visits: DB.visits || {} });
       // 🆕 Fallback : si la colonne "visits" n'existe pas, on sauvegarde le reste
       // 🆕 Fallback robuste : retire itérativement les colonnes manquantes jusqu'à succès
       const _OPTIONAL_SETTINGS_COLS = ['visits','blocage','expense_categories','search_logs','medications','admin_profiles','lab_catalog'];
       let _upsertTries = 0;
-      while(_upsertRes && _upsertRes.error && _upsertTries < _OPTIONAL_SETTINGS_COLS.length + 1){
+      while(_isStaffRole && _upsertRes && _upsertRes.error && _upsertTries < _OPTIONAL_SETTINGS_COLS.length + 1){
         _upsertTries++;
         const _errMsg = String(_upsertRes.error.message || _upsertRes.error.details || '').toLowerCase();
         let _removed = null;
@@ -6692,6 +6862,7 @@ const _settingsPayload = {
         }
         _upsertRes = await sb.from('settings').upsert(_settingsPayload);
       }
+      if(!_isStaffRole && _upsertRes && _upsertRes.error) console.warn('[visites] register_visit :', _upsertRes.error.message);
     }
 
     // ---- PENDING DELETES (uniquement pour tables concernées) ----
@@ -6749,14 +6920,12 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
 }
 
     // ---- DOCTORS ----
-    if(syncDoctors && DB.doctors.length){
-      const _docsPayload = DB.doctors.map(d => {
+    if(syncDoctors && _scoped('doctors', DB.doctors).length){
+      const _docsPayload = _scoped('doctors', DB.doctors).map(d => {
         const row = {
           id: String(d.id), name:d.name, specialty:d.specialty, wilaya:d.wilaya,
           commune:d.commune||'', address:d.address||'', phone:d.phone||'',
           email:d.email||'', fee:d.fee||0, duration:d.duration||30,
-          password_plain: d.passwordPlain || null,
-          recette_password_plain: d.recettePasswordPlain || null,
           bio:d.bio||'', photo: d.photo || null, work_days:d.workDays||[], work_start:d.workStart||'08:00',
           work_end:d.workEnd||'17:00', disabled_slots:d.disabledSlots||[],
           billing_type:d.billingType||'none',
@@ -6767,7 +6936,6 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           is_clinic_local: !!d.isClinicLocal,
           updated_at: d.updatedAt || new Date().toISOString()
         };
-        if(d.password) row.password = d.password;
         if(d.recettePassword) row.recette_password = d.recettePassword;
         return row;
       });
@@ -6791,14 +6959,13 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- CLINICS ----
-    if(syncClinics && DB.clinics.length){
-      const _clinicsPayload = DB.clinics.map(c=>({
+    if(syncClinics && _scoped('clinics', DB.clinics).length){
+      const _clinicsPayload = _scoped('clinics', DB.clinics).map(c=>({
         id: String(c.id), name:c.name, avatar:c.avatar||'🩺', photo: c.photo || null, description:c.description||'',
         header_text: c.headerText||null, footer_text: c.footerText||null,
         wilaya:c.wilaya||'', commune:c.commune||'', address:c.address||'',
         phone:c.phone||'', email:c.email||'',
-        password:c.password||DEFAULT_PWD,
-        recette_password:c.recettePassword||DEFAULT_PWD,
+        ...(c.recettePassword ? { recette_password: c.recettePassword } : {}),
         work_days:c.workDays||[], work_start:c.workStart||'00:00', work_end:c.workEnd||'23:59',
         open_24_7: c.open24_7 !== false,
         session_closed:!!c.sessionClosed, locked:!!c.locked,
@@ -6822,8 +6989,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- CLINIC SERVICES ----
-    if(syncClinicServices && DB.clinicServices.length){
-      await sb.from('clinic_services').upsert(DB.clinicServices.map(cs=>({
+    if(syncClinicServices && _scoped('clinicServices', DB.clinicServices).length){
+      await sb.from('clinic_services').upsert(_scoped('clinicServices', DB.clinicServices).map(cs=>({
         id:String(cs.id), clinic_id:String(cs.clinicId),
         name:cs.name, icon:cs.icon||'🩺', description:cs.description||'',
         scheduling_mode: cs.schedulingMode || '24_7',
@@ -6836,8 +7003,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- CLINIC PRESTATIONS ----
-    if(syncClinicPrestations && DB.clinicPrestations.length){
-      await sb.from('clinic_prestations').upsert(DB.clinicPrestations.map(cp=>({
+    if(syncClinicPrestations && _scoped('clinicPrestations', DB.clinicPrestations).length){
+      await sb.from('clinic_prestations').upsert(_scoped('clinicPrestations', DB.clinicPrestations).map(cp=>({
         id:String(cp.id), clinic_id:String(cp.clinicId), service_id:String(cp.serviceId),
         name:cp.name, price:cp.price||0, duration:cp.duration||30,
         description:cp.description||'', requires_doctor:!!cp.requiresDoctor,
@@ -6849,8 +7016,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- DOCTOR CLINIC LINKS ----
-    if(syncDoctorClinicLinks && DB.doctorClinicLinks.length){
-      await sb.from('doctor_clinic_links').upsert(DB.doctorClinicLinks.map(l=>({
+    if(syncDoctorClinicLinks && _scoped('doctorClinicLinks', DB.doctorClinicLinks).length){
+      await sb.from('doctor_clinic_links').upsert(_scoped('doctorClinicLinks', DB.doctorClinicLinks).map(l=>({
         id:String(l.id), doctor_id:String(l.doctorId), clinic_id:String(l.clinicId),
         service_id:l.serviceId?String(l.serviceId):null,
         fee_override:l.feeOverride,
@@ -6861,8 +7028,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- SERVICES ----
-    if(syncServices && DB.services.length){
-      const _servPayload = DB.services.map(s=>({
+    if(syncServices && _scoped('services', DB.services).length){
+      const _servPayload = _scoped('services', DB.services).map(s=>({
         id:String(s.id), doctor_id:String(s.doctorId), name:s.name,
         price:s.price, description:s.description||'',
         show_price: s.showPrice !== false,
@@ -6884,10 +7051,10 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
      // ---- APPOINTMENTS (OPTIMISÉ EGRESS) ----
-    if(syncAppointments && DB.appointments.length){
+    if(syncAppointments && _scoped('appointments', DB.appointments).length){
       // ⚡ On ne garde QUE les RDV modifiés récemment (ex: dans les 10 dernières minutes)
       const now = Date.now();
-      const recentAppts = DB.appointments.filter(a => {
+      const recentAppts = _scoped('appointments', DB.appointments).filter(a => {
         const updated = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
         const created = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         // On push si modifié dans les 10 mins OU si c'est un nouveau RDV
@@ -6937,13 +7104,13 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           id:n.id, role:n.role, title:n.title, message:n.message,
           to_doctor_id: n.toDoctorId!=null?String(n.toDoctorId):null,
           appt_id:n.apptId, date:n.date, read:n.read
-        })));
+        })), _authMeta ? undefined : { ignoreDuplicates: true });
       }
     }
 
     // ---- MESSAGES ----
-    if(syncMessages && DB.messages.length){
-      await sb.from('messages').upsert(DB.messages.map(m=>({
+    if(syncMessages && _scoped('messages', DB.messages).length){
+      await sb.from('messages').upsert(_scoped('messages', DB.messages).map(m=>({
         id:m.id,
         from_key:m.from.key, from_role:m.from.role, from_id:String(m.from.id),
         from_name:m.from.name, from_avatar:m.from.avatar,
@@ -6955,8 +7122,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- MEDICAL FILES ----
-    if(syncMedicalFiles && DB.medicalFiles && DB.medicalFiles.length){
-      const rows = DB.medicalFiles.map(m=>({
+    if(syncMedicalFiles && _scoped('medicalFiles', DB.medicalFiles).length){
+      const rows = _scoped('medicalFiles', DB.medicalFiles).map(m=>({
         id:m.id,
         doctor_id: m.doctorId ? String(m.doctorId) : null,
         patient_phone: m.patientPhone || '',
@@ -6969,8 +7136,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- EMERGENCIES (une seule fois — corrige la triple duplication) ----
-    if(syncEmergencies && DB.emergencies && DB.emergencies.length){
-      await sb.from('emergencies').upsert(DB.emergencies.map(e=>({
+    if(syncEmergencies && _scoped('emergencies', DB.emergencies).length){
+      await sb.from('emergencies').upsert(_scoped('emergencies', DB.emergencies).map(e=>({
         id: e.id,
         patient_name: e.patientName,
         patient_phone: e.patientPhone,
@@ -7012,16 +7179,16 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- ROOMS ----
-    if(syncRooms && DB.rooms.length){
-      await sb.from('rooms').upsert(DB.rooms.map(r=>({
+    if(syncRooms && _scoped('rooms', DB.rooms).length){
+      await sb.from('rooms').upsert(_scoped('rooms', DB.rooms).map(r=>({
         id: String(r.id), clinic_id: String(r.clinicId), service_id: r.serviceId||null,
         name: r.name, beds: r.beds||1, floor: r.floor||'', notes: r.notes||''
       })));
     }
 
     // ---- ADMISSIONS ----
-    if(syncAdmissions && DB.admissions.length){
-      const rows = DB.admissions.map(a=>({
+    if(syncAdmissions && _scoped('admissions', DB.admissions).length){
+      const rows = _scoped('admissions', DB.admissions).map(a=>({
         id: a.id, clinic_id: String(a.clinicId), service_id: a.serviceId||null,
         room_id: a.roomId||null, bed_number: a.bedNumber||1,
         patient_name: a.patientName, patient_phone: a.patientPhone||'',
@@ -7039,8 +7206,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     }
 
     // ---- EXPENSES ----
-    if(syncExpenses && DB.expenses && DB.expenses.length){
-      const _expRes = await sb.from('expenses').upsert(DB.expenses.map(e=>({
+    if(syncExpenses && _scoped('expenses', DB.expenses).length){
+      const _expRes = await sb.from('expenses').upsert(_scoped('expenses', DB.expenses).map(e=>({
         id: e.id, owner_type: e.ownerType, owner_id: String(e.ownerId),
         date: e.date, category: e.category||'autre', label: e.label,
         amount: Number(e.amount)||0, quantity: Number(e.quantity)||1, tva: Number(e.tva)||0,
@@ -7054,8 +7221,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
       }
     }
 
-    if(syncBlocks && DB.blocks && DB.blocks.length){
-      await sb.from('blocks').upsert(DB.blocks.map(b=>({
+    if(syncBlocks && _scoped('blocks', DB.blocks).length){
+      await sb.from('blocks').upsert(_scoped('blocks', DB.blocks).map(b=>({
         id: String(b.id), patient_phone: b.patientPhone,
         patient_name: b.patientName||null, patient_age: b.patientAge!=null?b.patientAge:null,
         doctor_id: b.doctorId?String(b.doctorId):null, clinic_id: b.clinicId?String(b.clinicId):null,
@@ -7249,13 +7416,8 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
             case 'doctors': {
-        let data = null, error = null;
-        const _dR1 = await sb.from('doctors').select('*').order('name');
-        if(!_dR1.error && _dR1.data && _dR1.data.length > 0){ data = _dR1.data; error = null; }
-        else {
-          const _dR2 = await sb.from('doctors_public').select('*').order('name');
-          data = _dR2.data; error = _dR2.error;
-        }
+        const _dr = await _dirLoad('doctors', 'doctors_pub');
+        let data = _dr.data, error = _dr.error;
         if(error) return false;
               DB.doctors = (data||[]).filter(d=>!_pendingDeletes.doctors.includes(String(d.id))).map(d=>{
         const _prevDoc = (DB && DB.doctors) ? DB.doctors.find(x => String(x.id) === String(d.id)) : null;
@@ -7282,7 +7444,7 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
       case 'clinics': {
-  const { data, error } = await sb.from('clinics').select('*').order('name');
+  const { data, error } = await _dirLoad('clinics', 'clinics_pub');
   if(error) return false;
   DB.clinics = (data||[]).filter(c=>!_pendingDeletes.clinics.includes(String(c.id))).map(c=>({
     id: c.id, name: c.name, avatar: c.avatar||'🩺', photo: c.photo || null, description: c.description||'',
@@ -10028,8 +10190,8 @@ function viewLogin(){
           <div class="card-sub" style="margin-bottom:0">${t('account_login_sub')}</div>
         </div>
         <div class="field">
-          <label>${t('identifier')}</label>
-          <input class="input" id="compteIdent" type="text" placeholder="${t('identifier_ph')}" autocomplete="off"
+          <label>E-mail</label>
+          <input class="input" id="compteIdent" type="email" placeholder="exemple@domaine.com" autocomplete="username"
             onkeydown="if(event.key==='Enter'){event.preventDefault();doAccountLogin()}">
         </div>
         <div class="field">
@@ -10077,212 +10239,172 @@ function clearLocalSession() {
   } catch(e) {}
 }
 async function doAccountLogin(){
-  const ident = ($('#compteIdent')?.value||'').trim();
+  const ident = ($('#compteIdent')?.value||'').trim().toLowerCase();
   const pwd = ($('#comptePwd')?.value||'').trim();
-  const identLower = ident.toLowerCase();
   if(!ident || !pwd){ toast(t('required_fields'),'error'); return; }
-
-  /* 🛡️ Vérification Anti-Brute Force */
-  if(!checkLoginRateLimit(identLower)){
-    toast('⛔ Trop de tentatives échouées. Veuillez patienter 15 minutes.', 'error');
+  if(!checkLoginRateLimit(ident)){
+    toast('⛔ Trop de tentatives échouées. Veuillez patienter 15 minutes.','error');
     return;
   }
-
-  /* 1. Admin principal OU sous-admin (profil) */
-  const adminAttempt = await _tryAdminLogin(identLower, pwd);
-  if(adminAttempt){
-    if(adminAttempt.type === 'main'){
-      if(!/^[0-9a-f]{64}$/i.test(DB.admin.password)){
-        DB.admin.password = await hashPassword(pwd);
-      }
-      state.admin = {username: DB.admin.username};
-      state.adminProfile = null;
-      state.doctor = null;
-      state.clinic = null;
-      state.role = 'admin';
-      state.view = 'adash';
-      state.recetteUnlocked = false;
-      state.clinicRecetteUnlocked = false;
-      state.msgTab = 'inbox'; state.msgOpenId = null;
-      state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-      state.msgSelected = [];
-      state.selectedAppts = [];
-      hideSubscriptionExpiredModal();
-      _sessionProof = generateSessionProof('admin', 'admin'); // 🛡️ Étape 3
-      resetLoginAttempts(identLower); // 🛡️ Étape 4 : Réinitialiser les tentatives
-      saveLocalSession('admin', 'admin');
-      saveDB();
-      render();
-      toast(t('account_admin_welcome') + ' ✓','success');
-      return;
-    } else {
-      /* Profil sous-admin */
-      const prof = adminAttempt.profile;
-      if(!/^[0-9a-f]{64}$/i.test(prof.password)){
-        prof.password = await hashPassword(pwd);
-        saveDB();
-      }
-      state.admin = {username: prof.username || DB.admin.username};
-      state.adminProfile = prof;
-      state.doctor = null;
-      state.clinic = null;
-      state.role = 'admin';
-      const allowed = getAdminProfileAllowedViews(prof);
-      state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
-      state.recetteUnlocked = false;
-      state.clinicRecetteUnlocked = false;
-      state.msgTab = 'inbox'; state.msgOpenId = null;
-      state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-            state.msgSelected = [];
-      state.selectedAppts = [];
-      hideSubscriptionExpiredModal();
-      _sessionProof = generateSessionProof('admin', prof.id); // 🛡️ Étape 3
-      resetLoginAttempts(identLower); // 🛡️ Étape 4
-      saveLocalSession('admin', 'admin_profile_' + prof.id);
-      render();
-      toast('👋 Bienvenue ' + (prof.name || 'Admin'), 'success');
+  try{
+    const remember = document.getElementById('compteRemember');
+    localStorage.setItem('omnimed_remember', (remember && !remember.checked) ? '0' : '1');
+  }catch(e){}
+  const btn = document.getElementById('compteLoginBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const { data, error } = await sb.auth.signInWithPassword({ email: ident, password: pwd });
+    if(error || !data || !data.user){
+      recordFailedLogin(ident);
+      toast(t('invalid_login'),'error');
       return;
     }
+    const ok = await applyAuthSession(data.user, true);
+    if(ok) resetLoginAttempts(ident); else recordFailedLogin(ident);
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
+async function _authRelease(){
+  _authMeta = null;
+  try{ await sb.auth.signOut({ scope:'local' }); }catch(e){}
+}
+
+/* Applique une session Supabase Auth valide : charge les données avec les droits du rôle,
+   puis ouvre l'espace correspondant. fresh=true : connexion manuelle ; false : restauration au démarrage. */
+async function applyAuthSession(user, fresh){
+  const meta = _metaFromUser(user);
+  if(!['admin','subadmin','doctor','clinic'].includes(meta.role)){
+    await _authRelease();
+    if(fresh) toast(t('invalid_login'),'error');
+    return false;
+  }
+  _authMeta = meta;
+  if(fresh){
+    try{ await loadDB(); }catch(e){ console.warn('[applyAuthSession] loadDB', e); }
+  }
+  const sameId = (a, b) => String(a||'').toLowerCase() === String(b||'').toLowerCase();
+
+  const resetCommon = () => {
+    state.recetteUnlocked = false;
+    state.clinicRecetteUnlocked = false;
+    state.msgTab = 'inbox'; state.msgOpenId = null;
+    state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
+    state.msgSelected = [];
+    state.selectedAppts = [];
+  };
+
+  if(meta.role === 'admin'){
+    state.admin = {username: meta.email};
+    state.adminProfile = null;
+    state.doctor = null;
+    state.clinic = null;
+    state.role = 'admin';
+    state.view = 'adash';
+    resetCommon();
+    hideSubscriptionExpiredModal();
+    _sessionProof = generateSessionProof('admin', 'admin');
+    render();
+    if(fresh) toast(t('account_admin_welcome') + ' ✓','success');
+    return true;
   }
 
-  /* 2. Clinique */
-  let clinicFound = null;
-  for(const c of DB.clinics){
-    const okIdent = (String(c.email).toLowerCase() === identLower || String(c.name).toLowerCase() === identLower);
-    if(okIdent && await verifyPassword(pwd, c.password)){ clinicFound = c; break; }
+  if(meta.role === 'subadmin'){
+    const prof = (DB.adminProfiles || []).find(p => String(p.id) === String(meta.entityId));
+    if(!prof){
+      await _authRelease();
+      if(fresh) toast('Profil administrateur introuvable','error');
+      return false;
+    }
+    state.admin = {username: prof.username || meta.email};
+    state.adminProfile = prof;
+    state.doctor = null;
+    state.clinic = null;
+    state.role = 'admin';
+    const allowed = getAdminProfileAllowedViews(prof);
+    state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
+    resetCommon();
+    hideSubscriptionExpiredModal();
+    _sessionProof = generateSessionProof('admin', prof.id);
+    render();
+    if(fresh) toast('👋 Bienvenue ' + (prof.name || 'Admin'), 'success');
+    return true;
   }
-  if(clinicFound){
-    if(!/^[0-9a-f]{64}$/i.test(clinicFound.password)){
-      clinicFound.password = await hashPassword(pwd);
-      saveDB();
+
+  if(meta.role === 'clinic'){
+    const clinicFound = (DB.clinics || []).find(c => sameId(c.id, meta.entityId));
+    if(!clinicFound){
+      await _authRelease();
+      if(fresh) toast(t('invalid_login'),'error');
+      return false;
     }
     if(clinicFound.locked){
-      showClinicLockedModal();
-      return;
+      await _authRelease();
+      if(fresh) showClinicLockedModal();
+      return false;
     }
     state.clinic = clinicFound;
     state.doctor = null;
     state.admin = null;
     state.role = 'clinic';
     state.view = 'cdash';
-    state.recetteUnlocked = false;
-    state.clinicRecetteUnlocked = false;
-    state.msgTab = 'inbox'; state.msgOpenId = null;
-    state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-    state.msgSelected = [];
-    state.selectedAppts = [];
+    resetCommon();
     state.clinicData.tab = 'dashboard';
     if(isClinicSubscriptionType(clinicFound) && !isClinicSubscriptionActive(clinicFound)){
       render();
       showClinicSubscriptionExpiredModal();
-      return;
+      return true;
     }
-       hideSubscriptionExpiredModal();
-    _sessionProof = generateSessionProof('clinic', clinicFound.id); // 🛡️ Étape 3
-    resetLoginAttempts(identLower); // 🛡️ Étape 4
-    saveLocalSession('clinic', clinicFound.id);
-    
+    hideSubscriptionExpiredModal();
+    _sessionProof = generateSessionProof('clinic', clinicFound.id);
     state.emergencyAlertId = null;
     render();
     setTimeout(checkClinicEmergencies, 300);
-    toast(t('account_clinic_welcome') + ' ✓','success');
-    return;
+    if(fresh) toast(t('account_clinic_welcome') + ' ✓','success');
+    return true;
   }
 
-  /* 3. Médecin — RECHERCHE LOCALE D'ABORD, puis RPC en fallback */
-  let doc = null;
-
-  /* 3.a — Recherche locale dans DB.doctors */
-  try {
-    const candidates = (DB.doctors || []).filter(x =>
-      String(x.email||'').toLowerCase() === identLower ||
-      String(x.name||'').toLowerCase() === identLower
-    );
-    for(const candidate of candidates){
-      const storedPwd = candidate.password || '';
-      const storedIsHash = /^[0-9a-f]{64}$/i.test(storedPwd);
-      let matched = false;
-      if(storedIsHash){
-        matched = await verifyPassword(pwd, storedPwd);
-      } else if(!storedPwd){
-        matched = (String(pwd) === String(DEFAULT_PWD));
-      } else {
-        matched = (String(pwd) === String(storedPwd));
-      }
-      if(matched){ doc = candidate; break; }
-    }
-  } catch(e){ console.warn('[login local]', e); }
-
-  /* 3.b — Fallback RPC Supabase */
+  /* Médecin */
+  const doc = (DB.doctors || []).find(d => sameId(d.id, meta.entityId));
   if(!doc){
-    try {
-      const { data } = await sb.rpc('login_doctor', { ident: identLower, pwd: pwd });
-      if(data && data.length > 0) {
-        const row = data[0];
-        doc = {
-          id: row.id, name: row.name, specialty: row.specialty, wilaya: row.wilaya,
-          commune: row.commune||'', address: row.address||'', phone: row.phone||'',
-          email: row.email||'', fee: Number(row.fee)||0, duration: row.duration||30,
-          password: row.password, recettePassword: row.recette_password,
-          passwordPlain: row.password_plain, recettePasswordPlain: row.recette_password_plain,
-          bio: row.bio||'', photo: row.photo, workDays: row.work_days||[],
-          workStart: row.work_start, workEnd: row.work_end, disabledSlots: row.disabled_slots||[],
-          billingType: row.billing_type, commissionAmount: row.commission_amount,
-          subStart: row.sub_start, subTrialEnd: row.sub_trial_end,
-          sessionClosed: row.session_closed, locked: row.locked,
-          ownedByClinic: row.owned_by_clinic, isClinicLocal: row.is_clinic_local
-        };
-      }
-    } catch(e) { console.error('Login RPC error', e); }
+    await _authRelease();
+    if(fresh) toast(t('invalid_login'),'error');
+    return false;
   }
-
-  if(doc){
-    if(!/^[0-9a-f]{64}$/i.test(doc.password || '')){
-      doc.password = await hashPassword(pwd);
-      saveDB();
-    }
-    if(doc.locked){
-      showDoctorLockedModal();
-      return;
-    }
-    state.doctor = doc;
-    state.admin = null;
-    state.clinic = null;
-    _prevDoctorApptsSnap = new Set(
-      DB.appointments
-        .filter(a => String(a.doctorId) === String(doc.id) && a.status === 'pending' && !a.internal)
-        .map(a => a.id)
-    );
-    state.role = 'doctor';
-    state.view = 'ddash';
-    state.recetteUnlocked = false;
-    state.clinicRecetteUnlocked = false;
-    state.msgTab = 'inbox'; state.msgOpenId = null;
-    state.composeData = {to:'', subject:'', body:'', files:[], toSearch:''};
-    state.msgSelected = [];
-    state.selectedAppts = [];
-    if(!state.internalForm.date && isWorkDay(doc, todayISO())){
-      state.internalForm.date = todayISO();
-    }
-    if(isSubscriptionType(doc) && !isSubscriptionActive(doc)){
-      render();
-      showSubscriptionExpiredModal();
-      return;
-    }
-        hideSubscriptionExpiredModal();
-    _sessionProof = generateSessionProof('doctor', doc.id); // 🛡️ Étape 3
-    resetLoginAttempts(identLower); // 🛡️ Étape 4
-    saveLocalSession('doctor', doc.id);
-    
+  if(doc.locked){
+    await _authRelease();
+    if(fresh) showDoctorLockedModal();
+    return false;
+  }
+  state.doctor = doc;
+  state.admin = null;
+  state.clinic = null;
+  _prevDoctorApptsSnap = new Set(
+    DB.appointments
+      .filter(a => String(a.doctorId) === String(doc.id) && a.status === 'pending' && !a.internal)
+      .map(a => a.id)
+  );
+  state.role = 'doctor';
+  state.view = 'ddash';
+  resetCommon();
+  if(!state.internalForm.date && isWorkDay(doc, todayISO())){
+    state.internalForm.date = todayISO();
+  }
+  if(isSubscriptionType(doc) && !isSubscriptionActive(doc)){
     render();
-    toast(t('account_doctor_welcome') + ' ✓','success');
-    return;
+    showSubscriptionExpiredModal();
+    return true;
   }
-  // 🛡️ Si on arrive ici, le login a échoué
-  recordFailedLogin(identLower);
-  toast(t('invalid_login'),'error');
+  hideSubscriptionExpiredModal();
+  _sessionProof = generateSessionProof('doctor', doc.id);
+  render();
+  if(fresh) toast(t('account_doctor_welcome') + ' ✓','success');
+  return true;
 }
 function logoutAccount(){
+  _authMeta = null;
+  try{ sb.auth.signOut({ scope:'local' }); }catch(e){}
   clearLocalSession();
   _sessionProof = null;         // 🛡️ Détruire la preuve de session
   _sessionProofRole = null;     // 🆕 Réinitialiser aussi le rôle en clair
@@ -11793,13 +11915,13 @@ function openDoctorProfile(id){
         <div class="ic-item">
           <div class="ic-lbl">🔒 Mot de passe Session</div>
           <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;font-weight:700;color:${d.passwordPlain ? '#059669' : 'var(--text-muted)'}">
-            ${d.passwordPlain ? esc(d.passwordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Hashé — cliquez sur Réinitialiser pour afficher</em>'}
+            ${d.passwordPlain ? esc(d.passwordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Non affiché (sécurité) — utilisez Réinitialiser</em>'}
           </div>
         </div>
         <div class="ic-item">
           <div class="ic-lbl">🔒 Mot de passe Finance (Recette)</div>
           <div class="ic-val" style="font-family:var(--font-numbers);font-size:14px;font-weight:700;color:${d.recettePasswordPlain ? '#059669' : 'var(--text-muted)'}">
-            ${d.recettePasswordPlain ? esc(d.recettePasswordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Hashé — cliquez sur Réinitialiser pour afficher</em>'}
+            ${d.recettePasswordPlain ? esc(d.recettePasswordPlain) : '<em style="color:var(--text-muted);font-weight:500;font-size:11.5px">Non affiché (sécurité) — utilisez Réinitialiser</em>'}
           </div>
         </div>
       </div>
@@ -11935,18 +12057,18 @@ function openAdminResetDoctorPwdModal(doctorId, type){
   if(!d){ toast('Médecin introuvable','error'); return; }
   const isSession = type === 'session';
   openModal(
-    isSession ? '🔑 Réinitialiser — Mot de passe Session' : '🔑 Réinitialiser — Mot de passe Finance',
+    isSession ? '🔑 Réinitialiser — Mot de passe de connexion' : '🔑 Réinitialiser — Mot de passe Finance',
     `${d.name} — Identifiant : ${d.email || '(non défini)'}`,
     `<div class="field">
        <label>Nouveau mot de passe *</label>
-       <input class="input" id="resetDocPwd" type="text" placeholder="Ex : 0000" autocomplete="new-password">
+       <input class="input" id="resetDocPwd" type="text" placeholder="${isSession ? '8 caractères minimum' : 'Nouveau mot de passe'}" autocomplete="new-password">
      </div>
      <div class="field">
        <label>Confirmer le nouveau mot de passe *</label>
        <input class="input" id="resetDocPwdConfirm" type="text" placeholder="Répéter" autocomplete="new-password">
      </div>
      <div class="letter-amount" style="font-style:normal;margin-top:12px;font-size:11.5px;color:var(--accent-primary);border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)">
-       💡 Le mot de passe sera stocké en clair (visible par l'admin) + hashé pour la connexion sécurisée.
+       💡 Le mot de passe n'est jamais conservé en clair : communiquez-le au médecin, il pourra le changer lui-même.
      </div>`,
     `<button class="pill-btn" onclick="closeModal()">Annuler</button>
      <button class="pill-btn primary" onclick="saveAdminResetDoctorPwd('${jsStr(String(doctorId))}', '${type}')">💾 Enregistrer</button>`
@@ -11962,51 +12084,28 @@ async function saveAdminResetDoctorPwd(doctorId, type){
 
   const d = DB.doctors.find(x => String(x.id) === String(doctorId));
   if(!d){ toast('Médecin introuvable','error'); return; }
-
-  const hashed = await hashPassword(nw);
   const isSession = type === 'session';
 
-  /* 1️⃣ Push Supabase d'abord */
-  try {
-    const updateField = isSession
-      ? { password: hashed, password_plain: nw }
-      : { recette_password: hashed, recette_password_plain: nw };
-    const { error } = await sb.from('doctors').update(updateField).eq('id', doctorId);
-    if(error){
-      /* Si password_plain absent, fallback sans ce champ */
-      const _msg = String(error.message || '').toLowerCase();
-      if(_msg.includes('password_plain')){
-        const updateField2 = isSession ? { password: hashed } : { recette_password: hashed };
-        const { error: e2 } = await sb.from('doctors').update(updateField2).eq('id', doctorId);
-        if(e2) throw e2;
-        toast('⚠️ Colonne password_plain absente — exécutez le SQL fourni', 'error');
-      } else {
-        throw error;
-      }
-    }
-  } catch(e) {
-    console.error('[saveAdminResetDoctorPwd]', e);
-    toast('❌ Échec Supabase : ' + (e.message || 'erreur'), 'error');
-    return;
-  }
-
-  /* 2️⃣ Mise à jour locale */
   if(isSession){
-    d.password = hashed;
-    d.passwordPlain = nw;
-    if(state.doctor && String(state.doctor.id) === String(doctorId)){
-      state.doctor.password = hashed;
-      state.doctor.passwordPlain = nw;
-    }
+    const pErr = validatePasswordStrength(nw);
+    if(pErr){ toast(pErr,'error'); return; }
+    if(!d.email){ toast('E-mail du médecin manquant','error'); return; }
+    const r = await syncAuthAccount({ role:'doctor', oldEmail: d.email, email: d.email, entityId: String(d.id), password: nw });
+    if(!r.ok){ toast('❌ Échec : ' + r.error, 'error'); return; }
   } else {
-    d.recettePassword = hashed;
-    d.recettePasswordPlain = nw;
-    if(state.doctor && String(state.doctor.id) === String(doctorId)){
-      state.doctor.recettePassword = hashed;
-      state.doctor.recettePasswordPlain = nw;
+    const hashed = await hashPassword(nw);
+    try {
+      const { error } = await sb.from('doctors').update({ recette_password: hashed }).eq('id', doctorId);
+      if(error) throw error;
+    } catch(e) {
+      console.error('[saveAdminResetDoctorPwd]', e);
+      toast('❌ Échec Supabase : ' + (e.message || 'erreur'), 'error');
+      return;
     }
+    d.recettePassword = hashed;
+    if(state.doctor && String(state.doctor.id) === String(doctorId)) state.doctor.recettePassword = hashed;
+    saveDB();
   }
-  saveDB();
   closeModal();
   toast('✅ Mot de passe mis à jour','success');
   setTimeout(() => {
@@ -16735,7 +16834,7 @@ function openChangeSessionPwdModal(){
     <div class="field">
       <label>Nouveau mot de passe *</label>
       <input class="input" id="newSessionPwd" type="password" placeholder="••••" autocomplete="new-password">
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 4 caractères</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 8 caractères</div>
     </div>
     <div class="field">
       <label>Confirmer le nouveau mot de passe *</label>
@@ -16750,39 +16849,15 @@ function openChangeSessionPwdModal(){
   setTimeout(()=>{ const el=document.getElementById('curSessionPwd'); if(el) el.focus(); }, 40);
 }
 async function saveSessionPwd(){
-  const cur = ($('#curSessionPwd')?.value||'');
-  const nw  = ($('#newSessionPwd')?.value||'');
-  const cf  = ($('#confirmSessionPwd')?.value||'');
+  const cur = ($('#curSessionPwd')?.value||'').trim();
+  const nw  = ($('#newSessionPwd')?.value||'').trim();
+  const cf  = ($('#confirmSessionPwd')?.value||'').trim();
   if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
   const pwdError = validatePasswordStrength(nw);
   if(pwdError){ toast(pwdError, 'error'); return; }
   if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
-  const doc = state.doctor;
-  if(!doc || !doc.password){ toast('Veuillez vous reconnecter pour des raisons de sécurité', 'error'); logoutAccount(); return; }
-  const stored = doc.password || DEFAULT_PWD;
-  const ok = await verifyPassword(cur, stored);
-  if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
-  const hashed = await hashPassword(nw);
-
-  // ═══ PUSH SUPABASE D'ABORD ═══
-  try {
-    const { error } = await sb.from('doctors').update({
-      password: hashed,
-      password_plain: nw
-    }).eq('id', doc.id);
-    if(error) throw error;
-  } catch(e) {
-    console.error('[saveSessionPwd] Supabase error:', e);
-    toast('❌ Échec sauvegarde : ' + (e.message || 'erreur inconnue'), 'error');
-    return;
-  }
-
-  // ═══ MISE À JOUR LOCALE ═══
-  doc.password = hashed;
-  doc.passwordPlain = nw;
-  state.doctor.password = hashed;
-  state.doctor.passwordPlain = nw;
-  saveDB();
+  const r = await _authChangeOwnPassword(cur, nw);
+  if(!r.ok){ toast('❌ ' + r.error, 'error'); return; }
   closeModal();
   render();
   toast(t('password_updated'),'success');
@@ -18722,42 +18797,26 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   const commune = ($('#fCommune')?.value||'').trim();
   const address = ($('#fAddr')?.value||'').trim();
   const phone = ($('#fPhone')?.value||'').trim();
-  const email = ($('#fEmail')?.value||'').trim();
+  let email = ($('#fEmail')?.value||'').trim();
   const duration = parseInt($('#fDur')?.value,10)||30;
-  let pwd, recettePwd;
-  let pwdPlain, recettePwdPlain;
-  const pwdRaw = ($('#fPwd')?.value||'').trim();
+  let recettePwd;
+  let pwdRaw = ($('#fPwd')?.value||'').trim();
   const recettePwdRaw = ($('#fRecettePwd')?.value||'').trim();
   
   const existingDoc = id ? DB.doctors.find(x=>String(x.id)===String(id)) : null;
-  
-    if(pwdRaw){
-    if(!/^[0-9a-f]{64}$/i.test(pwdRaw)) {
-      const pwdError = validatePasswordStrength(pwdRaw);
-      if(pwdError){ toast(pwdError, 'error'); return; }
-    }
-    pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-    pwdPlain = /^[0-9a-f]{64}$/i.test(pwdRaw) ? null : pwdRaw;
-  } else {
-    if(existingDoc && existingDoc.password && /^[0-9a-f]{64}$/i.test(existingDoc.password)){
-      pwd = existingDoc.password;
-      pwdPlain = existingDoc.passwordPlain || null;
-    } else {
-      pwd = await hashPassword(DEFAULT_PWD);
-      pwdPlain = DEFAULT_PWD;
-    }
+  /* L'auto-édition ne modifie ni l'e-mail de connexion ni le mot de passe de connexion */
+  if(isSelf){
+    pwdRaw = '';
+    if(existingDoc && existingDoc.email) email = existingDoc.email;
   }
   
   if(recettePwdRaw){
     recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
-    recettePwdPlain = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? null : recettePwdRaw;
   } else {
     if(existingDoc && existingDoc.recettePassword && /^[0-9a-f]{64}$/i.test(existingDoc.recettePassword)){
       recettePwd = existingDoc.recettePassword;
-      recettePwdPlain = existingDoc.recettePasswordPlain || null;
     } else {
       recettePwd = await hashPassword(DEFAULT_PWD);
-      recettePwdPlain = DEFAULT_PWD;
     }
   }
   const bio = ($('#fBio')?.value||'').trim();
@@ -18779,7 +18838,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   if(commune && !DB.communes[wilaya].includes(commune)) DB.communes[wilaya].push(commune);
 
   const photo = window._doctorPhoto || null;
-  const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, workDays, workStart, workEnd, disabledSlots, password: pwd, passwordPlain: pwdPlain, photo};
+  const commonFields = {name, specialty, wilaya, commune, address, phone, email, bio, workDays, workStart, workEnd, disabledSlots, photo};
 
   if(isSelf){
   if(id){
@@ -18829,6 +18888,16 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
   else if(billingType === 'sub_trial') billingFields = {billingType:'sub_trial', commissionAmount:null, subStart:trialStart, subTrialEnd:trialEnd};
   else billingFields = {billingType:'none', commissionAmount:null, subStart:null, subTrialEnd:null};
 
+  /* 🔐 Compte de connexion (Supabase Auth, via la fonction serveur) */
+  {
+    if(!id && DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
+    if(id && existingDoc && String(existingDoc.id)!==email && DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
+    if(!id && !pwdRaw){ toast('Mot de passe requis pour un nouveau médecin','error'); return; }
+    if(pwdRaw){ const pErr = validatePasswordStrength(pwdRaw); if(pErr){ toast(pErr,'error'); return; } }
+    const _ar = await syncAuthAccount({ role:'doctor', oldEmail: existingDoc ? existingDoc.email : '', email, entityId: email, password: pwdRaw });
+    if(!_ar.ok){ toast('❌ Compte de connexion : ' + _ar.error, 'error'); return; }
+  }
+
   if(id){
     const d = DB.doctors.find(x=>String(x.id)===String(id)); if(!d) return;
     const oldId = d.id;
@@ -18836,7 +18905,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     if(oldId !== newId && DB.doctors.some(x=>String(x.id)===newId && String(x.id)!==String(oldId))){
       toast('Un médecin avec cet email existe déjà','error'); return;
     }
-    Object.assign(d, commonFields, {duration, recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain,
+    Object.assign(d, commonFields, {duration, recettePassword: recettePwd,
       id: newId}, billingFields);
     ensureDoctorConsultationService(newId);
     if(oldId !== newId){
@@ -18869,8 +18938,7 @@ async function saveDoctor(id, isSelf, ownedByClinicId){
     if(DB.doctors.some(x=>String(x.id)===email)){ toast('Un médecin avec cet email existe déjà','error'); return; }
     const newDoc = {
       id: email, name, specialty, wilaya, commune, address, phone, email, fee: 0, duration,
-      password: pwd, passwordPlain: pwdPlain,
-      recettePassword: recettePwd, recettePasswordPlain: recettePwdPlain,
+      recettePassword: recettePwd,
       bio, workDays, workStart, workEnd,
       disabledSlots, createdAt: todayISO(), sessionClosed:false, locked:false,
       ownedByClinic: isClinicLocal ? String(ownedByClinicId) : null,
@@ -18941,6 +19009,9 @@ function toggleDoctorLock(id){
 function deleteDoctor(id){
   if(!_adminWriteGuard('adoctors')) return;
   const d = docById(id); if(!d) return;
+  if(d.email && _EMAIL_RE.test(String(d.email))){
+    authAdminCall('delete_user', { email: d.email }).then(r => { if(!r.ok) console.warn('[delete_user]', r.error); });
+  }
   _pendingDeletes.doctors.push(id);
 // ✅ Cascade : propager TOUTES les suppressions à Supabase
 DB.appointments.filter(a=>String(a.doctorId)===String(id)).forEach(a => _pendingDeletes.appointments.push(a.id));
@@ -19313,20 +19384,11 @@ async function saveClinic(id){
   }
 
   const existing = id ? DB.clinics.find(x=>String(x.id)===String(id)) : null;
-  let pwd, recettePwd;
-  if(pwdRaw){
-    if(!/^[0-9a-f]{64}$/i.test(pwdRaw)) {
-      const pwdError = validatePasswordStrength(pwdRaw);
-      if(pwdError){ toast(pwdError, 'error'); return; }
-    }
-    pwd = /^[0-9a-f]{64}$/i.test(pwdRaw) ? pwdRaw : await hashPassword(pwdRaw);
-  } else {
-    pwd = existing ? existing.password : DEFAULT_PWD;
-  }
+  let recettePwd;
   if(recettePwdRaw){
     recettePwd = /^[0-9a-f]{64}$/i.test(recettePwdRaw) ? recettePwdRaw : await hashPassword(recettePwdRaw);
   } else {
-    recettePwd = existing ? existing.recettePassword : DEFAULT_PWD;
+    recettePwd = (existing && existing.recettePassword) ? existing.recettePassword : await hashPassword(DEFAULT_PWD);
   }
 
   const bTypeEl = document.getElementById('cfBillingType');
@@ -19359,7 +19421,17 @@ async function saveClinic(id){
   else if(billingType === 'sub_trial') billingFields = {billingType:'sub_trial', commissionAmount:null, subStart:trialStart, subTrialEnd:trialEnd};
   else billingFields = {billingType:'none', commissionAmount:null, subStart:null, subTrialEnd:null};
 
-  const commonFields = {name, avatar, photo, wilaya, commune, address, phone, email, headerText, footerText, workDays, workStart, workEnd, open24_7, password: pwd, recettePassword: recettePwd};
+  const commonFields = {name, avatar, photo, wilaya, commune, address, phone, email, headerText, footerText, workDays, workStart, workEnd, open24_7, recettePassword: recettePwd};
+
+  /* 🔐 Compte de connexion (Supabase Auth, via la fonction serveur) */
+  {
+    if(!existing && DB.clinics.some(x=>String(x.id)===email)){ toast('Une clinique avec cet email existe déjà','error'); return; }
+    if(existing && String(existing.id)!==email && DB.clinics.some(x=>String(x.id)===email)){ toast('Une clinique avec cet email existe déjà','error'); return; }
+    if(!existing && !pwdRaw){ toast('Mot de passe requis pour une nouvelle clinique','error'); return; }
+    if(pwdRaw){ const pErr = validatePasswordStrength(pwdRaw); if(pErr){ toast(pErr,'error'); return; } }
+    const _ar = await syncAuthAccount({ role:'clinic', oldEmail: existing ? existing.email : '', email, entityId: email, password: pwdRaw });
+    if(!_ar.ok){ toast('❌ Compte de connexion : ' + _ar.error, 'error'); return; }
+  }
 
   if(id){
     const dbc = DB.clinics.find(x=>String(x.id)===String(id));
@@ -19439,6 +19511,9 @@ function deleteClinic(id){
   if(!_adminWriteGuard('aclinics')) return;
   const c = clinicById(id);
   if(!c) return;
+  if(c.email && _EMAIL_RE.test(String(c.email))){
+    authAdminCall('delete_user', { email: c.email }).then(r => { if(!r.ok) console.warn('[delete_user]', r.error); });
+  }
   _pendingDeletes.clinics.push(id);
   clinicServicesFor(id).forEach(s => _pendingDeletes.clinicServices.push(s.id));
   clinicPrestationsFor(id).forEach(p => _pendingDeletes.clinicPrestations.push(p.id));
@@ -22128,7 +22203,7 @@ function openChangeAdminPwdModal(){
     <div class="field">
       <label>Nouveau mot de passe *</label>
       <input class="input" id="newAdminPwd" type="password" placeholder="••••" autocomplete="new-password">
-      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 4 caractères</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Minimum 8 caractères</div>
     </div>
     <div class="field">
       <label>Confirmer *</label>
@@ -22141,39 +22216,18 @@ function openChangeAdminPwdModal(){
 }
 async function saveAdminMainPwd(){
   if(state.adminProfile){ toast('Action réservée à l\'admin principal','error'); return; }
-  const cur = ($('#curAdminPwd')?.value||'');
-  const nw  = ($('#newAdminPwd')?.value||'');
-  const cf  = ($('#confirmAdminPwd')?.value||'');
+  const cur = ($('#curAdminPwd')?.value||'').trim();
+  const nw  = ($('#newAdminPwd')?.value||'').trim();
+  const cf  = ($('#confirmAdminPwd')?.value||'').trim();
   if(!cur || !nw || !cf){ toast(t('required_fields'),'error'); return; }
   const pwdError = validatePasswordStrength(nw);
   if(pwdError){ toast(pwdError, 'error'); return; }
   if(nw !== cf){ toast('Les mots de passe ne correspondent pas','error'); return; }
-  const ok = await verifyPassword(cur, DB.admin.password);
-  if(!ok){ toast('Mot de passe actuel incorrect','error'); return; }
-
-  const newHash = await hashPassword(nw);
-
-  // ═══ 1. PUSH SUPABASE D'ABORD (confirmation immédiate) ═══
-  try {
-    const { error } = await sb.from('settings').upsert({
-      id: 1,
-      admin_username: DB.admin.username,
-      admin_password: newHash,
-      updated_at: new Date().toISOString()
-    });
-    if(error) throw error;
-  } catch(e) {
-    console.error('[saveAdminMainPwd] Supabase error:', e);
-    toast('❌ Échec sauvegarde Supabase : ' + (e.message || 'erreur inconnue'), 'error');
-    return;   // ← On NE met PAS à jour le local si Supabase échoue
-  }
-
-  // ═══ 2. METTRE À JOUR LE LOCAL (uniquement si Supabase OK) ═══
-  DB.admin.password = newHash;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch(e){}
+  const r = await _authChangeOwnPassword(cur, nw);
+  if(!r.ok){ toast('❌ ' + r.error, 'error'); return; }
   closeModal();
   render();
-  toast('✓ Mot de passe admin mis à jour et enregistré dans Supabase', 'success');
+  toast('✓ Mot de passe admin mis à jour', 'success');
 }
 
 function openAdminProfileForm(profileId){
@@ -22213,9 +22267,9 @@ function openAdminProfileForm(profileId){
     `<div class="field-row">
       <div class="field"><label>Nom du profil *</label>
         <input class="input" id="apName" value="${esc(prof.name||'')}" placeholder="Ex : Secrétaire médical"></div>
-      <div class="field"><label>Identifiant *</label>
-        <input class="input" id="apUsername" value="${esc(prof.username||DB.admin.username)}" placeholder="${esc(DB.admin.username)}" oninput="state._profileUsernameTouched=true">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Identique à l'admin ou personnalisé</div>
+      <div class="field"><label>E-mail (identifiant de connexion) *</label>
+        <input class="input" id="apUsername" type="email" value="${esc(isEdit ? (prof.username||'') : '')}" placeholder="prenom@exemple.com" oninput="state._profileUsernameTouched=true">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 Sert à se connecter</div>
       </div>
     </div>
     <div class="field">
@@ -22258,43 +22312,44 @@ function bulkSetProfilePerm(value){
 async function saveAdminProfile(profileId){
   if(!_adminProfileGuard()) return;
   const name = ($('#apName')?.value||'').trim();
-  const username = ($('#apUsername')?.value||DB.admin.username).trim();
+  const username = ($('#apUsername')?.value||'').trim().toLowerCase();
   const password = ($('#apPassword')?.value||'').trim();
   if(!name){ toast('Nom du profil requis','error'); return; }
-  if(!username){ toast('Identifiant requis','error'); return; }
+  if(!_EMAIL_RE.test(username)){ toast('E-mail valide requis (sert d\'identifiant)','error'); return; }
   const isEdit = profileId !== 'new';
   if(!isEdit && !password){ toast('Mot de passe requis pour un nouveau profil','error'); return; }
-  if(password && password.length < 4){ toast('4 caractères minimum','error'); return; }
+  if(password){ const pErr = validatePasswordStrength(password); if(pErr){ toast(pErr,'error'); return; } }
   const perms = window._profilePerms || {};
   if(!Object.values(perms).some(v => v !== 'none')){
     toast('Sélectionnez au moins une vue','error'); return;
   }
-  let hashedPassword = null;
-  if(password) hashedPassword = await hashPassword(password);
   if(!DB.adminProfiles) DB.adminProfiles = [];
+  const prof = isEdit ? DB.adminProfiles.find(p => String(p.id) === String(profileId)) : null;
+  if(isEdit && !prof){ toast('Profil introuvable','error'); return; }
+  if(DB.adminProfiles.some(p => String(p.username||'').toLowerCase() === username && (!prof || String(p.id) !== String(prof.id)))){
+    toast('Cet e-mail est déjà utilisé par un autre profil','error'); return;
+  }
+  const entityId = isEdit ? String(prof.id) : ('ADM-' + Math.random().toString(36).slice(2,8).toUpperCase());
+  const r = await syncAuthAccount({ role:'subadmin', oldEmail: isEdit ? (prof.username||'') : '', email: username, entityId, password });
+  if(!r.ok){ toast('❌ Compte de connexion : ' + r.error, 'error'); return; }
   if(isEdit){
-    const prof = DB.adminProfiles.find(p => String(p.id) === String(profileId));
-    if(!prof){ toast('Profil introuvable','error'); return; }
     prof.name = name;
     prof.username = username;
-    if(hashedPassword){ prof.password = hashedPassword; }
-    delete prof.passwordPlain;              // ← SÉCURITÉ : nettoyage défensif
+    delete prof.password;
+    delete prof.passwordPlain;
     prof.permissions = { ...perms };
     if(state.adminProfile && String(state.adminProfile.id) === String(profileId)){
       state.adminProfile = prof;
     }
     toast('✓ Profil modifié','success');
-  } 
-  else {
-  const id = 'ADM-' + Math.random().toString(36).slice(2,8).toUpperCase();
-  DB.adminProfiles.push({
-    id, name, username,
-    password: hashedPassword || DEFAULT_PWD,
-    permissions: { ...perms },
-    createdAt: nowISO()
-  });
-  toast('✓ Profil créé','success');
-}
+  } else {
+    DB.adminProfiles.push({
+      id: entityId, name, username,
+      permissions: { ...perms },
+      createdAt: nowISO()
+    });
+    toast('✓ Profil créé','success');
+  }
   saveDB({critical:true});
   window._profilePerms = null;
   closeModal();
@@ -22311,6 +22366,10 @@ function confirmDeleteAdminProfile(id){
 }
 function deleteAdminProfile(id){
   if(!_adminProfileGuard()) return;
+  const _delProf = (DB.adminProfiles || []).find(p => String(p.id) === String(id));
+  if(_delProf && _EMAIL_RE.test(String(_delProf.username||''))){
+    authAdminCall('delete_user', { email: _delProf.username }).then(r => { if(!r.ok) console.warn('[delete_user]', r.error); });
+  }
   DB.adminProfiles = (DB.adminProfiles || []).filter(p => String(p.id) !== String(id));
   saveDB({critical:true});
   closeModal();
@@ -29723,58 +29782,10 @@ async function init(){
   // =========================================================
   // ÉTAPE 4 : RESTAURATION AUTOMATIQUE DE SESSION
   // =========================================================
-  const savedSessionStr = localStorage.getItem('omnimed_saved_session') || sessionStorage.getItem('omnimed_saved_session');
-  if (savedSessionStr) {
-    try {
-      const sess = JSON.parse(savedSessionStr);
-      const isLocal = !!localStorage.getItem('omnimed_saved_session');
-      const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 jours
-      
-      if (!isLocal || (Date.now() - sess.date < maxAge)) {
-        // ⚠️ Le mot de passe n'est plus lu depuis le localStorage (Sécurité)
-        if (sess.role === 'admin') {
-           if (sess.id === DB.admin.username) {
-             state.admin = {username: DB.admin.username};
-             state.adminProfile = null;
-             state.role = 'admin';
-             state.view = 'adash';
-             _sessionProof = generateSessionProof('admin', 'admin'); // 🆕 SÉCURITÉ
-           } else if (String(sess.id).startsWith('admin_profile_')) {
-             const profId = String(sess.id).replace('admin_profile_', '');
-             const prof = (DB.adminProfiles || []).find(p => String(p.id) === String(profId));
-             if (prof) {
-               state.admin = {username: prof.username || DB.admin.username};
-               state.adminProfile = prof;
-               state.role = 'admin';
-               const allowed = getAdminProfileAllowedViews(prof);
-               state.view = allowed.includes('adash') ? 'adash' : (allowed[0] || 'adash');
-               _sessionProof = generateSessionProof('admin', prof.id); // 🆕 SÉCURITÉ
-             }
-           }
-        } 
-        else if (sess.role === 'clinic') {
-           const clinic = DB.clinics.find(c => String(c.id) === String(sess.id));
-           if (clinic && !clinic.locked) {
-             state.clinic = clinic;
-             state.role = 'clinic';
-             state.view = 'cdash';
-             _sessionProof = generateSessionProof('clinic', clinic.id); // 🆕 SÉCURITÉ
-           }
-        } 
-        else if (sess.role === 'doctor') {
-           const doc = DB.doctors.find(d => String(d.id) === String(sess.id));
-           if (doc && !doc.locked) {
-             state.doctor = doc;
-             state.role = 'doctor';
-             state.view = 'ddash';
-             _sessionProof = generateSessionProof('doctor', doc.id); // 🆕 SÉCURITÉ
-           }
-        }
-      } else {
-        clearLocalSession(); // Session expirée
-      }
-    } catch(e) { console.warn('Erreur restauration session', e); }
-  }
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(session && session.user){ await applyAuthSession(session.user, false); }
+  }catch(e){ console.warn('Erreur restauration session', e); }
   // =========================================================
 
   applyDir(); render();
