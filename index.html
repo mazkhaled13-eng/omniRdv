@@ -6218,7 +6218,7 @@ async function loadDB(){
         }
         // PATIENT : uniquement SES RDV (via les 9 derniers chiffres du téléphone)
         if(!_last9 || _last9.length < 5) return Promise.resolve({ data: [], error: null });
-        return sb.from('appointments').select('*').ilike('patient_phone', '%' + _last9 + '%').order('date', {ascending: false});
+        return sb.rpc('patient_appointments', { p_phone: _last9 });
       })(),
       sb.from('services').select('*'),
       _isPro ? sb.from('notifications').select('*').order('date',{ascending:false}).limit(50) : Promise.resolve({ data: [], error: null }),
@@ -6238,12 +6238,14 @@ async function loadDB(){
       (() => {
         if(_isPro) return sb.from('emergencies').select('*').order('created_at',{ascending:false});
         if(!_last9 || _last9.length < 5) return Promise.resolve({ data: [], error: null });
-        return sb.from('emergencies').select('*').ilike('patient_phone', '%' + _last9 + '%').order('created_at',{ascending:false});
+        return sb.rpc('patient_emergencies', { p_phone: _last9 });
       })(),
       _isPro ? sb.from('rooms').select('*') : Promise.resolve({ data: [], error: null }),
       _isPro ? sb.from('admissions').select('*').order('created_at',{ascending:false}) : Promise.resolve({ data: [], error: null }),
       _isPro ? sb.from('expenses').select('*').order('date',{ascending:false}) : Promise.resolve({ data: [], error: null }),
-      sb.from('blocks').select('*').order('blocked_at',{ascending:false})
+      _isPro
+        ? sb.from('blocks').select('*').order('blocked_at',{ascending:false})
+        : ((!_last9 || _last9.length < 5) ? Promise.resolve({ data: [], error: null }) : sb.rpc('patient_blocks', { p_phone: _last9 }))
     ]);
 
     const unwrapOne = (r) => {
@@ -6715,11 +6717,18 @@ function _scoped(key, rows){
     default:                 return rows;
   }
 }
+function _handlePatientRpcError(err){
+  const m = String((err && err.message) || '');
+  if(/BLOCKED/.test(m)) toast('🚫 Vous êtes bloqué pour ce praticien : contactez le secrétariat.','error');
+  else if(/RATE_LIMIT/.test(m)) toast('Trop de demandes. Veuillez réessayer dans quelques minutes.','error');
+  else if(/FORBIDDEN/.test(m)) toast('Mot de passe du rendez-vous requis ou incorrect.','error');
+  else console.warn('[patient]', m);
+}
 function _canPushKey(key){
   const c = _pushCtx();
   if(c.isAdm) return true;
   if(c.role === 'doctor' || c.role === 'clinic') return key !== 'adminProfiles';
-  return ['appointments','emergencies','blocks','notifications','visits'].includes(key);   // visiteur (patient)
+  return ['appointments','emergencies','notifications','visits'].includes(key);   // visiteur (patient)
 }
 
 /* Annuaire médecins / cliniques : le public lit des vues SANS mot de passe ;
@@ -7092,7 +7101,23 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           updated_at:new Date().toISOString(),
           deleted_at:a.status==='deleted'?new Date().toISOString():null
         }));
-        await sb.from('appointments').upsert(rows);
+        if(_authMeta){
+          await sb.from('appointments').upsert(rows);
+        } else {
+          /* Visiteur : écriture par fonction contrôlée (validation côté serveur) */
+          let _patientErr = null;
+          for(let i = 0; i < rows.length; i++){
+            const _src = recentAppts[i];
+            const _r = await sb.rpc('patient_save_appointment', {
+              p_row: _src._editIntent ? Object.assign({}, rows[i], { _edit: true }) : rows[i],
+              p_owner_phone: _src._origPhone || _src.patientPhone || state.myPhone || '',
+              p_pwd_hash: _src._pwdProof || ''
+            });
+            if(_r.error){ if(!_patientErr) _patientErr = _r.error; }
+            else if(_src._editIntent){ _src._editIntent = false; }
+          }
+          if(_patientErr) _handlePatientRpcError(_patientErr);
+        }
       }
     }
 
@@ -7100,11 +7125,17 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
     if(syncNotifications){
       const notifs = DB.notifications.slice(0,200);
       if(notifs.length){
-        await sb.from('notifications').upsert(notifs.map(n=>({
+        const _notifRows = notifs.map(n=>({
           id:n.id, role:n.role, title:n.title, message:n.message,
           to_doctor_id: n.toDoctorId!=null?String(n.toDoctorId):null,
           appt_id:n.apptId, date:n.date, read:n.read
-        })), _authMeta ? undefined : { ignoreDuplicates: true });
+        }));
+        if(_authMeta){
+          await sb.from('notifications').upsert(_notifRows);
+        } else {
+          const _nr = await sb.rpc('patient_push_notifications', { p_rows: _notifRows });
+          if(_nr.error) console.warn('[notifications]', _nr.error.message);
+        }
       }
     }
 
@@ -7137,7 +7168,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
 
     // ---- EMERGENCIES (une seule fois — corrige la triple duplication) ----
     if(syncEmergencies && _scoped('emergencies', DB.emergencies).length){
-      await sb.from('emergencies').upsert(_scoped('emergencies', DB.emergencies).map(e=>({
+      const _emgRows = _scoped('emergencies', DB.emergencies).map(e=>({
         id: e.id,
         patient_name: e.patientName,
         patient_phone: e.patientPhone,
@@ -7152,7 +7183,17 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
         created_at: e.createdAt || new Date().toISOString(),
         responded_at: e.respondedAt || null,
         updated_at: new Date().toISOString()
-      })));
+      }));
+      if(_authMeta){
+        await sb.from('emergencies').upsert(_emgRows);
+      } else {
+        let _emgErr = null;
+        for(const _row of _emgRows){
+          const _r = await sb.rpc('patient_save_emergency', { p_row: _row, p_owner_phone: _row.patient_phone || state.myPhone || '' });
+          if(_r.error && !_emgErr) _emgErr = _r.error;
+        }
+        if(_emgErr) _handlePatientRpcError(_emgErr);
+      }
     }
 
     // ---- LISTES (specialties / wilayas / communes) ----
@@ -7353,7 +7394,7 @@ if(state.role === 'doctor' && state.doctor) {
 } else if(state.role === 'clinic' && state.clinic) {
   query = query.eq('clinic_id', state.clinic.id);
 }
-        const { data, error } = await query;
+        const { data, error } = await (_authMeta ? query : (String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9).length >= 5 ? sb.rpc('patient_appointments', { p_phone: String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9) }) : Promise.resolve({ data: [], error: null })));
         if(error) return false;
         // 🆕 Si une action critique (valider/annuler) est survenue pendant le chargement, on jette la réponse
         if(_criticalGuardUntil > _guardAtStart) return true;
@@ -7386,7 +7427,7 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
       case 'emergencies': {
-        const { data, error } = await sb.from('emergencies').select('*').order('created_at',{ascending:false});
+        const { data, error } = await (_authMeta ? sb.from('emergencies').select('*').order('created_at',{ascending:false}) : (String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9).length >= 5 ? sb.rpc('patient_emergencies', { p_phone: String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9) }) : Promise.resolve({ data: [], error: null })));
         if(error) return false;
         // 🆕 Protège une urgence acceptée/refusée contre un écrasement par resync
         if(_criticalGuardUntil > _guardAtStart) return true;
@@ -7505,7 +7546,7 @@ if(state.role === 'doctor' && state.doctor) {
         return true;
       }
       case 'blocks': {
-        const { data, error } = await sb.from('blocks').select('*').order('blocked_at',{ascending:false});
+        const { data, error } = await (_authMeta ? sb.from('blocks').select('*').order('blocked_at',{ascending:false}) : (String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9).length >= 5 ? sb.rpc('patient_blocks', { p_phone: String(state.myPhone || '').replace(/[^0-9]/g,'').slice(-9) }) : Promise.resolve({ data: [], error: null })));
         if(error) return false;
         DB.blocks = (data||[]).filter(b=>!_pendingDeletes.blocks.includes(String(b.id))).map(b=>({
           id: b.id, patientPhone: b.patient_phone, patientName: b.patient_name||'',
@@ -7944,16 +7985,25 @@ function getUserKey(role, id){
   return `${role}_${id}`;
 }
 
+function _rndCode(len){
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  try{
+    const buf = new Uint32Array(len);
+    crypto.getRandomValues(buf);
+    for(let i = 0; i < len; i++) s += A[buf[i] % A.length];
+  }catch(e){
+    for(let i = 0; i < len; i++) s += A[Math.floor(Math.random() * A.length)];
+  }
+  return s;
+}
 function genApptId(){
   let id;
   let tries = 0;
   do {
-    id = 'RDV-' + Math.floor(1000 + Math.random()*9000);
+    id = 'RDV-' + _rndCode(6);
     tries++;
   } while(DB.appointments.some(a => a.id === id) && tries < 50);
-  if(DB.appointments.some(a => a.id === id)){
-    id = 'RDV-' + Date.now().toString().slice(-6);
-  }
   return id;
 }
 
@@ -11648,7 +11698,7 @@ async function confirmClinicBooking(){
   const motif = ($('#cpMotif')?.value||'').trim();
   const patientWilaya = ($('#cpWilaya')?.value||'').trim();
   const patientPassword = ($('#cpPassword')?.value||'').trim();
-  const hashedPatientPwd = patientPassword ? await hashPassword(patientPassword) : '';
+  const hashedPatientPwd = patientPassword === '__set__' ? '__set__' : (patientPassword ? await hashPassword(patientPassword) : '');
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   const c = clinicById(s.clinicId);
   if(!c){ toast(t('clinic_not_found'),'error'); return; }
@@ -12595,7 +12645,7 @@ async function confirmBooking(){
   const motif = ($('#pMotif')?.value||'').trim();
   const patientWilaya = ($('#pWilaya')?.value||'').trim();
   const patientPassword = ($('#pPassword')?.value||'').trim();
-  const hashedPatientPwd = patientPassword ? await hashPassword(patientPassword) : '';
+  const hashedPatientPwd = patientPassword === '__set__' ? '__set__' : (patientPassword ? await hashPassword(patientPassword) : '');
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   const doc = docById(s.doctorId);
   if(!doc){ toast(t('doctor_not_found'),'error'); return; }
@@ -12653,6 +12703,7 @@ async function confirmBooking(){
     a.servicesTotal = servicesTotal;
     a._v2 = true;
     a.status = 'pending';
+    a._editIntent = true;   // intention explicite de modification (contrôlée par le serveur)
     a.updatedAt = nowISO();
     // ✅ Reset du badge "Transféré" (le patient a lui-même modifié son RDV)
     a.transferredFrom = null;
@@ -12915,6 +12966,7 @@ function hidePatientEmergency(id){
 function modifyAppt(id){
   const a = DB.appointments.find(x=>x.id===id);
   if(!a) return;
+  a._origPhone = a.patientPhone;   // identité du propriétaire avant modification (contrôle serveur)
   state.booking = {
     doctorId: a.doctorId,
     date: null, time: null,
@@ -13173,12 +13225,15 @@ async function verifyPatientPwd(apptId, action){
   const v = ($('#patientPwdCheck')?.value||'');
   const a = DB.appointments.find(x=>x.id===apptId);
   if(!a){ closeModal(); return; }
-  const stored = a.patientPassword || '';
-  if(stored && await verifyPassword(v, stored)){
-    if(!/^[0-9a-f]{64}$/i.test(stored)){
-      a.patientPassword = await hashPassword(v);
-      saveDB();
-    }
+  const hash = await hashPassword(v);
+  const r = await sb.rpc('patient_check_password', { p_id: apptId, p_hash: hash, p_phone: a.patientPhone || state.myPhone || '' });
+  if(r.error){
+    if(/RATE_LIMIT/.test(r.error.message || '')) toast('Trop d\'essais. Réessayez dans 15 minutes.','error');
+    else toast(t('wrong_password'),'error');
+    return;
+  }
+  if(r.data === true){
+    a._pwdProof = hash;          // preuve gardée en mémoire seulement (jamais stockée)
     closeModal();
     if(action === 'modify') modifyAppt(apptId);
     else if(action === 'cancel') patientCancel(apptId);
@@ -28593,9 +28648,9 @@ function submitEmergency(){
     return;
   }
   const clinic = clinics[0];
-  let emgId = 'EMG-' + Math.floor(1000 + Math.random()*9000);
+  let emgId = 'EMG-' + _rndCode(6);
   let tries = 0;
-  while(DB.emergencies.some(e => e.id === emgId) && tries < 50){ emgId = 'EMG-' + Math.floor(1000 + Math.random()*9000); tries++; }
+  while(DB.emergencies.some(e => e.id === emgId) && tries < 50){ emgId = 'EMG-' + _rndCode(6); tries++; }
   const now = new Date().toISOString();
   const emergency = {
     id: emgId,
@@ -29619,9 +29674,7 @@ async function pollPatientData(){
   if(myAppts.length){
     const ids = myAppts.map(a => a.id);
     try{
-      const { data, error } = await sb.from('appointments')
-        .select('id,status,date,time,doctor_id,updated_at,reminders')
-        .in('id', ids);
+      const { data, error } = await sb.rpc('patient_appointments', { p_phone: String(state.myPhone).replace(/[^0-9]/g,'').slice(-9) });
       if(!error && data){
         data.forEach(row => {
           const existing = DB.appointments.find(a => a.id === row.id);
@@ -29645,9 +29698,7 @@ async function pollPatientData(){
   if(myEmergs.length){
     const ids = myEmergs.map(e => e.id);
     try{
-      const { data, error } = await sb.from('emergencies')
-        .select('id,status,responded_at,updated_at,assigned_clinic_name,clinic_response')
-        .in('id', ids);
+      const { data, error } = await sb.rpc('patient_emergencies', { p_phone: String(state.myPhone).replace(/[^0-9]/g,'').slice(-9) });
       if(!error && data){
         data.forEach(row => {
           const existing = DB.emergencies.find(e => e.id === row.id);
