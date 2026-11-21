@@ -705,6 +705,14 @@ body.dark .modal{
 .lab-res .body{flex:1;min-width:0}
 .lab-res .nm{font-size:13px;font-weight:700;margin-bottom:6px}
 .lab-res .textarea{min-height:46px}
+/* 🛡️ Consentement & journal d'accès */
+.consent-box{margin-top:12px;padding:12px 14px;border-radius:var(--radius-md);background:var(--glass-bg-3);border:1px solid var(--glass-border)}
+.consent-box label{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:12.5px;line-height:1.55;margin:0}
+.consent-box input[type=checkbox]{margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--accent-primary)}
+.consent-box a{color:var(--accent-primary);font-weight:700;text-decoration:underline}
+.al-table{width:100%;border-collapse:collapse;font-size:12px}
+.al-table th{text-align:start;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);padding:8px 10px;border-bottom:1px solid var(--glass-border);white-space:nowrap}
+.al-table td{padding:9px 10px;border-bottom:1px solid var(--glass-border);vertical-align:top}
 #toasts{position:fixed;top:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:200;
   max-width:calc(100vw - 40px);align-items:center;pointer-events:none}
 .toast{padding:11px 14px;border-radius:var(--radius-md);
@@ -3535,7 +3543,7 @@ function numberToFrenchWords(n){
 }
 
 const T = {
-  fr:{brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',nav_clinic:'Espace Clinique',
+  fr:{pv_blocked_access:'Accès refusé',pv_blocked_title:'Vous avez été bloqué !',pv_blocked_doctor:'Ce patient est bloqué pour le médecin {name}.',pv_blocked_clinic:'Ce patient est bloqué pour la clinique {name}.',pv_blocked_contact:'Veuillez contacter le secrétariat pour régulariser votre situation.',pv_err_rate:'Trop de demandes. Veuillez réessayer dans quelques minutes.',pv_err_forbidden:'Mot de passe du rendez-vous requis ou incorrect.',pv_err_pwd_attempts:'Trop d\'essais. Réessayez dans 15 minutes.',pv_err_consent:'Le consentement est requis pour enregistrer vos données.',consent_label:'J\'ai lu la {link} et je consens expressément au traitement de mes données personnelles, y compris mes données de santé, pour la gestion de ma demande.',consent_link:'notice d\'information',consent_required:'Veuillez accepter la notice d\'information pour continuer.',al_btn:'Journal d\'accès',al_global_btn:'Journal des accès',al_title:'Journal d\'accès au dossier',al_title_global:'Journal des accès aux dossiers médicaux',al_empty:'Aucun accès enregistré.',al_col_when:'Date et heure',al_col_who:'Utilisateur',al_col_action:'Action',al_col_detail:'Détail',al_col_patient:'Patient',al_act_view:'Consultation',al_act_print:'Impression',al_act_send:'Envoi',al_act_create:'Création',al_act_update:'Modification',al_act_delete:'Suppression',al_act_export:'Export',al_src_db:'Base de données',al_src_app:'Application',al_role_admin:'Administrateur',al_role_doctor:'Médecin',al_role_clinic:'Clinique',al_role_system:'Système',al_note:'Ce journal est en lecture seule : il ne peut être ni modifié ni supprimé depuis l\'application. Les consultations sont enregistrées par l\'application ; les créations, modifications et suppressions sont enregistrées directement par la base de données.',al_search_ph:'Rechercher (patient, utilisateur, action)…',al_loading:'Chargement…',al_error:'Impossible de charger le journal.',brand_sub:'Plateforme Médicale',nav_patient:'Espace patient',nav_account:'Compte',nav_doctor:'Médecin',nav_admin:'Administration',nav_clinic:'Espace Clinique',
     home:'Accueil',book:'Prendre RDV',my:'Mes rendez-vous',ddash:'Tableau de bord',dappts:'Rendez-vous',dinternal:'RDV interne',dstats:'Statistiques',dprof:'Mon profil',
     home_greeting:'Bonjour', home_greeting_sub:'Comment allez-vous aujourd\'hui ?',
     find_doctor:'Trouver un médecin', advanced_filters:'Filtres avancés', reset:'Réinitialiser', see_all:'Voir tout', check_services:'Cochez les prestations souhaitées',
@@ -4187,7 +4195,7 @@ const T = {
     emergency_type_obstetrique:'Obstétrique',emergency_type_pediatrique:'Pédiatrique',
     emergency_type_psychiatrique:'Psychiatrique',emergency_type_autre:'Autre'
   },
-  en:{brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',nav_clinic:'Clinic Area',
+  en:{pv_blocked_access:'Access denied',pv_blocked_title:'You have been blocked!',pv_blocked_doctor:'This patient is blocked for doctor {name}.',pv_blocked_clinic:'This patient is blocked for clinic {name}.',pv_blocked_contact:'Please contact the secretariat to resolve your situation.',pv_err_rate:'Too many requests. Please try again in a few minutes.',pv_err_forbidden:'Appointment password required or incorrect.',pv_err_pwd_attempts:'Too many attempts. Try again in 15 minutes.',pv_err_consent:'Consent is required to save your data.',consent_label:'I have read the {link} and I expressly consent to the processing of my personal data, including my health data, to handle my request.',consent_link:'information notice',consent_required:'Please accept the information notice to continue.',al_btn:'Access log',al_global_btn:'Access log',al_title:'Record access log',al_title_global:'Medical records access log',al_empty:'No access recorded.',al_col_when:'Date and time',al_col_who:'User',al_col_action:'Action',al_col_detail:'Details',al_col_patient:'Patient',al_act_view:'Viewed',al_act_print:'Printed',al_act_send:'Sent',al_act_create:'Created',al_act_update:'Modified',al_act_delete:'Deleted',al_act_export:'Exported',al_src_db:'Database',al_src_app:'Application',al_role_admin:'Administrator',al_role_doctor:'Doctor',al_role_clinic:'Clinic',al_role_system:'System',al_note:'This log is read-only: it cannot be edited or deleted from the application. Views are recorded by the application; creations, modifications and deletions are recorded directly by the database.',al_search_ph:'Search (patient, user, action)…',al_loading:'Loading…',al_error:'Unable to load the log.',brand_sub:'Medical Platform',nav_patient:'Patient area',nav_account:'Account',nav_doctor:'Doctor',nav_admin:'Administration',nav_clinic:'Clinic Area',
     home:'Home',book:'Book',my:'My appointments',ddash:'Dashboard',dappts:'Appointments',dinternal:'Internal RDV',dstats:'Statistics',dprof:'My profile',
     home_greeting:'Hello', home_greeting_sub:'How are you today?',
     find_doctor:'Find a doctor', advanced_filters:'Advanced filters', reset:'Reset', see_all:'See all', check_services:'Check the desired services',
@@ -4781,7 +4789,7 @@ const T = {
     emergency_type_obstetrique:'Obstetric',emergency_type_pediatrique:'Pediatric',
     emergency_type_psychiatrique:'Psychiatric',emergency_type_autre:'Other'
   },
-  ar:{brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',nav_clinic:'فضاء العيادة',
+  ar:{pv_blocked_access:'تم رفض الوصول',pv_blocked_title:'لقد تم حظرك!',pv_blocked_doctor:'هذا المريض محظور لدى الطبيب {name}.',pv_blocked_clinic:'هذا المريض محظور لدى العيادة {name}.',pv_blocked_contact:'يرجى الاتصال بالسكرتارية لتسوية وضعيتك.',pv_err_rate:'عدد كبير جدًا من الطلبات. يرجى المحاولة مرة أخرى بعد بضع دقائق.',pv_err_forbidden:'كلمة مرور الموعد مطلوبة أو غير صحيحة.',pv_err_pwd_attempts:'محاولات كثيرة جدًا. أعد المحاولة بعد 15 دقيقة.',pv_err_consent:'الموافقة مطلوبة لحفظ بياناتك.',consent_label:'لقد قرأتُ {link} وأوافق صراحةً على معالجة بياناتي الشخصية، بما في ذلك بياناتي الصحية، لغرض معالجة طلبي.',consent_link:'إشعار المعلومات',consent_required:'يرجى الموافقة على إشعار المعلومات للمتابعة.',al_btn:'سجل الوصول',al_global_btn:'سجل الوصول',al_title:'سجل الوصول إلى الملف',al_title_global:'سجل الوصول إلى الملفات الطبية',al_empty:'لا توجد عمليات وصول مسجلة.',al_col_when:'التاريخ والوقت',al_col_who:'المستخدم',al_col_action:'الإجراء',al_col_detail:'التفاصيل',al_col_patient:'المريض',al_act_view:'اطلاع',al_act_print:'طباعة',al_act_send:'إرسال',al_act_create:'إنشاء',al_act_update:'تعديل',al_act_delete:'حذف',al_act_export:'تصدير',al_src_db:'قاعدة البيانات',al_src_app:'التطبيق',al_role_admin:'مسؤول',al_role_doctor:'طبيب',al_role_clinic:'عيادة',al_role_system:'النظام',al_note:'هذا السجل للقراءة فقط: لا يمكن تعديله أو حذفه من التطبيق. يسجّل التطبيق عمليات الاطلاع، بينما تسجّل قاعدة البيانات مباشرةً عمليات الإنشاء والتعديل والحذف.',al_search_ph:'بحث (مريض، مستخدم، إجراء)…',al_loading:'جارٍ التحميل…',al_error:'تعذّر تحميل السجل.',brand_sub:'المنصة الطبية',nav_patient:'فضاء المريض',nav_account:'الحساب',nav_doctor:'طبيب',nav_admin:'الإدارة',nav_clinic:'فضاء العيادة',
     home:'الرئيسية',book:'حجز موعد',my:'مواعيدي',ddash:'لوحة التحكم',dappts:'المواعيد',dinternal:'موعد داخلي',dstats:'إحصائيات',dprof:'ملفي',
     home_greeting:'مرحبًا', home_greeting_sub:'كيف حالك اليوم؟',
     find_doctor:'ابحث عن طبيب', advanced_filters:'فلاتر متقدمة', reset:'إعادة تعيين', see_all:'عرض الكل', check_services:'حدد الخدمات المطلوبة',
@@ -6719,6 +6727,192 @@ function _scoped(key, rows){
     default:                 return rows;
   }
 }
+/* ============================================================
+   🛡️ NOTICE D'INFORMATION & CONSENTEMENT (loi n° 18-07) — FR / EN / AR
+   À compléter par l'exploitant : operatorName, operatorContact, retention.
+   ⚠️ Texte modèle : à faire valider par un juriste avant mise en production.
+   ============================================================ */
+const PRIVACY_CONFIG = {
+  version: '2026-11-21',
+  operatorName: '',      // Raison sociale de l'exploitant de la plateforme (ex. « SARL ... »)
+  operatorContact: '',   // E-mail ou téléphone pour exercer les droits (ex. « contact@... »)
+  retention: ''          // Durée de conservation (ex. « 10 ans après le dernier acte médical »)
+};
+const PRIVACY_NOTICE = {
+  fr: {
+    title: "Notice d'information — Protection de vos données personnelles",
+    intro: "Conformément à la loi n° 18-07 relative à la protection des personnes physiques dans le traitement des données à caractère personnel, voici comment vos données sont utilisées lorsque vous prenez rendez-vous ou envoyez une demande d'urgence.",
+    sections: [
+      ["Qui est responsable de vos données ?", "Pour les informations liées à votre rendez-vous et à votre dossier médical, le responsable est le médecin ou la clinique que vous choisissez. L'exploitant de la plateforme OmniMed assure le fonctionnement technique du service."],
+      ["Quelles données sont collectées ?", "Votre nom, votre âge, votre numéro de téléphone, votre adresse e-mail (facultative), votre wilaya, le motif de la consultation ou de l'urgence, la date et l'heure souhaitées, ainsi que les informations de santé que vous communiquez ou que le praticien consigne dans votre dossier médical. Le mot de passe de rendez-vous éventuel n'est jamais conservé en clair."],
+      ["Pourquoi et sur quelle base ?", "Vos données servent uniquement à gérer votre demande de rendez-vous ou d'urgence, à vous contacter à ce sujet et à assurer votre suivi médical. Elles sont traitées sur la base de votre consentement exprès, que vous donnez en cochant la case prévue à cet effet. Les données de santé étant des données sensibles, ce consentement est indispensable."],
+      ["Qui peut y accéder ?", "Le médecin ou la clinique concerné(e) et leur personnel autorisé. Un administrateur de la plateforme peut y accéder pour le support technique. Chaque accès aux dossiers médicaux est enregistré dans un journal consultable par le praticien concerné. Vos données ne sont ni vendues ni utilisées à des fins publicitaires."],
+      ["Hébergement et transferts", "Les données sont hébergées chez un prestataire de stockage en ligne dont les serveurs peuvent se situer en dehors de l'Algérie. Un transfert hors d'Algérie ne peut avoir lieu que dans les conditions prévues par la réglementation applicable."],
+      ["Durée de conservation", "{retention}"],
+      ["Comment vos données sont-elles protégées ?", "Connexion sécurisée (HTTPS), comptes individuels pour les professionnels, accès limité à chaque médecin ou clinique selon son rôle, mots de passe protégés et journal des accès aux dossiers médicaux."],
+      ["Quels sont vos droits ?", "Vous pouvez demander l'accès à vos données, leur rectification, vous opposer à leur traitement pour des motifs légitimes, retirer votre consentement à tout moment (sans effet sur les traitements déjà réalisés) et demander leur suppression, sous réserve des obligations légales de conservation des dossiers médicaux. Pour exercer vos droits, adressez-vous au médecin ou à la clinique concerné(e){contact}. Vous pouvez également saisir l'Autorité nationale de protection des données à caractère personnel (ANPDP)."]
+    ],
+    retentionDefault: "Vos données sont conservées pendant la durée nécessaire à votre prise en charge et au respect des obligations légales applicables.",
+    retentionCustom: "Vos données sont conservées : {retention}.",
+    operatorLine: "Exploitant de la plateforme : {name}.",
+    contactLine: " ou à l'exploitant ({contact})",
+    footer: "Version {version}. Ce texte est fourni à titre d'information."
+  },
+  en: {
+    title: "Information notice — Protection of your personal data",
+    intro: "In accordance with Algerian law no. 18-07 on the protection of individuals in the processing of personal data, this is how your data is used when you book an appointment or send an emergency request.",
+    sections: [
+      ["Who is responsible for your data?", "For information related to your appointment and your medical record, the controller is the doctor or clinic you choose. The operator of the OmniMed platform ensures the technical operation of the service."],
+      ["What data is collected?", "Your name, age, phone number, e-mail address (optional), wilaya, the reason for the consultation or emergency, the requested date and time, as well as the health information you provide or that the practitioner records in your medical file. Any appointment password is never stored in clear text."],
+      ["Why and on what basis?", "Your data is used only to manage your appointment or emergency request, to contact you about it and to ensure your medical follow-up. It is processed on the basis of your express consent, which you give by ticking the box provided. Because health data is sensitive data, this consent is essential."],
+      ["Who can access it?", "The doctor or clinic concerned and their authorised staff. A platform administrator may access it for technical support. Every access to medical records is recorded in a log that the practitioner concerned can consult. Your data is neither sold nor used for advertising."],
+      ["Hosting and transfers", "The data is hosted by an online storage provider whose servers may be located outside Algeria. A transfer outside Algeria may only take place under the conditions set by the applicable regulations."],
+      ["Retention period", "{retention}"],
+      ["How is your data protected?", "Secure connection (HTTPS), individual accounts for professionals, access limited to each doctor or clinic according to its role, protected passwords and a log of access to medical records."],
+      ["What are your rights?", "You may request access to your data, its rectification, object to its processing on legitimate grounds, withdraw your consent at any time (without affecting processing already carried out) and request its deletion, subject to the legal obligations to keep medical records. To exercise your rights, contact the doctor or clinic concerned{contact}. You may also refer the matter to the National Authority for the Protection of Personal Data (ANPDP)."]
+    ],
+    retentionDefault: "Your data is kept for the time needed for your care and to comply with the applicable legal obligations.",
+    retentionCustom: "Your data is kept: {retention}.",
+    operatorLine: "Platform operator: {name}.",
+    contactLine: " or the operator ({contact})",
+    footer: "Version {version}. This text is provided for information purposes."
+  },
+  ar: {
+    title: "إشعار المعلومات — حماية بياناتك الشخصية",
+    intro: "طبقًا للقانون رقم 18-07 المتعلق بحماية الأشخاص الطبيعيين في مجال معالجة المعطيات ذات الطابع الشخصي، إليك كيفية استخدام بياناتك عند حجز موعد أو إرسال طلب استعجالي.",
+    sections: [
+      ["من المسؤول عن بياناتك؟", "بالنسبة للمعلومات المتعلقة بموعدك وملفك الطبي، فإن المسؤول هو الطبيب أو العيادة التي تختارها. ويضمن مشغّل منصة OmniMed التشغيل التقني للخدمة."],
+      ["ما هي البيانات التي يتم جمعها؟", "اسمك وسنك ورقم هاتفك وعنوان بريدك الإلكتروني (اختياري) وولايتك وسبب الاستشارة أو الحالة الاستعجالية والتاريخ والوقت المطلوبان، إضافةً إلى المعلومات الصحية التي تقدمها أو التي يسجلها الممارس في ملفك الطبي. ولا يتم أبدًا حفظ كلمة مرور الموعد (إن وُجدت) بشكل مقروء."],
+      ["لماذا وعلى أي أساس؟", "تُستخدم بياناتك فقط لإدارة طلب موعدك أو طلبك الاستعجالي، وللاتصال بك بشأنه، ولضمان متابعتك الطبية. وتتم معالجتها على أساس موافقتك الصريحة التي تمنحها بوضع علامة في الخانة المخصصة لذلك. ولأن البيانات الصحية بيانات حساسة، فإن هذه الموافقة ضرورية."],
+      ["من يمكنه الاطلاع عليها؟", "الطبيب أو العيادة المعنية والعاملون المرخّص لهم. ويمكن لمسؤول المنصة الاطلاع عليها لأغراض الدعم التقني. ويُسجَّل كل اطلاع على الملفات الطبية في سجل يمكن للممارس المعني الاطلاع عليه. ولا تُباع بياناتك ولا تُستعمل لأغراض إعلانية."],
+      ["الاستضافة والتحويل", "تُستضاف البيانات لدى مزوّد خدمة تخزين عبر الإنترنت قد تكون خوادمه خارج الجزائر. ولا يمكن إجراء أي تحويل خارج الجزائر إلا وفق الشروط المنصوص عليها في التنظيم المعمول به."],
+      ["مدة الاحتفاظ", "{retention}"],
+      ["كيف تتم حماية بياناتك؟", "اتصال آمن (HTTPS)، وحسابات فردية للمهنيين، وولوج محدود لكل طبيب أو عيادة حسب دوره، وكلمات مرور محمية، وسجل للوصول إلى الملفات الطبية."],
+      ["ما هي حقوقك؟", "يمكنك طلب الاطلاع على بياناتك وتصحيحها، والاعتراض على معالجتها لأسباب مشروعة، وسحب موافقتك في أي وقت (دون أثر على المعالجات التي تمت)، وطلب حذفها مع مراعاة الالتزامات القانونية المتعلقة بحفظ الملفات الطبية. لممارسة حقوقك، توجّه إلى الطبيب أو العيادة المعنية{contact}. ويمكنك أيضًا اللجوء إلى السلطة الوطنية لحماية المعطيات ذات الطابع الشخصي."]
+    ],
+    retentionDefault: "يتم الاحتفاظ ببياناتك للمدة اللازمة للتكفل بك ولاحترام الالتزامات القانونية المعمول بها.",
+    retentionCustom: "يتم الاحتفاظ ببياناتك: {retention}.",
+    operatorLine: "مشغّل المنصة: {name}.",
+    contactLine: " أو إلى المشغّل ({contact})",
+    footer: "الإصدار {version}. هذا النص مقدَّم على سبيل الإعلام."
+  }
+};
+
+function openPrivacyNotice(returnFn){
+  const lang = (PRIVACY_NOTICE[state.lang] ? state.lang : 'fr');
+  const n = PRIVACY_NOTICE[lang];
+  const cfg = PRIVACY_CONFIG;
+  const retention = cfg.retention ? n.retentionCustom.replace('{retention}', esc(cfg.retention)) : n.retentionDefault;
+  const contact = cfg.operatorContact ? n.contactLine.replace('{contact}', esc(cfg.operatorContact)) : '';
+  const body = n.sections.map(([h, p]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-weight:700;font-size:13.5px;margin-bottom:4px">${esc(h)}</div>
+      <div style="font-size:12.5px;line-height:1.65;color:var(--text-muted)">${p.replace('{retention}', retention).replace('{contact}', contact)}</div>
+    </div>`).join('');
+  openModal('🛡️ ' + n.title, '', `
+    <div style="font-size:12.5px;line-height:1.65;margin-bottom:14px">${esc(n.intro)}</div>
+    ${cfg.operatorName ? `<div style="font-size:12.5px;margin-bottom:14px"><strong>${esc(n.operatorLine.replace('{name}', cfg.operatorName))}</strong></div>` : ''}
+    ${body}
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">${esc(n.footer.replace('{version}', cfg.version))}</div>
+  `, `<button class="pill-btn primary" onclick="closeModal();${returnFn ? esc(returnFn) + '()' : ''}">${t('close')}</button>`, true);
+}
+
+/* Case de consentement explicite (jamais pré-cochée) */
+function consentBoxHTML(checked, setterExpr, returnFn){
+  const link = `<a href="javascript:void(0)" onclick="event.preventDefault();event.stopPropagation();openPrivacyNotice(${returnFn ? "'" + returnFn + "'" : ''})">${esc(t('consent_link'))}</a>`;
+  const label = esc(t('consent_label')).replace('{link}', link);
+  return `<div class="consent-box"><label><input type="checkbox" ${checked ? 'checked' : ''} onchange="${setterExpr}=this.checked"><span>${label}</span></label></div>`;
+}
+
+/* ============================================================
+   📜 JOURNAL D'ACCÈS AUX DOSSIERS MÉDICAUX
+   ============================================================ */
+const _mfLogSeen = {};
+async function mfLogAccess(fileId, action, detail){
+  try{
+    if(!_authMeta || !fileId) return;
+    const k = fileId + '|' + action + '|' + (detail || '');
+    const now = Date.now();
+    if(_mfLogSeen[k] && now - _mfLogSeen[k] < 120000) return;   // évite les doublons (le serveur filtre aussi)
+    _mfLogSeen[k] = now;
+    const r = await sb.rpc('log_medical_access', { p_file_id: String(fileId), p_action: action, p_detail: detail || null });
+    if(r.error) console.warn('[journal]', r.error.message);
+  }catch(e){}
+}
+function _alLocale(){ return state.lang === 'ar' ? 'ar-DZ' : (state.lang === 'en' ? 'en-GB' : 'fr-FR'); }
+function mfAccessLogHTML(rows, showPatient){
+  if(!rows || !rows.length) return `<div class="empty" style="padding:24px">${esc(t('al_empty'))}</div>`;
+  const who = r => {
+    let nm = '';
+    if(r.actor_role === 'doctor'){ const d = docById(r.actor_id); nm = d ? d.name : ''; }
+    else if(r.actor_role === 'clinic'){ const c = clinicById(r.actor_id); nm = c ? c.name : ''; }
+    const role = t('al_role_' + (r.actor_role || 'system'));
+    return `<div style="font-weight:600">${esc(nm || r.actor_email || r.actor_id || '—')}</div><div style="font-size:10.5px;color:var(--text-muted)">${esc(role)}${(nm && r.actor_email) ? ' · ' + esc(r.actor_email) : ''}</div>`;
+  };
+  return `
+    <div style="overflow-x:auto">
+      <table class="al-table">
+        <thead><tr>
+          <th>${esc(t('al_col_when'))}</th>
+          ${showPatient ? `<th>${esc(t('al_col_patient'))}</th>` : ''}
+          <th>${esc(t('al_col_who'))}</th>
+          <th>${esc(t('al_col_action'))}</th>
+          <th>${esc(t('al_col_detail'))}</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td style="white-space:nowrap">${esc(new Date(r.at).toLocaleString(_alLocale()))}</td>
+            ${showPatient ? `<td>${esc(r.patient_name || '—')}<div style="font-size:10.5px;color:var(--text-muted)">${esc(r.patient_phone || '')}</div></td>` : ''}
+            <td>${who(r)}</td>
+            <td><span class="tag ${r.action === 'delete' ? 'danger' : (r.action === 'view' ? 'muted' : 'accent')}">${esc(t('al_act_' + r.action))}</span>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${esc(t(r.source === 'db' ? 'al_src_db' : 'al_src_app'))}</div></td>
+            <td style="font-size:11.5px">${esc(r.detail || '')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+async function mfOpenAccessLog(fileId){
+  const f = mfGetById(fileId); if(!f) return;
+  openModal('🛡️ ' + t('al_title'), (f.data && f.data.patientName) || '', `
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">${esc(t('al_note'))}</div>
+    <div id="alBody" style="min-height:70px;text-align:center;color:var(--text-muted)">${esc(t('al_loading'))}</div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`, true);
+  let rows = [];
+  try{
+    const { data, error } = await sb.from('medical_access_log').select('*').eq('file_id', String(fileId)).order('at', { ascending:false }).limit(300);
+    if(error) throw error;
+    rows = data || [];
+  }catch(e){
+    const b = document.getElementById('alBody'); if(b) b.textContent = t('al_error');
+    return;
+  }
+  const b = document.getElementById('alBody'); if(b){ b.style.textAlign = 'start'; b.innerHTML = mfAccessLogHTML(rows, false); }
+}
+let _alGlobalRows = [];
+async function mfOpenGlobalAccessLog(){
+  openModal('🛡️ ' + t('al_title_global'), '', `
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">${esc(t('al_note'))}</div>
+    <input class="input" id="alSearch" placeholder="🔎 ${esc(t('al_search_ph'))}" oninput="mfAccessLogFilter(this.value)" style="margin-bottom:10px">
+    <div id="alBody" style="min-height:70px;text-align:center;color:var(--text-muted)">${esc(t('al_loading'))}</div>`,
+    `<button class="pill-btn" onclick="closeModal()">${t('close')}</button>`, true);
+  try{
+    const { data, error } = await sb.from('medical_access_log').select('*').order('at', { ascending:false }).limit(500);
+    if(error) throw error;
+    _alGlobalRows = data || [];
+  }catch(e){
+    const b = document.getElementById('alBody'); if(b) b.textContent = t('al_error');
+    return;
+  }
+  mfAccessLogFilter('');
+}
+function mfAccessLogFilter(q){
+  const s = String(q || '').trim().toLowerCase();
+  const rows = !s ? _alGlobalRows : _alGlobalRows.filter(r => [r.patient_name, r.patient_phone, r.actor_email, r.actor_id, r.action, r.detail].some(v => String(v || '').toLowerCase().includes(s)));
+  const b = document.getElementById('alBody'); if(b){ b.style.textAlign = 'start'; b.innerHTML = mfAccessLogHTML(rows, true); }
+}
+
+
 /* Le patient est-il bloqué ? (verdict local + verdict du serveur, qui fait foi) */
 async function patientIsBlocked(phone, doctorId, clinicId){
   if(isPatientBlocked(phone, doctorId, clinicId)) return true;
@@ -6734,9 +6928,10 @@ async function patientIsBlocked(phone, doctorId, clinicId){
 }
 function _handlePatientRpcError(err){
   const m = String((err && err.message) || '');
-  if(/BLOCKED/.test(m)) toast('🚫 Vous êtes bloqué pour ce praticien : contactez le secrétariat.','error');
-  else if(/RATE_LIMIT/.test(m)) toast('Trop de demandes. Veuillez réessayer dans quelques minutes.','error');
-  else if(/FORBIDDEN/.test(m)) toast('Mot de passe du rendez-vous requis ou incorrect.','error');
+  if(/BLOCKED/.test(m)) toast('🚫 ' + t('pv_blocked_title'),'error');
+  else if(/RATE_LIMIT/.test(m)) toast(t('pv_err_rate'),'error');
+  else if(/FORBIDDEN/.test(m)) toast(t('pv_err_forbidden'),'error');
+  else if(/CONSENT_REQUIRED/.test(m)) toast(t('pv_err_consent'),'error');
   else console.warn('[patient]', m);
 }
 function _canPushKey(key){
@@ -7125,7 +7320,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           for(let i = 0; i < rows.length; i++){
             const _src = recentAppts[i];
             const _r = await sb.rpc('patient_save_appointment', {
-              p_row: _src._editIntent ? Object.assign({}, rows[i], { _edit: true }) : rows[i],
+              p_row: Object.assign({}, rows[i], _src._editIntent ? { _edit: true } : {}, _src._consent ? { _consent: true, _consent_version: _src._consentVersion || '' } : {}),
               p_owner_phone: _src._origPhone || _src.patientPhone || state.myPhone || '',
               p_pwd_hash: _src._pwdProof || ''
             });
@@ -7198,7 +7393,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
 
     // ---- EMERGENCIES (une seule fois — corrige la triple duplication) ----
     if(syncEmergencies && _scoped('emergencies', DB.emergencies).length){
-      const _emgRows = _scoped('emergencies', DB.emergencies).map(e=>({
+      const _emgList = _scoped('emergencies', DB.emergencies);
+      const _emgRows = _emgList.map(e=>({
         id: e.id,
         patient_name: e.patientName,
         patient_phone: e.patientPhone,
@@ -7218,8 +7414,13 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
         await sb.from('emergencies').upsert(_emgRows);
       } else {
         let _emgErr = null;
-        for(const _row of _emgRows){
-          const _r = await sb.rpc('patient_save_emergency', { p_row: _row, p_owner_phone: _row.patient_phone || state.myPhone || '' });
+        for(let _k = 0; _k < _emgRows.length; _k++){
+          const _row = _emgRows[_k];
+          const _e = _emgList[_k];
+          const _r = await sb.rpc('patient_save_emergency', {
+            p_row: _e._consent ? Object.assign({}, _row, { _consent: true, _consent_version: _e._consentVersion || '' }) : _row,
+            p_owner_phone: _row.patient_phone || state.myPhone || ''
+          });
           if(_r.error && !_emgErr) _emgErr = _r.error;
         }
         if(_emgErr) _handlePatientRpcError(_emgErr);
@@ -11677,6 +11878,7 @@ function clinicBookStep4(){
         <input class="input" id="cpPassword" type="password" placeholder="${t('patient_password_ph')}" value="${esc(s.patientPassword||'')}" oninput="state.clinicBooking.patientPassword=this.value">
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 ${t('patient_password_hint')}</div>
       </div>
+      ${consentBoxHTML(!!s.consent, 'state.clinicBooking.consent')}
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:14px">📋 Récapitulatif</div>
@@ -11764,6 +11966,7 @@ async function confirmClinicBooking(){
     );
     if(clash){ toast(t('slot_just_taken'),'error'); s.step=3; render(); return; }
   }
+  if(!s.consent){ toast(t('consent_required'),'error'); return; }
   const _clinicDoctorServices = (isDoctor && doc) ? _buildClinicDoctorConsultationLine(doc) : [];
   const _clinicDoctorTotal = _clinicDoctorServices.reduce((s, sv) => s + (Number(sv.price) || 0), 0);
 
@@ -11790,7 +11993,8 @@ async function confirmClinicBooking(){
     clinicServiceId: s.serviceId,
     prestationId: prestation ? prestation.id : null,
     apptType: isDoctor ? 'clinic_doctor' : 'clinic_prestation',
-    clinicRating: 0
+    clinicRating: 0,
+    _consent: true, _consentVersion: PRIVACY_CONFIG.version
   };
   DB.appointments.push(appt);
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
@@ -12629,6 +12833,7 @@ function bookStep3(){
         <input class="input" id="pPassword" type="password" autocomplete="new-password" placeholder="${t('patient_password_ph')}" value="${esc(s.patientPassword||'')}" oninput="state.booking.patientPassword=this.value">
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">💡 ${t('patient_password_hint')}</div>
       </div>
+      ${!s.editingId ? consentBoxHTML(!!s.consent, 'state.booking.consent') : ''}
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title">💉 ${t('extra_services')}</div>
@@ -12752,6 +12957,7 @@ async function confirmBooking(){
     return;
   }
 
+  if(!s.consent){ toast(t('consent_required'),'error'); return; }
   const _newDur = doc.duration || 30;
   const clash = hasApptConflict(
     s.date, s.time, _newDur,
@@ -12769,7 +12975,8 @@ async function confirmBooking(){
     services: selectedServices, servicesTotal: servicesTotal,
     _v2: true,
     status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:false, rating:0,
-    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
+    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0,
+    _consent: true, _consentVersion: PRIVACY_CONFIG.version
   };
   DB.appointments.push(appt);
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
@@ -13259,7 +13466,7 @@ async function verifyPatientPwd(apptId, action){
   const hash = await hashPassword(v);
   const r = await sb.rpc('patient_check_password', { p_id: apptId, p_hash: hash, p_phone: a.patientPhone || state.myPhone || '' });
   if(r.error){
-    if(/RATE_LIMIT/.test(r.error.message || '')) toast('Trop d\'essais. Réessayez dans 15 minutes.','error');
+    if(/RATE_LIMIT/.test(r.error.message || '')) toast(t('pv_err_pwd_attempts'),'error');
     else toast(t('wrong_password'),'error');
     return;
   }
@@ -13551,6 +13758,7 @@ async function sendDossierToRecipient(){
   const f = mfCurrent();
   if(!f){ toast('Dossier introuvable','error'); return; }
 
+  mfLogAccess(f.id, 'send', '→ ' + rec.name);
   const html = buildDossierHTMLForMessage(f);
   const subject = (d.subject||'').trim() || ('Dossier médical — ' + (f.data.patientName||''));
   const bodyText = (d.body||'').trim() || `Dossier médical du patient ${f.data.patientName||''}`;
@@ -14998,6 +15206,7 @@ function viewDossierList(mode){
         </div>
         <div class="chips" style="margin:0">
           <button class="chip ${!state.dossier.showArchived?'active':''}" onclick="state.dossier.showArchived=false;render()">📂 ${t('dossiers_medical')}</button>
+          ${isAdmin ? `<button class="chip" onclick="mfOpenGlobalAccessLog()">🛡️ ${t('al_global_btn')}</button>` : ''}
           <button class="chip ${state.dossier.showArchived?'active':''}" onclick="state.dossier.showArchived=true;render()">📦 ${t('dossier_archived_list')} <span class="tag muted" style="margin-left:4px">${archivedCount}</span></button>
         </div>
       </div>
@@ -15060,6 +15269,7 @@ function viewDossierSingle(){
     return `<div class="empty" style="padding:40px"><div class="empty-ico">📁</div>${t('dossier_none')}</div>
       <div style="text-align:center;margin-top:14px"><button class="pill-btn primary" onclick="go('${state.role==='admin'?'adossiers':'ddossier'}')">← ${t('back')}</button></div>`;
   }
+  mfLogAccess(f.id, 'view');   // 📜 journal d'accès (consultation du dossier)
   const d = f.data;
   const counts = mfCounts(d);
   const doc = docById(f.doctorId);
@@ -15113,6 +15323,7 @@ function viewDossierSingle(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">
           <button class="pill-btn primary" onclick="mfPrintDossierModal()">🖨️ ${t('print_dossier')}</button>
+          <button class="pill-btn" onclick="mfOpenAccessLog('${f.id}')">🛡️ ${t('al_btn')}</button>
           ${!isArchived ? `<button class="pill-btn success" onclick="openSendDossierModal()">📤 Envoyer le dossier</button>` : ''}
           ${!isArchived ? `
             <button class="pill-btn" onclick="mfOpenEditInfo()">✏️ ${t('save')}</button>
@@ -15946,6 +16157,7 @@ function mfPrintLabFromForm(){
 }
 function mfPrintLab(l){
   const d = mfData(); if(!d || !l) return;
+  mfLogAccess(state.dossier.fileId, 'print', 'bilan / imagerie');
   const patientName = d.patientName || '—';
   const age = d.patientAge ? d.patientAge + ' ' + t('billing_years_old') : '';
   const dateFR = fmtDateFR(l.date || todayISO());
@@ -16437,6 +16649,7 @@ function mfPrintDossierModal(){
 }
 function mfDoPrintDossier(){
   const d = mfData(); if(!d) return;
+  mfLogAccess(state.dossier.fileId, 'print', 'dossier');
   const sp = state.dossierPrint;
   sp.from = $('#pdFrom')?.value || '';
   sp.to = $('#pdTo')?.value || '';
@@ -16612,6 +16825,7 @@ function mfDoPrintDossier(){
 }
 function mfPrintConsultation(id){
   const d = mfData(); if(!d) return;
+  mfLogAccess(state.dossier.fileId, 'print', 'consultation');
   const c = (d.consultations||[]).find(x=>x.id===id);
   if(!c) return;
   const f = mfCurrent();
@@ -16679,6 +16893,7 @@ function mfPrintConsultation(id){
 }
 function mfPrintPrescription(id){
   const d = mfData(); if(!d) return;
+  mfLogAccess(state.dossier.fileId, 'print', 'ordonnance');
   const p = (d.prescriptions||[]).find(x=>x.id===id);
   if(!p) return;
   const f = mfCurrent();
@@ -17013,21 +17228,21 @@ function getPatientCancelStats(patientPhone, doctorId, clinicId){
 }
 function showPatientBlockedModal(entityType, entityName){
   const isClinic = entityType === 'clinic';
-  const title = 'Vous avez était bloqué !';
-  const text = isClinic ? `Ce patient est bloqué pour la clinique <strong>${esc(entityName)}</strong>.` : `Ce patient est bloqué pour le médecin <strong>${esc(entityName)}</strong>.`;
+  const title = t('pv_blocked_title');
+  const text = (isClinic ? t('pv_blocked_clinic') : t('pv_blocked_doctor')).replace('{name}', '<strong>' + esc(entityName) + '</strong>');
   
-  openModal('Accès refusé', '', `
+  openModal(t('pv_blocked_access'), '', `
     <div style="text-align:center; padding:10px 0 20px">
       <div style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg, rgba(239,68,68,.1), rgba(239,68,68,.02)); border:2px solid rgba(239,68,68,.3); display:grid; place-items:center; font-size:40px; margin:0 auto 20px; box-shadow:0 8px 24px rgba(239,68,68,.15); color:var(--danger)">
         🚫
       </div>
-      <h2 style="font-size:22px; font-weight:800; color:var(--text-main); margin-bottom:12px; letter-spacing:-0.5px">${title}</h2>
+      <h2 style="font-size:22px; font-weight:800; color:var(--text-main); margin-bottom:12px; letter-spacing:-0.5px">${esc(title)}</h2>
       <p style="font-size:14.5px; color:var(--text-muted); line-height:1.6; max-width:560px; margin:0 auto">
-        <span style="display:block; white-space:nowrap">${text}</span>
-        <span style="display:block; white-space:nowrap; margin-top:14px">Veuillez contacter le secrétariat pour régulariser votre situation.</span>
+        <span style="display:block">${text}</span>
+        <span style="display:block; margin-top:14px">${esc(t('pv_blocked_contact'))}</span>
       </p>
     </div>
-  `, `<button class="pill-btn primary" onclick="closeModal()" style="width:100%; justify-content:center; padding:12px; font-weight:700; border-radius:12px">Fermer</button>`);
+  `, `<button class="pill-btn primary" onclick="closeModal()" style="width:100%; justify-content:center; padding:12px; font-weight:700; border-radius:12px">${esc(t('close'))}</button>`);
 }
 
 function isPatientBlocked(patientPhone, doctorId, clinicId){
@@ -28659,6 +28874,7 @@ function openEmergencyForm(){
     <div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06);margin-top:8px">
       ⚠️ <strong>Important :</strong> Ce service ne remplace pas les secours d'urgence vitale. En cas de danger immédiat, appelez le <strong>14 (SAMU)</strong> ou le <strong>17 (Protection civile)</strong>.
     </div>
+    ${consentBoxHTML(!!f.consent, 'state.emergencyForm.consent', 'openEmergencyForm')}
   `,
   `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
    <button class="pill-btn danger" onclick="submitEmergency()">🚨 ${t('emergency_send')}</button>`, true);
@@ -28675,6 +28891,7 @@ function submitEmergency(){
   if(!name || !phone || !wilaya){
     toast(t('required_fields'),'error'); return;
   }
+  if(!(state.emergencyForm && state.emergencyForm.consent)){ toast(t('consent_required'),'error'); return; }
   _submittingEmergency = true;
   setTimeout(() => { _submittingEmergency = false; }, 1500);
   const clinics = findClinicsWithEmergencyService(wilaya);
@@ -28701,7 +28918,8 @@ function submitEmergency(){
     clinicResponse: '',
     createdAt: now,
     respondedAt: null,
-    updatedAt: now
+    updatedAt: now,
+    _consent: true, _consentVersion: PRIVACY_CONFIG.version
   };
   DB.emergencies.push(emergency);
 
@@ -28734,11 +28952,12 @@ function submitEmergency(){
     prestationId: null,
     apptType: 'clinic_emergency',
     clinicRating: 0,
-    emergencyId: emgId
+    emergencyId: emgId,
+    _consent: true, _consentVersion: PRIVACY_CONFIG.version
   });
 
   state.myPhone = phone; localStorage.setItem('omnimed_phone', phone);
-  state.emergencyForm = {patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:''};
+  state.emergencyForm = {patientName:'', patientPhone:'', patientWilaya:'', patientAge:'', emergencyType:'', description:'', consent:false};
   pushClinicNotif('🚨 URGENCE ENTRANTE', `${name} — ${type || 'Autre'}`, clinic.id, _emgApptId);
   saveDB({immediate: true});
 
