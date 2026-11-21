@@ -6411,6 +6411,7 @@ async function loadDB(){
         rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
         reminders:a.reminders||{h2:false},
         transferredFrom: a.reminders?.transferredFrom || null,
+        cancelledBy: a.reminders?.cancelledBy || undefined,
         createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
       })),
 
@@ -6586,6 +6587,7 @@ async function loadFullAppointmentsHistory(){
       rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
       reminders:a.reminders||{h2:false},
       transferredFrom: a.reminders?.transferredFrom || null,
+        cancelledBy: a.reminders?.cancelledBy || undefined,
       createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
     }));
     // ⚡ CRUCIAL : mettre à jour le snapshot pour NE PAS re-pousser vers Supabase
@@ -6716,6 +6718,19 @@ function _scoped(key, rows){
                              return rows.filter(b => (isDoc && same(b.doctorId, c.eid)) || (isCli && same(b.clinicId, c.eid)));
     default:                 return rows;
   }
+}
+/* Le patient est-il bloqué ? (verdict local + verdict du serveur, qui fait foi) */
+async function patientIsBlocked(phone, doctorId, clinicId){
+  if(isPatientBlocked(phone, doctorId, clinicId)) return true;
+  if(_authMeta) return false;
+  try{
+    const r = await sb.rpc('patient_is_blocked', {
+      p_phone: String(phone || ''),
+      p_doctor_id: doctorId ? String(doctorId) : null,
+      p_clinic_id: clinicId ? String(clinicId) : null
+    });
+    return !r.error && r.data === true;
+  }catch(e){ return false; }
 }
 function _handlePatientRpcError(err){
   const m = String((err && err.message) || '');
@@ -7097,7 +7112,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           rating:a.rating||0,
           notes:a.notes||'',
           cancel_reason:a.cancelReason||null,
-          reminders:a.reminders||{h2:false},
+          reminders:(a.cancelledBy ? Object.assign({}, a.reminders||{h2:false}, {cancelledBy:a.cancelledBy}) : (a.reminders||{h2:false})),
           updated_at:new Date().toISOString(),
           deleted_at:a.status==='deleted'?new Date().toISOString():null
         }));
@@ -7106,6 +7121,7 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
         } else {
           /* Visiteur : écriture par fonction contrôlée (validation côté serveur) */
           let _patientErr = null;
+          let _needBlocksRefresh = false;
           for(let i = 0; i < rows.length; i++){
             const _src = recentAppts[i];
             const _r = await sb.rpc('patient_save_appointment', {
@@ -7113,9 +7129,23 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
               p_owner_phone: _src._origPhone || _src.patientPhone || state.myPhone || '',
               p_pwd_hash: _src._pwdProof || ''
             });
-            if(_r.error){ if(!_patientErr) _patientErr = _r.error; }
-            else if(_src._editIntent){ _src._editIntent = false; }
+            if(_r.error){
+              if(/BLOCKED/.test(_r.error.message || '')){
+                /* Refusé par le serveur : on retire le RDV fantôme et ses notifications, puis on informe le patient */
+                DB.appointments = DB.appointments.filter(x => x.id !== _src.id);
+                DB.notifications = DB.notifications.filter(n => n.apptId !== _src.id);
+                const _ent = _src.clinicId ? clinicById(_src.clinicId) : docById(_src.doctorId);
+                try{ showPatientBlockedModal(_src.clinicId ? 'clinic' : 'doctor', _ent ? _ent.name : ''); }catch(e){}
+              } else if(!_patientErr){
+                _patientErr = _r.error;
+              }
+            } else {
+              if(_src._editIntent) _src._editIntent = false;
+              if(_r.data && _r.data.block_error) console.warn('[blocage]', _r.data.block_error);
+              if(_r.data && _r.data.blocked) _needBlocksRefresh = true;
+            }
           }
+          if(_needBlocksRefresh){ try{ await loadTable('blocks'); }catch(e){} }
           if(_patientErr) _handlePatientRpcError(_patientErr);
         }
       }
@@ -7413,6 +7443,7 @@ if(state.role === 'doctor' && state.doctor) {
           rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
           reminders:a.reminders||{h2:false},
           transferredFrom: a.reminders?.transferredFrom || null,
+        cancelledBy: a.reminders?.cancelledBy || undefined,
           createdAt:a.created_at, updatedAt:a.updated_at, deletedAt:a.deleted_at
         }));
         return true;
@@ -7629,7 +7660,7 @@ function subscribeRealtime(){
                   apptType:data.appt_type||'cabinet', emergencyId:data.emergency_id||null,
                   clinicRating:data.clinic_rating||0, rating:data.rating||0, notes:data.notes||'',
                   cancelReason:data.cancel_reason, reminders:data.reminders||{h2:false},
-                  transferredFrom:data.reminders?.transferredFrom||null, createdAt:data.created_at,
+                  transferredFrom:data.reminders?.transferredFrom||null, cancelledBy:data.reminders?.cancelledBy||undefined, createdAt:data.created_at,
                   updatedAt:data.updated_at, deletedAt:data.deleted_at
                 };
                 const idx = DB.appointments.findIndex(a => a.id === recordId);
@@ -11708,7 +11739,7 @@ async function confirmClinicBooking(){
   if(isDoctor && !doc){ toast(t('doctor_not_found'),'error'); return; }
   if(!isDoctor && !prestation){ toast(t('invalid_value'),'error'); return; }
   if(!isDoctor && effectivePrestationLocked(prestation)){ toast(t('prestation_locked_for_patients'),'error'); return; }
-  if(isPatientBlocked(phone, doc ? doc.id : null, c.id)){
+  if(await patientIsBlocked(phone, doc ? doc.id : null, c.id)){
     showPatientBlockedModal('clinic', c.name);
     return;
   }
@@ -12649,7 +12680,7 @@ async function confirmBooking(){
   if(!name || !phone){ toast(t('required_fields'),'error'); return; }
   const doc = docById(s.doctorId);
   if(!doc){ toast(t('doctor_not_found'),'error'); return; }
-  if(isPatientBlocked(phone, doc.id, null)){
+  if(await patientIsBlocked(phone, doc.id, null)){
     showPatientBlockedModal('doctor', doc.name);
     return;
   }
@@ -13791,6 +13822,8 @@ function viewDoctorDash(){
   const done = all.filter(a=>a.status==='done');
   const pendingNotifs = DB.notifications
     .filter(n=>n.role==='doctor' && String(n.toDoctorId)===String(doc.id) && n.apptId)
+    .slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))
+    .filter((n,i,arr)=>arr.findIndex(x=>x.apptId===n.apptId)===i)
     .map(n => ({notif:n, appt: DB.appointments.find(x=>x.id===n.apptId)}))
     .filter(x=>x.appt && x.appt.status==='pending')
     .slice(0, 10);
@@ -23595,6 +23628,8 @@ function viewClinicDash(){
     ${(() => {
       const pendingApptNotifs = DB.notifications
         .filter(n => n.role === 'clinic' && String(n.toDoctorId) === String(c.id) && n.apptId)
+        .slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))
+        .filter((n,i,arr)=>arr.findIndex(x=>x.apptId===n.apptId)===i)
         .map(n => ({ notif: n, appt: DB.appointments.find(a => a.id === n.apptId) }))
         .filter(x => x.appt && x.appt.status === 'pending' && x.appt.apptType !== 'clinic_emergency');
       const pendingEmergencies = DB.emergencies
@@ -29686,6 +29721,7 @@ async function pollPatientData(){
             if(row.reminders){
               existing.reminders = row.reminders;
               existing.transferredFrom = row.reminders.transferredFrom || null;
+              if(row.reminders.cancelledBy) existing.cancelledBy = row.reminders.cancelledBy;
             }
           }
         });
