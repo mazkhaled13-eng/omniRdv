@@ -3962,6 +3962,7 @@ const T = {
     tab_summary:'Synthèse', tab_allergies:'Allergies', tab_antecedents:'Antécédents',
     tab_consultations:'Consultations', tab_vitals:'Constantes', tab_prescriptions:'Ordonnances',
     tab_labtests:'Analyses',
+    tab_dental:'Dentaire', print_dental_include:'Inclure le volet dentaire', dental_section:'Volet dentaire',
     patient_sex:'Sexe', patient_sex_m:'Masculin', patient_sex_f:'Féminin', patient_blood:'Groupe sanguin',
     allergy:'Allergie', allergies:'Allergies', allergy_add:'Ajouter une allergie',
     allergy_none:'Aucune allergie', allergy_critical:'ALLERGIES CRITIQUES',
@@ -4612,6 +4613,7 @@ const T = {
     tab_summary:'Summary', tab_allergies:'Allergies', tab_antecedents:'History',
     tab_consultations:'Consultations', tab_vitals:'Vitals', tab_prescriptions:'Prescriptions',
     tab_labtests:'Lab tests',
+    tab_dental:'Dental', print_dental_include:'Include dental section', dental_section:'Dental section',
     patient_sex:'Sex', patient_sex_m:'Male', patient_sex_f:'Female', patient_blood:'Blood group',
     allergy:'Allergy', allergies:'Allergies', allergy_add:'Add allergy',
     allergy_none:'No allergy', allergy_critical:'CRITICAL ALLERGIES',
@@ -5565,12 +5567,13 @@ const state = {
     search: '',
     showArchived: false,
     adminDoctorId: 'all',
-    archivedMeds: false
+    archivedMeds: false,
+    apptId: null
   },
   dossierMerge: { sourceId: null, targetId: null, step: 1 },
   dossierPrint: {
     from: '', to: '',
-    sections: { summary: true, allergies: true, antecedents: true, consultations: true, vitals: true, prescriptions: true, labtests: true }
+    sections: { summary: true, allergies: true, antecedents: true, consultations: true, vitals: true, prescriptions: true, labtests: true, dental: false }
   },
   _importPending: null,
   expenseFilter: { periodType:'month', month:0, year:0, startDate:'', endDate:'', dayDate:'', category:'all', search:'' },
@@ -7906,6 +7909,15 @@ function subscribeRealtime(){
                    const idx = DB.notifications.findIndex(n => n.id === recordId);
                    if (idx !== -1) DB.notifications[idx] = mapped;
                    else DB.notifications.unshift(mapped);
+                   // 🔔 Notification système quand la notification vient d'un autre appareil
+                   try {
+                     if(payload.eventType === 'INSERT' && mapped.role !== 'patient'){
+                       const forMe =
+                         (mapped.role === 'doctor' && state.role === 'doctor' && state.doctor && String(mapped.toDoctorId) === String(state.doctor.id)) ||
+                         (mapped.role === 'clinic'  && state.role === 'clinic'  && state.clinic  && String(mapped.toDoctorId) === String(state.clinic.id));
+                       if(forMe) omniNativeNotify(mapped.title, mapped.message);
+                     }
+                   } catch(e){}
                    fastOK = true;
                 }
              }
@@ -8833,6 +8845,8 @@ function findAutoDoctorForService(clinicId, serviceId){
 }
 
 function pushNotif(role, title, message, toDoctorId, apptId){
+  // 🔔 Notification système sur le téléphone (en plus de la notification interne)
+  try { omniNativeNotify(title, message); } catch(e){}
   // 🆕 Les changements de statut patient sont déjà gérés en temps réel
   //    par detectPatientChangesAndUpdate() + pollPatientData() (snapshot + polling 2s).
   //    Inutile d'écrire des notifications role='patient' orphelines en DB.
@@ -8841,6 +8855,8 @@ function pushNotif(role, title, message, toDoctorId, apptId){
   DB.notifications = DB.notifications.slice(0,80); saveDB();
 }
 function pushClinicNotif(title, message, clinicId, apptId){
+  // 🔔 Notification système sur le téléphone (en plus de la notification interne)
+  try { omniNativeNotify(title, message); } catch(e){}
   DB.notifications.unshift({id:uid('NC-'), role:'clinic', title, message, toDoctorId:clinicId!=null?String(clinicId):null, apptId:apptId||null, date:nowISO(), read:false});
   DB.notifications = DB.notifications.slice(0,80); saveDB();
 }
@@ -10140,6 +10156,7 @@ function mfFormLabel(v){
 function mfOpenDossierFromAppt(apptId){
   const a = DB.appointments.find(x=>x.id===apptId);
   if(!a){ toast(t('appt_not_found'),'error'); return; }
+  state.dossier.apptId = apptId; // 🦷 contexte rendez-vous pour le module dentaire
   
   /* 🩺 CONTEXTE CLINIQUE */
   if(state.role === 'clinic' && state.clinic){
@@ -10211,6 +10228,7 @@ function mfOpenDossier(fileId){
   state.dossier.fileId = fileId;
   state.dossier.tab = 'summary';
   state.dossier.showArchived = false;
+  state.dossier.apptId = null; // 🦷 aucun RDV actif lors d'une ouverture depuis la liste
   state.view = 'dossier';
   render();
 }
@@ -10220,6 +10238,402 @@ function mfSwitchTab(tab){
 }
 function mfEmpty(icon, label){
   return `<div class="empty" style="padding:26px"><div class="empty-ico">${icon}</div>${esc(label)}</div>`;
+}
+
+/* ============================================================
+   🦷 MODULE DENTAIRE CONDITIONNEL — dossier.data.dental
+   (ajout ciblé : aucun impact sur les onglets généraux existants)
+   ============================================================ */
+const MF_DENTAL_SYSTEMS = [
+  {key:'FDI_permanent_11_48', label:'Dents définitives (FDI 11–48)', numbers:['11','12','13','14','15','16','17','18','21','22','23','24','25','26','27','28','31','32','33','34','35','36','37','38','41','42','43','44','45','46','47','48']},
+  {key:'FDI_deciduous_51_85', label:'Dents temporaires (FDI 51–85)', numbers:['51','52','53','54','55','61','62','63','64','65','71','72','73','74','75','81','82','83','84','85']}
+];
+const MF_DENTAL_STATUS_LABELS = {
+  sain:'Sain', carie:'Carie', obturation:'Obturation', couronne_bridge:'Couronne / bridge',
+  extraction_absente:'Extraction / absente', implant:'Implant', traitement_canalaire:'Traitement canalaire',
+  mobilite_sensibilite:'Mobilité / sensibilité'
+};
+const MF_DENTAL_SURFACES = ['M','D','V','L','P','O'];
+const MF_DENTAL_ACT_LABELS = {
+  detartrage:'Détartrage', soin_conservateur:'Soin conservateur', endodontie:'Endodontie',
+  extraction:'Extraction', prothese:'Prothèse', implant:'Implant', controle:'Contrôle'
+};
+const MF_DENTAL_STATUS_VALUES = ['Planifié','En cours','Effectué'];
+const MF_DENTAL_PERIO_LABELS = {bon:'Bon', gingivite:'Gingivite', parodontite:'Parodontite', tartre_important:'Tartre important'};
+const MF_DENTAL_PROSTHETIC_LABELS = {
+  prothese_fixe:'Prothèse fixe', prothese_amovible:'Prothèse amovible',
+  gouttiere:'Gouttière', appareil_orthodontique:'Appareil orthodontique'
+};
+const MF_DENTAL_IMAGING_LABELS = {
+  panoramique_dentaire:'Panoramique dentaire', retro_alveolaire:'Rétro-alvéolaire',
+  cbct:'CBCT', photos_cliniques:'Photos cliniques'
+};
+function mfNormSpecialty(v){
+  return String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/\s+/g,' ').trim();
+}
+function mfDentalApptSpecialty(){
+  const apptId = state.dossier.apptId;
+  if(!apptId) return '';
+  const a = DB.appointments.find(x=>String(x.id)===String(apptId));
+  if(!a) return '';
+  if(a.specialty) return a.specialty;
+  const d = a.doctorId ? docById(a.doctorId) : null;
+  return d && d.specialty ? d.specialty : '';
+}
+function mfIsDentalContext(){
+  const f = mfCurrent();
+  if(!f) return false;
+  const d = f.data || {};
+  const ownerDoc = f.doctorId ? docById(f.doctorId) : null;
+  const sources = [
+    d.specialty, f.specialty,
+    ownerDoc && ownerDoc.specialty,
+    state.doctor && state.doctor.specialty,
+    mfDentalApptSpecialty()
+  ];
+  return sources.some(s => mfNormSpecialty(s) === 'dentaire');
+}
+function mfDentalEnsure(d){
+  if(!d || typeof d !== 'object') return null;
+  if(!d.dental || typeof d.dental !== 'object' || Array.isArray(d.dental)) d.dental = {};
+  const den = d.dental;
+  if(!den.teeth || typeof den.teeth !== 'object' || Array.isArray(den.teeth)) den.teeth = {};
+  if(!Array.isArray(den.teeth.numbering_systems)) den.teeth.numbering_systems = MF_DENTAL_SYSTEMS.map(s=>s.key);
+  MF_DENTAL_SYSTEMS.forEach(s=>{ if(!Array.isArray(den.teeth[s.key])) den.teeth[s.key] = []; });
+  ['acts','prosthetics_and_appliances','dental_imaging'].forEach(k=>{ if(!Array.isArray(den[k])) den[k] = []; });
+  const p = den.periodontal_and_hygiene;
+  if(!p || typeof p !== 'object' || Array.isArray(p)){
+    den.periodontal_and_hygiene = {status:'bon', recommended_scaling_frequency:'', notes:''};
+  }
+  return den;
+}
+function mfDentalData(){ const d = mfData(); return d ? mfDentalEnsure(d) : null; }
+function mfDentalOptions(labels, selected, values){
+  const keys = values || Object.keys(labels);
+  return keys.map(v=>`<option value="${v}" ${selected===v?'selected':''}>${esc(labels[v]||v)}</option>`).join('');
+}
+function mfDentalStatusClass(st){
+  if(st === 'sain') return 'green';
+  if(st === 'carie' || st === 'extraction_absente' || st === 'mobilite_sensibilite') return 'red';
+  if(st === 'implant' || st === 'couronne_bridge' || st === 'traitement_canalaire') return 'purple';
+  return 'ghost';
+}
+function mfDentalSystemLabel(key){
+  const s = MF_DENTAL_SYSTEMS.find(x=>x.key===key);
+  return s ? s.label : key;
+}
+function mfTabDental(d){
+  const den = mfDentalEnsure(d);
+  const consults = d.consultations || [];
+  const consultLabel = id => {
+    const c = consults.find(x=>x.id===id);
+    return c ? (c.date ? fmtDateFR(c.date) : t('consultation')) : '—';
+  };
+  const teethHTML = MF_DENTAL_SYSTEMS.map(sys=>`
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;color:var(--accent-primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">${esc(sys.label)}</div>
+      <div style="display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px">
+        ${sys.numbers.map(n=>{
+          const e = (den.teeth[sys.key]||[]).find(x=>String(x.tooth_number)===String(n));
+          const st = e ? e.status : '';
+          return `<button class="mini-btn ${e?mfDentalStatusClass(st):'ghost'}" style="min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2" onclick="mfOpenToothForm('${sys.key}','${n}')" title="${e&&e.note?esc(e.note):'Dent '+n}">
+            <span style="font-weight:800;font-size:12px">${n}</span>
+            <span style="font-size:8.5px;opacity:.85">${e?esc(MF_DENTAL_STATUS_LABELS[st]||st||'—'):'—'}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+  const acts = den.acts.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const prosthetics = den.prosthetics_and_appliances;
+  const imaging = den.dental_imaging.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const p = den.periodontal_and_hygiene;
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="card-title" style="margin:0">🦷 ${t('tab_dental')} — ${t('dental_section')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">Cliquez sur une dent pour saisir son état</div>
+      </div>
+      <div class="sep"></div>
+      ${teethHTML}
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="card-title" style="margin:0">📝 Actes dentaires <span class="tag accent">${acts.length}</span></div>
+        <button class="pill-btn primary" onclick="mfOpenDentalActForm(null)">+ Nouvel acte</button>
+      </div>
+      ${acts.length ? acts.map(a=>`
+        <div class="dossier-item">
+          <div class="di-head">
+            <div class="di-title">${esc(MF_DENTAL_ACT_LABELS[a.act_type]||a.act_type||'—')} <span class="tag ${a.status==='Effectué'?'success':a.status==='En cours'?'warn':'muted'}" style="margin-left:6px">${esc(a.status||'—')}</span></div>
+            <div class="di-date">${a.date?fmtDateFR(a.date):''}</div>
+          </div>
+          <div class="di-body">
+            ${a.tooth_or_sector?`<div>🦷 Dent / secteur : <strong>${esc(a.tooth_or_sector)}</strong></div>`:''}
+            ${a.clinical_notes?`<div style="margin-top:4px">${esc(a.clinical_notes)}</div>`:''}
+            ${a.consultation_id?`<div style="margin-top:4px;font-size:11.5px;color:var(--text-muted)">🔗 Consultation : ${esc(consultLabel(a.consultation_id))}</div>`:''}
+          </div>
+          <div class="di-actions">
+            <button class="mini-btn ghost" onclick="mfOpenDentalActForm('${a.id}')">✏️</button>
+            <button class="mini-btn out-red" onclick="mfDeleteDentalItem('acts','${a.id}')">🗑️</button>
+          </div>
+        </div>`).join('') : mfEmpty('📝', 'Aucun acte dentaire')}
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="card-title" style="margin:0">🩸 Parodonte & hygiène</div>
+        <button class="pill-btn" onclick="mfOpenPeriodontalForm()">✏️ Modifier</button>
+      </div>
+      <div style="font-size:12.5px;line-height:1.8;margin-top:8px">
+        <div><strong>État :</strong> <span class="tag ${p.status==='bon'?'success':'warn'}">${esc(MF_DENTAL_PERIO_LABELS[p.status]||p.status||'—')}</span></div>
+        <div><strong>Fréquence de détartrage recommandée :</strong> ${esc(p.recommended_scaling_frequency||'—')}</div>
+        ${p.notes?`<div><strong>Notes :</strong> ${esc(p.notes)}</div>`:''}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="card-title" style="margin:0">🦿 Prothèses & appareils <span class="tag accent">${prosthetics.length}</span></div>
+        <button class="pill-btn primary" onclick="mfOpenDentalProstheticForm(null)">+ Ajouter</button>
+      </div>
+      ${prosthetics.length ? prosthetics.map(a=>`
+        <div class="dossier-item">
+          <div class="di-head"><div class="di-title">${esc(MF_DENTAL_PROSTHETIC_LABELS[a.type]||a.type||'—')}</div></div>
+          <div class="di-body">
+            ${a.description?`<div>${esc(a.description)}</div>`:''}
+            ${a.care_instructions?`<div style="margin-top:4px;font-size:11.5px;color:var(--text-muted)">Conseils : ${esc(a.care_instructions)}</div>`:''}
+          </div>
+          <div class="di-actions">
+            <button class="mini-btn ghost" onclick="mfOpenDentalProstheticForm('${a.id}')">✏️</button>
+            <button class="mini-btn out-red" onclick="mfDeleteDentalItem('prosthetics_and_appliances','${a.id}')">🗑️</button>
+          </div>
+        </div>`).join('') : mfEmpty('🦿', 'Aucune prothèse ou appareil')}
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="card-title" style="margin:0">🖼️ Imagerie dentaire <span class="tag accent">${imaging.length}</span></div>
+        <button class="pill-btn primary" onclick="mfOpenDentalImagingForm(null)">+ Ajouter</button>
+      </div>
+      ${imaging.length ? imaging.map(a=>`
+        <div class="dossier-item">
+          <div class="di-head">
+            <div class="di-title">${esc(MF_DENTAL_IMAGING_LABELS[a.exam_type]||a.exam_type||'—')}</div>
+            <div class="di-date">${a.date?fmtDateFR(a.date):''}</div>
+          </div>
+          ${a.summary?`<div class="di-body">${esc(a.summary)}</div>`:''}
+          <div class="di-actions">
+            <button class="mini-btn ghost" onclick="mfOpenDentalImagingForm('${a.id}')">✏️</button>
+            <button class="mini-btn out-red" onclick="mfDeleteDentalItem('dental_imaging','${a.id}')">🗑️</button>
+          </div>
+        </div>`).join('') : mfEmpty('🖼️', 'Aucun examen d’imagerie')}
+    </div>
+  `;
+}
+function mfOpenToothForm(system, toothNumber){
+  const den = mfDentalData(); if(!den || !Array.isArray(den.teeth[system])) return;
+  const e = (den.teeth[system]||[]).find(x=>String(x.tooth_number)===String(toothNumber)) ||
+    {tooth_number:String(toothNumber), status:'sain', surfaces:[], note:''};
+  openModal('🦷 Dent ' + toothNumber, mfDentalSystemLabel(system), `
+    <div class="field"><label>État de la dent</label>
+      <select class="select" id="dtStatus">${mfDentalOptions(MF_DENTAL_STATUS_LABELS, e.status, Object.keys(MF_DENTAL_STATUS_LABELS))}</select>
+    </div>
+    <div class="field"><label>Surfaces (M = mésial, D = distal, V = vestibulaire, L = lingual, P = palatin, O = occlusal)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${MF_DENTAL_SURFACES.map(s=>`<label class="service-checkbox" style="flex:0 0 auto;padding:6px 10px"><input type="checkbox" id="dtSurf_${s}" ${(e.surfaces||[]).includes(s)?'checked':''}><span>${s}</span></label>`).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Note clinique</label><textarea class="textarea" id="dtNote" style="min-height:70px">${esc(e.note||'')}</textarea></div>
+  `,
+  `<button class="pill-btn out-red" onclick="mfDeleteTooth('${system}','${toothNumber}')">🗑️ Effacer la saisie</button>
+   <button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSaveTooth('${system}','${toothNumber}')">💾 ${t('save')}</button>`);
+}
+function mfSaveTooth(system, toothNumber){
+  const den = mfDentalData(); if(!den || !Array.isArray(den.teeth[system])) return;
+  const list = den.teeth[system];
+  const obj = {
+    tooth_number: String(toothNumber),
+    status: $('#dtStatus')?.value || 'sain',
+    surfaces: MF_DENTAL_SURFACES.filter(s=>document.getElementById('dtSurf_'+s)?.checked),
+    note: ($('#dtNote')?.value||'').trim()
+  };
+  const idx = list.findIndex(x=>String(x.tooth_number)===String(toothNumber));
+  if(idx >= 0) list[idx] = { ...list[idx], ...obj }; else list.push(obj);
+  mfSave(); closeModal(); render(); toast(t('section_saved'),'success');
+}
+function mfDeleteTooth(system, toothNumber){
+  const den = mfDentalData(); if(!den || !Array.isArray(den.teeth[system])) return;
+  den.teeth[system] = den.teeth[system].filter(x=>String(x.tooth_number)!==String(toothNumber));
+  mfSave(); closeModal(); render(); toast(t('item_deleted'),'success');
+}
+function mfOpenDentalActForm(id){
+  const den = mfDentalData(); if(!den) return;
+  const isEdit = !!id;
+  const a = isEdit ? den.acts.find(x=>x.id===id) : {
+    id: mfUID('DEN-'), date: todayISO(), tooth_or_sector:'', act_type:'controle',
+    status:'Planifié', clinical_notes:'', consultation_id:null
+  };
+  if(!a) return;
+  const consults = (mfData() && mfData().consultations) || [];
+  openModal(isEdit?'📝 Acte dentaire':'+ Nouvel acte dentaire', '', `
+    <div class="field"><label>Date *</label><input class="input" id="daDate" type="date" value="${a.date||''}"></div>
+    <div class="field"><label>Dent / secteur</label><input class="input" id="daTooth" value="${esc(a.tooth_or_sector||'')}" placeholder="ex : 16 ou secteur 1"></div>
+    <div class="field-row">
+      <div class="field"><label>Type d’acte</label><select class="select" id="daType">${mfDentalOptions(MF_DENTAL_ACT_LABELS, a.act_type)}</select></div>
+      <div class="field"><label>Statut</label><select class="select" id="daStatus">${MF_DENTAL_STATUS_VALUES.map(v=>`<option value="${v}" ${a.status===v?'selected':''}>${v}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Consultation liée</label>
+      <select class="select" id="daConsult">
+        <option value="">— Aucune —</option>
+        ${consults.map(c=>`<option value="${esc(c.id)}" ${a.consultation_id===c.id?'selected':''}>${esc((c.date?fmtDateFR(c.date)+' — ':'')+(c.motif||t('consultation')))}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Notes cliniques</label><textarea class="textarea" id="daNotes" style="min-height:80px">${esc(a.clinical_notes||'')}</textarea></div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSaveDentalAct('${isEdit?id:'new'}')">💾 ${t('save')}</button>`);
+}
+function mfSaveDentalAct(id){
+  const den = mfDentalData(); if(!den) return;
+  const date = $('#daDate')?.value || '';
+  if(!date){ toast(t('required_fields'),'error'); return; }
+  const obj = {
+    date,
+    tooth_or_sector: ($('#daTooth')?.value||'').trim(),
+    act_type: $('#daType')?.value || 'controle',
+    status: $('#daStatus')?.value || 'Planifié',
+    clinical_notes: ($('#daNotes')?.value||'').trim(),
+    consultation_id: $('#daConsult')?.value || null
+  };
+  if(id === 'new'){
+    obj.id = mfUID('DEN-');
+    den.acts.push(obj);
+  } else {
+    const idx = den.acts.findIndex(x=>x.id===id);
+    if(idx >= 0) den.acts[idx] = { ...den.acts[idx], ...obj };
+  }
+  mfSave(); closeModal(); render(); toast(t('section_saved'),'success');
+}
+function mfOpenPeriodontalForm(){
+  const den = mfDentalData(); if(!den) return;
+  const p = den.periodontal_and_hygiene;
+  openModal('🩸 Parodonte & hygiène', '', `
+    <div class="field"><label>État parodontal</label>
+      <select class="select" id="dpStatus">${mfDentalOptions(MF_DENTAL_PERIO_LABELS, p.status)}</select>
+    </div>
+    <div class="field"><label>Fréquence de détartrage recommandée</label><input class="input" id="dpFreq" value="${esc(p.recommended_scaling_frequency||'')}" placeholder="ex : tous les 6 mois"></div>
+    <div class="field"><label>Notes</label><textarea class="textarea" id="dpNotes" style="min-height:80px">${esc(p.notes||'')}</textarea></div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSavePeriodontal()">💾 ${t('save')}</button>`);
+}
+function mfSavePeriodontal(){
+  const den = mfDentalData(); if(!den) return;
+  den.periodontal_and_hygiene = {
+    status: $('#dpStatus')?.value || 'bon',
+    recommended_scaling_frequency: ($('#dpFreq')?.value||'').trim(),
+    notes: ($('#dpNotes')?.value||'').trim()
+  };
+  mfSave(); closeModal(); render(); toast(t('section_saved'),'success');
+}
+function mfOpenDentalProstheticForm(id){
+  const den = mfDentalData(); if(!den) return;
+  const isEdit = !!id;
+  const a = isEdit ? den.prosthetics_and_appliances.find(x=>x.id===id) : {id:mfUID('DEN-'), type:'prothese_fixe', description:'', care_instructions:''};
+  if(!a) return;
+  openModal(isEdit?'🦿 Prothèse / appareil':'+ Prothèse / appareil', '', `
+    <div class="field"><label>Type</label><select class="select" id="dfType">${mfDentalOptions(MF_DENTAL_PROSTHETIC_LABELS, a.type)}</select></div>
+    <div class="field"><label>Description</label><textarea class="textarea" id="dfDesc" style="min-height:70px">${esc(a.description||'')}</textarea></div>
+    <div class="field"><label>Conseils d’entretien</label><textarea class="textarea" id="dfCare" style="min-height:70px">${esc(a.care_instructions||'')}</textarea></div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSaveDentalProsthetic('${isEdit?id:'new'}')">💾 ${t('save')}</button>`);
+}
+function mfSaveDentalProsthetic(id){
+  const den = mfDentalData(); if(!den) return;
+  const obj = {
+    type: $('#dfType')?.value || 'prothese_fixe',
+    description: ($('#dfDesc')?.value||'').trim(),
+    care_instructions: ($('#dfCare')?.value||'').trim()
+  };
+  if(id === 'new'){
+    obj.id = mfUID('DEN-');
+    den.prosthetics_and_appliances.push(obj);
+  } else {
+    const idx = den.prosthetics_and_appliances.findIndex(x=>x.id===id);
+    if(idx >= 0) den.prosthetics_and_appliances[idx] = { ...den.prosthetics_and_appliances[idx], ...obj };
+  }
+  mfSave(); closeModal(); render(); toast(t('section_saved'),'success');
+}
+function mfOpenDentalImagingForm(id){
+  const den = mfDentalData(); if(!den) return;
+  const isEdit = !!id;
+  const a = isEdit ? den.dental_imaging.find(x=>x.id===id) : {id:mfUID('DEN-'), date:todayISO(), exam_type:'panoramique_dentaire', summary:''};
+  if(!a) return;
+  openModal(isEdit?'🖼️ Imagerie dentaire':'+ Examen d’imagerie', '', `
+    <div class="field"><label>Date *</label><input class="input" id="diDate" type="date" value="${a.date||''}"></div>
+    <div class="field"><label>Type d’examen</label><select class="select" id="diType">${mfDentalOptions(MF_DENTAL_IMAGING_LABELS, a.exam_type)}</select></div>
+    <div class="field"><label>Compte rendu / synthèse</label><textarea class="textarea" id="diSummary" style="min-height:90px">${esc(a.summary||'')}</textarea></div>
+  `,
+  `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+   <button class="pill-btn primary" onclick="mfSaveDentalImaging('${isEdit?id:'new'}')">💾 ${t('save')}</button>`);
+}
+function mfSaveDentalImaging(id){
+  const den = mfDentalData(); if(!den) return;
+  const date = $('#diDate')?.value || '';
+  if(!date){ toast(t('required_fields'),'error'); return; }
+  const obj = {
+    date,
+    exam_type: $('#diType')?.value || 'panoramique_dentaire',
+    summary: ($('#diSummary')?.value||'').trim()
+  };
+  if(id === 'new'){
+    obj.id = mfUID('DEN-');
+    den.dental_imaging.push(obj);
+  } else {
+    const idx = den.dental_imaging.findIndex(x=>x.id===id);
+    if(idx >= 0) den.dental_imaging[idx] = { ...den.dental_imaging[idx], ...obj };
+  }
+  mfSave(); closeModal(); render(); toast(t('section_saved'),'success');
+}
+function mfDeleteDentalItem(group, id){
+  openModal('🗑️ ' + t('delete'), t('confirm_delete_item'), '',
+    `<button class="pill-btn" onclick="closeModal()">${t('cancel')}</button>
+     <button class="pill-btn danger" onclick="mfDoDeleteDentalItem('${group}','${id}')">🗑️ ${t('delete')}</button>`);
+}
+function mfDoDeleteDentalItem(group, id){
+  const den = mfDentalData(); if(!den || !Array.isArray(den[group])) return;
+  den[group] = den[group].filter(x=>x.id!==id);
+  mfSave(); closeModal(); render(); toast(t('item_deleted'),'success');
+}
+function mfDentalPrintHTML(den, inRange){
+  const teethRows = MF_DENTAL_SYSTEMS.map(sys=>{
+    const list = den.teeth[sys.key] || [];
+    const changed = list.filter(e=>e.status && e.status !== 'sain');
+    return `<tr><td>${esc(sys.label)}</td><td>${list.length}</td><td>${changed.length}</td><td>${esc(changed.map(e=>e.tooth_number+' — '+(MF_DENTAL_STATUS_LABELS[e.status]||e.status)).join(', ')||'—')}</td></tr>`;
+  }).join('');
+  const acts = (den.acts||[]).filter(a=>inRange(a.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  const imaging = (den.dental_imaging||[]).filter(x=>inRange(x.date)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  const p = den.periodontal_and_hygiene || {};
+  return `
+    <div class="section-head"><span class="ico-badge">🦷</span>${t('dental_section')}</div>
+    <div style="font-size:10.5px;font-weight:700;margin-bottom:6px">État dentaire</div>
+    <table class="ptbl"><thead><tr><th>Système</th><th>Dents renseignées</th><th>Anomalies</th><th>Détail</th></tr></thead><tbody>${teethRows}</tbody></table>
+    <div style="font-size:10.5px;font-weight:700;margin:10px 0 6px">Actes dentaires</div>
+    ${acts.length ? `<table class="ptbl"><thead><tr><th>Date</th><th>Dent / secteur</th><th>Acte</th><th>Statut</th><th>Notes</th></tr></thead><tbody>${acts.map(a=>`<tr>
+      <td>${a.date?fmtDateFR(a.date):'—'}</td><td>${esc(a.tooth_or_sector||'—')}</td>
+      <td>${esc(MF_DENTAL_ACT_LABELS[a.act_type]||a.act_type||'—')}</td><td>${esc(a.status||'—')}</td>
+      <td>${esc(a.clinical_notes||'—')}</td></tr>`).join('')}</tbody></table>` : `<div style="font-size:10px;color:#6b7280;margin-bottom:8px">Aucun acte sur la période.</div>`}
+    <div style="font-size:10.5px;font-weight:700;margin:10px 0 6px">Parodonte & hygiène</div>
+    <table class="ptbl"><thead><tr><th>État</th><th>Fréquence de détartrage</th><th>Notes</th></tr></thead><tbody><tr>
+      <td>${esc(MF_DENTAL_PERIO_LABELS[p.status]||p.status||'—')}</td>
+      <td>${esc(p.recommended_scaling_frequency||'—')}</td><td>${esc(p.notes||'—')}</td></tr></tbody></table>
+    <div style="font-size:10.5px;font-weight:700;margin:10px 0 6px">Prothèses & appareils</div>
+    ${(den.prosthetics_and_appliances||[]).length ? `<table class="ptbl"><thead><tr><th>Type</th><th>Description</th><th>Entretien</th></tr></thead><tbody>${den.prosthetics_and_appliances.map(a=>`<tr>
+      <td>${esc(MF_DENTAL_PROSTHETIC_LABELS[a.type]||a.type||'—')}</td><td>${esc(a.description||'—')}</td><td>${esc(a.care_instructions||'—')}</td></tr>`).join('')}</tbody></table>` : `<div style="font-size:10px;color:#6b7280;margin-bottom:8px">Aucune prothèse ou appareil.</div>`}
+    <div style="font-size:10.5px;font-weight:700;margin:10px 0 6px">Imagerie dentaire</div>
+    ${imaging.length ? `<table class="ptbl"><thead><tr><th>Date</th><th>Examen</th><th>Synthèse</th></tr></thead><tbody>${imaging.map(a=>`<tr>
+      <td>${a.date?fmtDateFR(a.date):'—'}</td><td>${esc(MF_DENTAL_IMAGING_LABELS[a.exam_type]||a.exam_type||'—')}</td><td>${esc(a.summary||'—')}</td></tr>`).join('')}</tbody></table>` : `<div style="font-size:10px;color:#6b7280;margin-bottom:8px">Aucun examen sur la période.</div>`}
+  `;
 }
 
 /* ============================================================
@@ -15285,6 +15699,7 @@ function viewDossierSingle(){
     ['prescriptions','💊', t('tab_prescriptions') + (counts.prescriptions?` (${counts.prescriptions})`:'')],
     ['labtests','🔬', t('tab_labtests') + (counts.labTests?` (${counts.labTests})`:'')]
   ];
+  if(mfIsDentalContext()) tabs.push(['dental','🦷', t('tab_dental')]); // 🦷 onglet conditionnel
   return `
     ${isArchived ? `<div class="letter-amount" style="font-style:normal;color:var(--danger);border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06);margin-bottom:12px">
       📦 <strong>${t('dossier_archived')}</strong> — ${d.archivedAt ? 'le '+new Date(d.archivedAt).toLocaleDateString('fr-FR') : ''}
@@ -15354,6 +15769,7 @@ function renderDossierTab(tab){
   if(tab === 'vitals') return mfTabVitals(d);
   if(tab === 'prescriptions') return mfTabPrescriptions(d);
   if(tab === 'labtests') return mfTabLabTests(d);
+  if(tab === 'dental') return mfIsDentalContext() ? mfTabDental(d) : ''; // 🦷 jamais affiché hors spécialité dentaire
   return '';
 }
 function mfTabSummary(d){
@@ -16636,7 +17052,7 @@ function mfPrintDossierModal(){
         ['vitals','📊',t('tab_vitals')],
         ['prescriptions','💊',t('tab_prescriptions')],
         ['labtests','🔬',t('tab_labtests')]
-      ].map(([k,ico,lbl])=>`
+      ].concat(mfIsDentalContext() ? [['dental','🦷',t('print_dental_include')]] : []).map(([k,ico,lbl])=>`
         <label class="service-checkbox" style="margin-bottom:4px">
           <input type="checkbox" id="pdSec_${k}" ${sp.sections[k]?'checked':''}>
           <span style="flex:1">${ico} ${lbl}</span>
@@ -16653,7 +17069,9 @@ function mfDoPrintDossier(){
   const sp = state.dossierPrint;
   sp.from = $('#pdFrom')?.value || '';
   sp.to = $('#pdTo')?.value || '';
-  ['summary','allergies','antecedents','consultations','vitals','prescriptions','labtests'].forEach(k => {
+  const printSections = ['summary','allergies','antecedents','consultations','vitals','prescriptions','labtests'];
+  if(mfIsDentalContext()) printSections.push('dental');
+  printSections.forEach(k => {
     const el = document.getElementById('pdSec_'+k);
     if(el) sp.sections[k] = el.checked;
   });
@@ -16763,6 +17181,9 @@ function mfDoPrintDossier(){
           ${l.interpretation?`<div><strong>${t('labtest_interp')} :</strong> ${esc(l.interpretation)}</div>`:''}
         </div>`).join('')}
     `);
+  }
+  if(sp.sections.dental && mfIsDentalContext()){
+    sec.push(mfDentalPrintHTML(mfDentalEnsure(d), inRange));
   }
   if(!sec.length){ toast(t('print_dossier_none'),'error'); return; }
   printHTML(`<!DOCTYPE html>
@@ -29676,6 +30097,14 @@ function detectPatientChangesAndUpdate(){
 // Affiche les notifications (priorité urgences > toasts)
 function applyPatientNotifications(list){
   if(!list || !list.length) return;
+  // 🔔 Notifications système sur le téléphone (en plus des toasts/modal internes)
+  list.forEach(n => {
+    try {
+      if(n.kind === 'emerg_accepted') omniNativeNotify('✅ Urgence acceptée', `${n.clinicName||''} — ${n.type||''}`.trim(' —'));
+      else if(n.kind === 'emerg_declined') omniNativeNotify('❌ Urgence refusée', `${n.clinicName||''} — ${n.type||''}`.trim(' —'));
+      else omniNativeNotify(n.title, n.message);
+    } catch(e){}
+  });
   // Priorité 1 : urgences (modal plein écran)
   const accepted = list.find(n => n.kind === 'emerg_accepted');
   const declined = list.find(n => n.kind === 'emerg_declined');
@@ -29816,6 +30245,8 @@ async function playDoctorNewApptSound(){
 }
 
 function showDoctorNewApptNotification(appt){
+  // 🔔 Notification système sur le téléphone du médecin
+  try { omniNativeNotify('📥 Nouvelle demande de RDV', `${appt.patientName||''} — ${fmtDateFR(appt.date)} à ${appt.time||''}`); } catch(e){}
   const el = document.createElement('div');
   el.className = 'toast success';
   el.innerHTML = `
@@ -30697,6 +31128,14 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   mfPermDeleteConfirm, mfPermDeleteDo,
   mfMergeStart, mfMergeRowHTML, mfMergeFilter, mfMergeChoose, mfMergeSwap, mfMergeDo,
   mfPrintDossierModal, mfDoPrintDossier,
+  /* 🦷 Module dentaire conditionnel */
+  mfIsDentalContext, mfTabDental,
+  mfOpenToothForm, mfSaveTooth, mfDeleteTooth,
+  mfOpenDentalActForm, mfSaveDentalAct,
+  mfOpenPeriodontalForm, mfSavePeriodontal,
+  mfOpenDentalProstheticForm, mfSaveDentalProsthetic,
+  mfOpenDentalImagingForm, mfSaveDentalImaging,
+  mfDeleteDentalItem, mfDoDeleteDentalItem,
   mfPrintConsultation, mfPrintPrescription,
   /* 🩺 Dossier médical clinique — helpers */
   mfGetForClinic, mfAllDossiersForClinic, mfAllDossiersSameOwner, mfOwnerInfo,
@@ -30806,6 +31245,318 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   /* 🆕 MAJUSCULES prestations */
   migratePrestationsToUppercase, forceUpperStr, forceUppercaseInput,
 });
+</script>
+<script>
+/* ════════════════════════════════════════════════════════════════
+   📱 OMNiMED — Module Android (Capacitor)
+   • Bouton retour : ferme la popup ouverte ou revient à la vue
+     précédente, sans jamais fermer l'application.
+   • Notifications système : affichées sur le téléphone en plus
+     des notifications internes.
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  /* ---------- 1. Notifications système ---------- */
+  const _omniNotifTimes = new Map();
+  let _omniAskNotif = false;
+
+  function _omniLN(){
+    try{
+      const C = window.Capacitor;
+      return (C && C.Plugins && C.Plugins.LocalNotifications) || null;
+    }catch(e){ return null; }
+  }
+
+  window.omniNativeNotify = function(title, message){
+    const LN = _omniLN();
+    if(!LN || !LN.schedule || !title) return;
+    const key = String(title) + '|' + String(message || '');
+    const now = Date.now();
+    // Évite les doublons (même notification émise par deux chemins différents)
+    if(now - (_omniNotifTimes.get(key) || 0) < 12000) return;
+    _omniNotifTimes.set(key, now);
+    const id = (now % 2000000000) + Math.floor(Math.random() * 100);
+    try{
+      LN.schedule({
+        notifications: [{
+          id: id,
+          title: String(title).slice(0, 120),
+          body: String(message || '').slice(0, 240),
+          foreground: true,
+          isExactNotification: false
+        }]
+      }).catch(function(){});
+    }catch(e){}
+  };
+
+  /* ---------- 2. Historique des vues internes ---------- */
+  const _omniViewStack = [];
+  let _omniLastView = null;
+  let _omniLastRole = null;
+  let _omniBackNav = false;
+
+  const _omniOrigRender = window.render;
+  window.render = function(){
+    try{
+      if(!_omniBackNav && typeof state !== 'undefined'){
+        const v = state.view;
+        const r = state.role;
+        if(v !== _omniLastView || r !== _omniLastRole){
+          if(r !== _omniLastRole){
+            _omniViewStack.length = 0; // changement de rôle → historique réinitialisé
+          }else if(_omniLastView !== null && _omniLastView !== 'login' && v !== 'login'){
+            _omniViewStack.push(_omniLastView);
+            if(_omniViewStack.length > 30) _omniViewStack.shift();
+          }
+          _omniLastView = v;
+          _omniLastRole = r;
+        }
+      }
+    }catch(e){}
+    return _omniOrigRender.apply(this, arguments);
+  };
+
+  function _omniCloseTopPopup(){
+    // 0) Notice de bienvenue : reste affichée jusqu'à confirmation
+    if(document.getElementById('omniWelcomeOverlay')) return true;
+    // 1) Fenêtre générique (elle peut être au-dessus de l'alerte urgence)
+    const generic = document.querySelector('#modal-root .modal-back');
+    if(generic){
+      try{ closeModal(); }
+      catch(e){ generic.remove(); }
+      return true;
+    }
+    // 2) Alerte urgence
+    const emg = document.getElementById('emergencyModalRoot');
+    if(emg && emg.classList.contains('open')){
+      try{ hideEmergencyAlertModal(); }
+      catch(e){ emg.innerHTML = ''; emg.classList.remove('open'); }
+      return true;
+    }
+    // 3) Abonnement expiré / compte verrouillé
+    const sub = document.getElementById('subModalRoot');
+    if(sub && sub.classList.contains('open')){
+      try{ hideSubscriptionExpiredModal(); }
+      catch(e){ sub.innerHTML = ''; sub.classList.remove('open'); }
+      return true;
+    }
+    // 4) Superposition d'impression éventuelle
+    const overlays = document.querySelectorAll('body > div');
+    for(let i = 0; i < overlays.length; i++){
+      const el = overlays[i];
+      if(el.style && el.style.position === 'fixed' && el.style.zIndex === '100000'){
+        try{ el.remove(); }catch(e){}
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function _omniBackToPreviousView(){
+    if(!_omniViewStack.length || typeof state === 'undefined') return false;
+    const v = _omniViewStack.pop();
+    try{
+      _omniBackNav = true;
+      state.view = v;
+      if(typeof state.apptsPage !== 'undefined') state.apptsPage = 1;
+      if(state.msgSelected) state.msgSelected = [];
+      if(state.selectedAppts) state.selectedAppts = [];
+      render();
+      return true;
+    }catch(e){ return false; }
+    finally{ _omniBackNav = false; }
+  }
+
+  let _omniRootToastAt = 0;
+  function _omniHandleBack(){
+    if(_omniCloseTopPopup()) return;
+    if(_omniBackToPreviousView()) return;
+    // À l'accueil : l'application reste ouverte (jamais de fermeture)
+    const now = Date.now();
+    if(now - _omniRootToastAt > 4000){
+      _omniRootToastAt = now;
+      try{ toast('Vous êtes à l’accueil — l’application reste ouverte.', 'info'); }catch(e){}
+    }
+  }
+
+  /* ---------- 3. Branchement natif (avec nouvelle tentative si le bridge tarde) ---------- */
+  let _omniTries = 0;
+  let _omniBackReady = false;
+  const _omniTimer = setInterval(function(){
+    _omniTries++;
+    const C = window.Capacitor;
+    const App = C && C.Plugins && C.Plugins.App;
+    const LN  = C && C.Plugins && C.Plugins.LocalNotifications;
+
+    if(App && App.addListener && !_omniBackReady){
+      _omniBackReady = true;
+      try{ App.addListener('backButton', _omniHandleBack).catch(function(){}); }catch(e){}
+    }
+    if(LN && !_omniAskNotif){
+      _omniAskNotif = true;
+      try{ LN.requestPermissions().catch(function(){}); }catch(e){}
+    }
+    if((_omniBackReady && LN) || _omniTries > 60) clearInterval(_omniTimer);
+  }, 100);
+
+  /* ---------- 4. Notifications des nouveaux messages ---------- */
+  function _omniCheckMessages(){
+    try{
+      if(typeof state === 'undefined' || typeof currentUserKey !== 'function') return;
+      const me = currentUserKey();
+      if(!me) return;
+      const LS = 'omnimed_notified_messages';
+      const raw = localStorage.getItem(LS);
+      let seen = {};
+      try{ seen = JSON.parse(raw || 'null') || {}; }catch(e){ seen = {}; }
+      const unread = (DB.messages || []).filter(function(m){ return m.to && m.to.key === me && !m.read; });
+      if(raw === null){
+        // Premier lancement : on ne notifie pas les anciens messages
+        unread.forEach(function(m){ seen[m.id] = 1; });
+      }else{
+        let changed = false;
+        unread.forEach(function(m){
+          if(!seen[m.id]){
+            seen[m.id] = 1;
+            changed = true;
+            omniNativeNotify('✉️ ' + (m.subject || 'Nouveau message'),
+              ((m.from && m.from.name) ? m.from.name + ' : ' : '') + String(m.body || '').slice(0, 160));
+          }
+        });
+        if(!changed) return;
+      }
+      localStorage.setItem(LS, JSON.stringify(seen));
+    }catch(e){}
+  }
+  window.addEventListener('DOMContentLoaded', function(){
+    setTimeout(_omniCheckMessages, 6000);
+    setInterval(_omniCheckMessages, 30000);
+  });
+
+  /* ---------- 5. Notice de bienvenue (premier lancement uniquement) ---------- */
+  const WELCOME_LS = 'omnimed_welcome_notice_shown';
+  const WELCOME_TEXT = {
+    fr: {
+      title: 'Bienvenue sur OmniMed 👋',
+      sub: 'La plateforme qui vous permet de prendre et de gérer vos rendez-vous chez les médecins, partout en Algérie.',
+      items: [
+        'Recherchez un médecin par spécialité, wilaya ou clinique et réservez un créneau en quelques gestes.',
+        'Suivez vos rendez-vous, modifiez-les ou annulez-les depuis « Mes rendez-vous ».',
+        'Recevez des rappels et des notifications directement sur votre téléphone.',
+        'En cas d’urgence, envoyez une demande et suivez la réponse en temps réel.',
+        'Interface disponible en français, arabe et anglais.'
+      ],
+      ok: 'J’ai compris'
+    },
+    ar: {
+      title: 'مرحباً بكم في أومني ميد 👋',
+      sub: 'المنصة التي تتيح لكم حجز مواعيد الأطباء وإدارتها في مختلف أنحاء الجزائر.',
+      items: [
+        'ابحثوا عن الطبيب حسب التخصص أو الولاية أو العيادة، واحجزوا موعداً بخطوات بسيطة.',
+        'تابعوا مواعيدكم، وعدّلوها أو ألغوها من قسم « مواعيدي ».',
+        'استقبلوا التذكيرات والإشعارات مباشرة على هواتفكم.',
+        'عند الضرورة، أرسلوا طلب إسعاف وتابعوا الرد في الوقت الفعلي.',
+        'الواجهة متوفرة بالعربية والفرنسية والإنجليزية.'
+      ],
+      ok: 'فهمت'
+    },
+    en: {
+      title: 'Welcome to OmniMed 👋',
+      sub: 'The platform to book and manage appointments with doctors anywhere in Algeria.',
+      items: [
+        'Find a doctor by specialty, wilaya or clinic and book a slot in a few taps.',
+        'Track your appointments, reschedule or cancel them from “My appointments”.',
+        'Get reminders and notifications right on your phone.',
+        'In an emergency, send a request and follow the response in real time.',
+        'Available in English, French and Arabic.'
+      ],
+      ok: 'Got it'
+    }
+  };
+
+  function _omniWelcomeStyle(){
+    if(document.getElementById('omniWelcomeStyle')) return;
+    const st = document.createElement('style');
+    st.id = 'omniWelcomeStyle';
+    st.textContent = `
+      #omniWelcomeOverlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:18px;
+        background:radial-gradient(circle at 25% 15%,rgba(139,92,246,.35),transparent 55%),
+        radial-gradient(circle at 80% 85%,rgba(236,72,153,.28),transparent 55%),rgba(15,23,42,.62);
+        backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+      .ow-card{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
+        background:linear-gradient(160deg,rgba(255,255,255,.97),rgba(250,245,255,.97));
+        border:1.5px solid rgba(255,255,255,.9);border-radius:28px;padding:22px;
+        box-shadow:0 24px 60px rgba(139,92,246,.3);color:#1f2937}
+      body.dark .ow-card{background:linear-gradient(160deg,rgba(42,36,70,.98),rgba(32,26,58,.98));
+        border-color:rgba(139,92,246,.45);color:#f1f5f9}
+      .ow-title{font-size:20px;font-weight:800;margin-bottom:6px;
+        background:linear-gradient(135deg,#8b5cf6,#ec4899);-webkit-background-clip:text;
+        background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+      .ow-sub{font-size:12.5px;line-height:1.55;color:#6b7280;margin-bottom:14px}
+      body.dark .ow-sub{color:#94a3b8}
+      .ow-langs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+      .ow-lang{padding:6px 12px;border-radius:9999px;border:1px solid rgba(139,92,246,.35);
+        background:rgba(139,92,246,.08);color:#8b5cf6;font-family:inherit;font-size:11.5px;
+        font-weight:700;cursor:pointer}
+      .ow-lang.on{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;border-color:transparent}
+      .ow-list{list-style:none;padding:0;margin:0 0 16px;display:flex;flex-direction:column;gap:9px}
+      .ow-list li{position:relative;padding:9px 12px 9px 34px;border-radius:14px;
+        background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.16);
+        font-size:12.5px;line-height:1.5}
+      .ow-list li::before{content:'✓';position:absolute;left:12px;top:9px;color:#8b5cf6;font-weight:800}
+      #omniWelcomeOverlay[dir="rtl"] .ow-list li{padding:9px 34px 9px 12px}
+      #omniWelcomeOverlay[dir="rtl"] .ow-list li::before{left:auto;right:12px}
+      #omniWelcomeOverlay[dir="rtl"] .ow-langs{justify-content:flex-end}
+      .ow-ok{width:100%;padding:12px;border:none;border-radius:9999px;cursor:pointer;
+        background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;font-family:inherit;
+        font-size:13px;font-weight:700;box-shadow:0 8px 20px rgba(139,92,246,.35)}
+      .ow-ok:hover{filter:brightness(1.06)}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function _omniShowWelcome(){
+    try{
+      if(localStorage.getItem(WELCOME_LS) === '1') return;
+      if(document.getElementById('omniWelcomeOverlay')) return;
+      _omniWelcomeStyle();
+      let lang = 'fr';
+      try{ const l = (typeof state !== 'undefined' && state.lang) || 'fr'; if(WELCOME_TEXT[l]) lang = l; }catch(e){}
+      const ov = document.createElement('div');
+      ov.id = 'omniWelcomeOverlay';
+      ov.setAttribute('role', 'dialog');
+      ov.setAttribute('aria-modal', 'true');
+      document.body.appendChild(ov);
+
+      function paint(){
+        const t = WELCOME_TEXT[lang];
+        ov.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        ov.innerHTML = `
+          <div class="ow-card">
+            <div class="ow-title">${t.title}</div>
+            <div class="ow-sub">${t.sub}</div>
+            <div class="ow-langs">
+              <button type="button" class="ow-lang ${lang==='fr'?'on':''}" data-lang="fr">Français</button>
+              <button type="button" class="ow-lang ${lang==='ar'?'on':''}" data-lang="ar">العربية</button>
+              <button type="button" class="ow-lang ${lang==='en'?'on':''}" data-lang="en">English</button>
+            </div>
+            <ul class="ow-list">${t.items.map(function(x){ return '<li>' + x + '</li>'; }).join('')}</ul>
+            <button type="button" class="ow-ok">${t.ok}</button>
+          </div>`;
+        ov.querySelectorAll('.ow-lang').forEach(function(b){
+          b.addEventListener('click', function(){ lang = b.getAttribute('data-lang'); paint(); });
+        });
+        ov.querySelector('.ow-ok').addEventListener('click', function(){
+          try{ localStorage.setItem(WELCOME_LS, '1'); }catch(e){}
+          ov.remove();
+        });
+      }
+      paint();
+    }catch(e){}
+  }
+  window.addEventListener('DOMContentLoaded', function(){ setTimeout(_omniShowWelcome, 500); });
+})();
 </script>
 </body>
 </html>
