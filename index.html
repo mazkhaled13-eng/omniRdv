@@ -12,9 +12,6 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
-<!-- 📱 Capacitor (APK Android) — notifications locales -->
-<script src="capacitor.js"></script>
-<script src="local-notifications.js"></script>
 <title>OmniMed — Plateforme Médicale</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -448,6 +445,8 @@ body[dir="rtl"] .doctor-row:hover{transform:translateX(-4px)}
 body.dark .tag.money{background:rgba(16,185,129,.2);color:#6ee7b7}
 .tag.internal{background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(236,72,153,.15));
   color:var(--accent-primary);border:1px solid rgba(139,92,246,.35)}
+.tag.rating{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;border:1px solid #fcd34d}
+.tag.rating-empty{background:var(--glass-bg-3);color:var(--text-muted)}
 .tag.clinic{background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1));
   color:#be185d;border:1px solid rgba(236,72,153,.35)}
 body.dark .tag.clinic{color:#f9a8d4}
@@ -613,85 +612,6 @@ body.dark .notif-rdv-label.emergency .nl-name{color:#fca5a5}
 .notif-rdv-label.emergency:hover{background:linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.06));border-color:var(--danger);transform:translateY(-1px)}
 .notif-rdv-label .nl-badge{display:inline-flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:800;letter-spacing:.3px;padding:2px 6px;border-radius:9999px;background:var(--accent-light);color:var(--accent-primary);border:1px solid rgba(139,92,246,.35);margin-top:3px;align-self:flex-start;text-transform:uppercase;line-height:1.2}
 .notif-rdv-label.emergency .nl-badge{background:rgba(239,68,68,.18);color:var(--danger);border-color:rgba(239,68,68,.45)}
-/* 👋 Notification d'accueil — affichée une seule fois */
-.welcome-back{
-  position:fixed;inset:0;z-index:120;
-  display:grid;place-items:center;padding:16px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(16,185,129,.24), transparent 55%),
-    radial-gradient(circle at 85% 90%, rgba(139,92,246,.24), transparent 55%),
-    rgba(15,23,42,.62);
-  backdrop-filter:blur(10px) saturate(120%);
-  -webkit-backdrop-filter:blur(10px) saturate(120%);
-  animation:fade .25s ease;
-  overflow-y:auto;
-}
-.welcome-modal{
-  position:relative;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
-  background:linear-gradient(160deg,rgba(255,255,255,.96),rgba(250,245,255,.97) 45%,rgba(253,242,248,.96));
-  border:1.5px solid rgba(255,255,255,.9);border-radius:24px;
-  padding:24px 24px 20px;
-  box-shadow:0 24px 60px rgba(139,92,246,.25),0 10px 24px rgba(16,185,129,.12),inset 0 1px 0 rgba(255,255,255,.95);
-  animation:pop .3s ease;
-}
-.welcome-modal::before{
-  content:'';position:absolute;top:0;left:24px;right:24px;height:3px;border-radius:0 0 3px 3px;
-  background:linear-gradient(90deg,#10b981,#139b8a 45%,var(--accent-primary));
-}
-.welcome-hero{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
-.welcome-ico{
-  width:54px;height:54px;flex-shrink:0;border-radius:16px;
-  display:grid;place-items:center;font-size:28px;
-  background:linear-gradient(135deg,#10b981,#059669);color:#fff;
-  box-shadow:0 8px 20px rgba(16,185,129,.28);
-}
-.welcome-title{font-size:20px;font-weight:800;letter-spacing:-.5px;margin:0 0 4px;color:var(--text-main)}
-.welcome-intro{font-size:12.5px;line-height:1.55;color:var(--text-muted);margin:0}
-.welcome-tabs{
-  display:flex;gap:4px;padding:4px;margin:16px 0 14px;
-  background:var(--glass-bg-3);border:1px solid var(--glass-border);border-radius:9999px;
-}
-.welcome-tabs button{
-  flex:1;border:none;background:transparent;color:var(--text-muted);
-  font-family:inherit;font-size:12px;font-weight:700;padding:8px 10px;
-  border-radius:9999px;cursor:pointer;transition:var(--transition);
-}
-.welcome-tabs button:hover{color:var(--accent-primary)}
-.welcome-tabs button.on{background:var(--accent-primary);color:#fff;box-shadow:0 4px 12px rgba(139,92,246,.3)}
-.welcome-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.welcome-item{
-  display:flex;gap:10px;align-items:flex-start;padding:10px 12px;
-  border-radius:12px;background:var(--glass-bg-3);border:1px solid var(--glass-border);
-  font-size:12px;line-height:1.5;color:var(--text-main);
-}
-.welcome-item .wi-ico{
-  width:22px;height:22px;flex-shrink:0;border-radius:7px;
-  display:grid;place-items:center;font-size:12px;
-  background:var(--accent-light);color:var(--accent-primary);
-}
-.welcome-actions{margin-top:18px;display:flex;justify-content:flex-end}
-.welcome-btn{
-  border:none;border-radius:12px;padding:11px 20px;
-  font-family:inherit;font-size:13px;font-weight:800;color:#fff;
-  background:linear-gradient(135deg,var(--accent-primary),#ec4899);
-  box-shadow:0 6px 16px rgba(139,92,246,.3);cursor:pointer;transition:var(--transition);
-}
-.welcome-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(139,92,246,.38)}
-body.dark .welcome-modal{
-  background:linear-gradient(160deg,rgba(42,36,70,.97),rgba(32,26,58,.98));
-  border-color:rgba(139,92,246,.45);
-  box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);
-}
-.welcome-modal[dir="rtl"] .welcome-hero,
-.welcome-modal[dir="rtl"] .welcome-item{flex-direction:row-reverse}
-.welcome-modal[dir="rtl"] .welcome-actions{justify-content:flex-start}
-@media (max-width:520px){
-  .welcome-modal{padding:18px 16px 16px;border-radius:18px}
-  .welcome-title{font-size:18px}
-  .welcome-ico{width:46px;height:46px;font-size:24px}
-  .welcome-item{font-size:11.5px;padding:9px 10px}
-  .welcome-btn{width:100%;justify-content:center}
-}
 .modal-back{
   position:fixed;inset:0;
   background:
@@ -1276,15 +1196,14 @@ body.dark .invoice-kpi.money .k-val{color:#6ee7b7}
   background:var(--glass-border); border-radius:3px;
 }
 /* ============================================================
-   🆕 CARTES RÉCENTS V5 — Médecins & Cliniques (compactes et élégantes)
+   🆕 CARTES RÉCENTS V4 — Médecins & Cliniques améliorées
    ============================================================ */
 .home-recent-card{
-  flex:0 0 202px; scroll-snap-align:start;
+  flex:0 0 230px; scroll-snap-align:start;
   background:var(--glass-bg);
-  border:1px solid var(--glass-border);
-  border-radius:16px;
-  padding:12px 12px 10px;
-  min-height:168px;
+  border:1.5px solid var(--glass-border);
+  border-radius:18px;
+  padding:14px 14px 12px;
   cursor:pointer;
   transition:var(--transition);
   display:flex;
@@ -1292,136 +1211,146 @@ body.dark .invoice-kpi.money .k-val{color:#6ee7b7}
   min-width:0;
   position:relative;
   overflow:hidden;
-  box-shadow:0 2px 10px rgba(15,23,42,.04);
-}
-.home-recent-card::before{
-  content:''; position:absolute; top:0; left:14px; right:14px; height:2px;
-  border-radius:0 0 2px 2px;
-  background:linear-gradient(90deg,var(--accent-primary),rgba(236,72,153,.65));
-  opacity:.85;
 }
 .home-recent-card:hover{
-  transform:translateY(-2px);
-  box-shadow:0 8px 20px rgba(15,23,42,.1);
+  transform:translateY(-3px);
+  box-shadow:var(--shadow);
   border-color:var(--accent-primary);
 }
-.home-recent-card:focus-visible{ outline:2px solid var(--accent-primary); outline-offset:2px; }
 .home-recent-card.closed{
-  background:linear-gradient(135deg,rgba(239,68,68,.045),rgba(239,68,68,.015));
-  border-color:rgba(239,68,68,.28);
+  background:linear-gradient(135deg,rgba(239,68,68,.05),rgba(239,68,68,.02));
+  border-color:rgba(239,68,68,.3);
 }
-.home-recent-card.closed::before{ background:linear-gradient(90deg,#ef4444,#f97316); }
 .home-recent-card .hrc-top{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
   gap:8px;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
 .home-recent-card .hrc-avatar{
-  width:44px;
-  height:44px;
-  border-radius:12px;
+  width:52px;
+  height:52px;
+  border-radius:14px;
   display:grid;
   place-items:center;
-  font-size:22px;
-  background:linear-gradient(135deg,var(--accent-light),#eef2ff);
+  font-size:26px;
+  background:linear-gradient(135deg,var(--accent-light),#e0e7ff);
   border:1px solid var(--glass-border);
   flex-shrink:0;
   position:relative;
   overflow:hidden;
 }
+.home-recent-card .hrc-rating{
+  display:inline-flex;
+  align-items:center;
+  gap:2px;
+  font-size:10.5px;
+  font-weight:700;
+  padding:4px 9px;
+  border-radius:9999px;
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+  color:#b45309;
+  border:1px solid #fcd34d;
+  flex-shrink:0;
+  white-space:nowrap;
+}
+.home-recent-card .hrc-rating.empty{
+  background:var(--glass-bg-3);
+  color:var(--text-muted);
+  border-color:var(--glass-border);
+}
 .home-recent-card .hrc-name{
-  font-size:13px;
-  font-weight:750;
+  font-size:14px;
+  font-weight:800;
   color:var(--text-main);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  letter-spacing:-.2px;
-  margin-bottom:1px;
-  line-height:1.25;
+  letter-spacing:-.3px;
+  margin-bottom:2px;
+  line-height:1.2;
 }
 .home-recent-card .hrc-spec{
-  font-size:10.5px;
+  font-size:11.5px;
   color:var(--accent-primary);
-  font-weight:650;
+  font-weight:700;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  margin-bottom:4px;
+  margin-bottom:6px;
 }
 .home-recent-card .hrc-loc{
-  font-size:10px;
+  font-size:11px;
   color:var(--text-muted);
   font-weight:500;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
 .home-recent-card .hrc-info-row{
   display:flex;
   align-items:center;
-  gap:4px;
+  gap:5px;
   flex-wrap:wrap;
-  padding-top:7px;
-  border-top:1px solid var(--glass-border);
-  margin-bottom:8px;
+  padding-top:8px;
+  border-top:1px dashed var(--glass-border);
+  margin-bottom:10px;
 }
 .home-recent-card .hrc-info-item{
   display:inline-flex;
   align-items:center;
   gap:3px;
-  font-size:9.5px;
-  font-weight:650;
-  padding:2.5px 7px;
-  border-radius:8px;
-  background:rgba(148,163,184,.1);
-  border:1px solid rgba(148,163,184,.16);
-  color:var(--text-muted);
+  font-size:10.5px;
+  font-weight:700;
+  padding:3px 8px;
+  border-radius:9999px;
+  background:var(--glass-bg-3);
+  border:1px solid var(--glass-border);
+  color:var(--text-main);
   white-space:nowrap;
 }
 .home-recent-card .hrc-info-item.price{
-  background:linear-gradient(135deg,rgba(16,185,129,.13),rgba(5,150,105,.06));
+  background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));
   color:#059669;
-  border-color:rgba(16,185,129,.25);
+  border-color:rgba(16,185,129,.35);
   font-family:var(--font-numbers);
 }
 body.dark .home-recent-card .hrc-info-item.price{ color:#6ee7b7; }
 .home-recent-card .hrc-info-item.accent{
   background:var(--accent-light);
   color:var(--accent-primary);
-  border-color:rgba(139,92,246,.2);
+  border-color:rgba(139,92,246,.3);
 }
 .home-recent-card .hrc-status{
   margin-top:auto;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:4px;
-  padding:6px 9px;
-  border-radius:9px;
-  font-size:10px;
-  font-weight:700;
+  gap:5px;
+  padding:7px 12px;
+  border-radius:9999px;
+  font-size:11px;
+  font-weight:800;
   align-self:stretch;
   text-align:center;
-  letter-spacing:0;
+  letter-spacing:.2px;
 }
 .home-recent-card .hrc-status.available{
-  background:linear-gradient(135deg,rgba(16,185,129,.92),rgba(5,150,105,.92));
+  background:linear-gradient(135deg,#10b981,#059669);
   color:#fff;
-  box-shadow:0 2px 8px rgba(16,185,129,.22);
+  box-shadow:0 3px 10px rgba(16,185,129,.3);
 }
 .home-recent-card .hrc-status.closed{
-  background:linear-gradient(135deg,rgba(239,68,68,.92),rgba(220,38,38,.92));
+  background:linear-gradient(135deg,#ef4444,#dc2626);
   color:#fff;
-  box-shadow:0 2px 8px rgba(239,68,68,.2);
+  box-shadow:0 3px 10px rgba(239,68,68,.3);
 }
 .home-recent-card .hrc-status.neutral{
-  background:rgba(148,163,184,.12);
+  background:var(--glass-bg-3);
   color:var(--text-muted);
-  border:1px solid rgba(148,163,184,.18);
+  border:1px solid var(--glass-border);
 }
 .home-recent-card.closed .hrc-name{ color:#b91c1c; }
 body.dark .home-recent-card.closed .hrc-name{ color:#fca5a5; }
@@ -1452,12 +1381,12 @@ body.dark .home-recent-card.closed .hrc-name{ color:#fca5a5; }
   .home-action-card{ min-height:130px; padding:18px 16px; }
   .home-recent-scroll{
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
     overflow-x:visible;
     padding-bottom:4px;
-    gap:10px;
+    gap:12px;
   }
-  .home-recent-card{ flex:none; width:auto; min-width:0; min-height:158px; }
+  .home-recent-card{ flex:none; width:auto; min-width:0; }
   .home-greet-title{ font-size:18px; }
   .home-greet-emoji{ width:44px; height:44px; font-size:22px; }
 }
@@ -1480,13 +1409,14 @@ body.dark .home-recent-card.closed .hrc-name{ color:#fca5a5; }
   .home-filters-compact{ padding:10px 12px; font-size:12.5px; margin-bottom:12px; }
   .home-emergency-bottom{ padding:14px; font-size:14px; margin-bottom:16px; }
   .home-emergency-bottom .heb-ico{ font-size:20px; }
-  .home-recent-card{ flex:0 0 180px; padding:10px 10px 8px; border-radius:14px; min-height:158px; }
-  .home-recent-card .hrc-avatar{ width:40px; height:40px; font-size:20px; border-radius:11px; }
-  .home-recent-card .hrc-name{ font-size:12.5px; }
-  .home-recent-card .hrc-spec{ font-size:10px; }
-  .home-recent-card .hrc-loc{ font-size:9.5px; margin-bottom:7px; }
-  .home-recent-card .hrc-info-item{ font-size:9px; padding:2px 6px; }
-  .home-recent-card .hrc-status{ font-size:9.5px; padding:5px 8px; }
+  .home-recent-card{ flex:0 0 205px; padding:12px 12px 10px; border-radius:16px; }
+  .home-recent-card .hrc-avatar{ width:46px; height:46px; font-size:22px; border-radius:12px; }
+  .home-recent-card .hrc-name{ font-size:13px; }
+  .home-recent-card .hrc-spec{ font-size:11px; }
+  .home-recent-card .hrc-loc{ font-size:10.5px; margin-bottom:8px; }
+  .home-recent-card .hrc-info-item{ font-size:10px; padding:2px 7px; }
+  .home-recent-card .hrc-status{ font-size:10.5px; padding:6px 10px; }
+  .home-recent-card .hrc-rating{ font-size:10px; padding:3px 7px; }
   .home-stats-banner{ grid-template-columns:repeat(2,1fr); gap:10px; padding:12px 10px; }
   .home-stats-banner .hsb-val{ font-size:17px; }
   .home-stats-banner .hsb-lbl{ font-size:9px; }
@@ -1496,7 +1426,7 @@ body.dark .home-recent-card.closed .hrc-name{ color:#fca5a5; }
   .home-action-card{ padding:12px 10px; min-height:100px; }
   .home-action-card .hac-title{ font-size:13px; }
   .home-action-card .hac-sub{ font-size:10.5px; }
-  .home-recent-card{ flex:0 0 168px; padding:9px 9px 7px; min-height:152px; }
+  .home-recent-card{ flex:0 0 190px; padding:10px 10px 8px; }
   .home-emergency-bottom{ padding:12px; font-size:13px; }
 }
 .service-checkbox{display:flex;align-items:center;gap:10px;padding:10px 12px;
@@ -1589,6 +1519,13 @@ body.dark .queue-hero.today .qh-queue-num{color:#6ee7b7}
   .queue-hero .qh-queue-num{font-size:26px;min-width:28px}
   .queue-hero .qh-queue-text{font-size:12.5px}
 }
+.rating-widget{display:flex;justify-content:center;gap:6px;margin:8px 0}
+.rating-widget button{background:none;border:none;cursor:pointer;font-size:38px;line-height:1;
+  color:#d1d5db;padding:2px;transition:all .15s}
+.rating-widget button.hover{color:#f59e0b;transform:scale(1.1)}
+.rating-display{font-size:24px;letter-spacing:2px;color:#f59e0b;text-align:center}
+.rating-display .empty-star{color:#d1d5db}
+.rating-summary{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600}
 @media (max-width: 900px){
   body{padding:12px}
   .app{height:calc(100vh - 24px);height:calc(100dvh - 24px)}
@@ -1628,6 +1565,7 @@ body.dark .queue-hero.today .qh-queue-num{color:#6ee7b7}
   .tag.stat-tag-lg{padding:8px 13px}
   .tag.stat-tag-lg .st-val{font-size:17px}
   .stat-row{grid-template-columns:minmax(75px,1fr) 2fr minmax(30px,auto);gap:8px;font-size:11.5px;padding:6px 0}
+  .rating-widget button{font-size:32px}
   .home-buttons .pill-btn.home-btn-lg{padding:13px 22px;font-size:14px}
 }
 @media (max-width: 400px){
@@ -2409,6 +2347,7 @@ body.dark .stats-page-header .sph-kpi{
 .stats-page-header .sph-kpi.money::after{background:linear-gradient(90deg,#059669,#34d399)}
 .stats-page-header .sph-kpi.warn::after{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
 .stats-page-header .sph-kpi.info::after{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.stats-page-header .sph-kpi.rating::after{background:linear-gradient(90deg,#f59e0b,#ec4899)}
 .stats-page-header .sph-kpi .sph-lbl{
   font-size:10px;
   text-transform:uppercase;
@@ -2430,6 +2369,7 @@ body.dark .stats-page-header .sph-kpi{
 .stats-page-header .sph-kpi.money .sph-lbl .sph-lbl-ico{background:rgba(16,185,129,.14)}
 .stats-page-header .sph-kpi.warn .sph-lbl .sph-lbl-ico{background:rgba(245,158,11,.16)}
 .stats-page-header .sph-kpi.info .sph-lbl .sph-lbl-ico{background:rgba(59,130,246,.14)}
+.stats-page-header .sph-kpi.rating .sph-lbl .sph-lbl-ico{background:rgba(245,158,11,.16)}
 .stats-page-header .sph-kpi .sph-val{
   font-family:var(--font-numbers);
   font-weight:700;
@@ -2447,6 +2387,8 @@ body.dark .stats-page-header .sph-kpi.money .sph-val{color:#6ee7b7}
 body.dark .stats-page-header .sph-kpi.warn .sph-val{color:#fbbf24}
 .stats-page-header .sph-kpi.info .sph-val{color:#2563eb}
 body.dark .stats-page-header .sph-kpi.info .sph-val{color:#60a5fa}
+.stats-page-header .sph-kpi.rating .sph-val{color:#d97706}
+body.dark .stats-page-header .sph-kpi.rating .sph-val{color:#fbbf24}
 .stats-page-header .sph-kpi .sph-unit{
   font-size:12px;
   font-weight:500;
@@ -3837,6 +3779,15 @@ const T = {
     password_required:'Accès protégé',
     password_required_msg:'Ce rendez-vous est protégé par un mot de passe',
     wrong_password:'Mot de passe incorrect',
+    rate_visit:'Notez votre consultation',
+    rate_clinic:'Notez la clinique',
+    your_rating:'Votre note',
+    thanks_for_rating:'Merci pour votre avis',
+    average_rating:'Note moyenne',
+    reviews:'avis',
+    no_rating_yet:'Pas encore de note',
+    already_rated:'Vous avez déjà noté ce rendez-vous',
+    only_done_can_be_rated:'Vous ne pouvez noter qu\'une consultation terminée',
     search_appt_admin_ph:'Rechercher (patient, téléphone, motif, ID)…',
     msg_inbox:'Reçus',msg_sent:'Envoyés',msg_new:'Nouveau message',msg_to:'Destinataire',
     msg_subject:'Objet',msg_body:'Message',msg_send:'Envoyer le message',msg_attach:'Joindre des fichiers',
@@ -4478,6 +4429,15 @@ const T = {
     password_required:'Protected access',
     password_required_msg:'This appointment is protected by a password',
     wrong_password:'Wrong password',
+    rate_visit:'Rate your consultation',
+    rate_clinic:'Rate the clinic',
+    your_rating:'Your rating',
+    thanks_for_rating:'Thank you for your feedback',
+    average_rating:'Average rating',
+    reviews:'reviews',
+    no_rating_yet:'No rating yet',
+    already_rated:'You have already rated this appointment',
+    only_done_can_be_rated:'You can only rate a completed consultation',
     search_appt_admin_ph:'Search (patient, phone, reason, ID)…',
     msg_inbox:'Inbox',msg_sent:'Sent',msg_new:'New message',msg_to:'Recipient',
     msg_subject:'Subject',msg_body:'Message',msg_send:'Send message',msg_attach:'Attach files',
@@ -5063,6 +5023,15 @@ const T = {
     password_required:'وصول محمي',
     password_required_msg:'هذا الموعد محمي بكلمة مرور',
     wrong_password:'كلمة مرور خاطئة',
+    rate_visit:'قيّم استشارتك',
+    rate_clinic:'قيّم العيادة',
+    your_rating:'تقييمك',
+    thanks_for_rating:'شكرًا لتقييمك',
+    average_rating:'متوسط التقييم',
+    reviews:'تقييم',
+    no_rating_yet:'لا يوجد تقييم بعد',
+    already_rated:'لقد قيّمت هذا الموعد بالفعل',
+    only_done_can_be_rated:'يمكنك تقييم الاستشارات المنتهية فقط',
     search_appt_admin_ph:'ابحث (المريض، الهاتف، السبب، المعرّف)…',
     msg_inbox:'الوارد',msg_sent:'المرسل',msg_new:'رسالة جديدة',msg_to:'المستلم',
     msg_subject:'الموضوع',msg_body:'الرسالة',msg_send:'إرسال',msg_attach:'إرفاق ملفات',
@@ -6060,6 +6029,18 @@ function apptClinicCommission(a){
   if(b.type === 'commission') return b.commissionAmount;
   return 0;
 }
+function getClinicRating(clinicId){
+  const ratings = DB.appointments
+    .filter(a => String(a.clinicId)===String(clinicId) && a.clinicRating && a.clinicRating > 0 && a.status === 'done')
+    .map(a => a.clinicRating);
+  let local = {avg: 0, count: 0};
+  if(ratings.length){
+    const sum = ratings.reduce((s,r)=>s+r, 0);
+    local = {avg: Math.round((sum / ratings.length) * 10) / 10, count: ratings.length};
+  }
+  const pub = _ratingsPub.clinics[String(clinicId)];
+  return (pub && pub.count >= local.count) ? pub : local;
+}
 function isClinicHiddenFromPatients(c){
   if(!c) return true;
   if(isClinicSubscriptionType(c) && !isClinicSubscriptionActive(c)) return true;
@@ -6275,7 +6256,9 @@ async function loadDB(){
       _isPro ? sb.from('expenses').select('*').order('date',{ascending:false}) : Promise.resolve({ data: [], error: null }),
       _isPro
         ? sb.from('blocks').select('*').order('blocked_at',{ascending:false})
-        : ((!_last9 || _last9.length < 5) ? Promise.resolve({ data: [], error: null }) : sb.rpc('patient_blocks', { p_phone: _last9 }))
+        : ((!_last9 || _last9.length < 5) ? Promise.resolve({ data: [], error: null }) : sb.rpc('patient_blocks', { p_phone: _last9 })),
+      sb.from('doctor_ratings_pub').select('*'),
+      sb.from('clinic_ratings_pub').select('*')
     ]);
 
     const unwrapOne = (r) => {
@@ -6311,6 +6294,12 @@ async function loadDB(){
     const admR    = unwrapArr(results[19]);
     const expR    = unwrapArr(results[20]);
     const blkR    = unwrapArr(results[21]);
+    /* ⭐ Moyennes publiques des notes (agrégats seulement : aucune donnée de patient) */
+    const rdR = unwrapArr(results[22]);
+    const rcR = unwrapArr(results[23]);
+    _ratingsPub = { doctors: {}, clinics: {} };
+    (rdR.data || []).forEach(r => { _ratingsPub.doctors[String(r.doctor_id)] = { avg: Number(r.avg_rating) || 0, count: Number(r.ratings_count) || 0 }; });
+    (rcR.data || []).forEach(r => { _ratingsPub.clinics[String(r.clinic_id)] = { avg: Number(r.avg_rating) || 0, count: Number(r.ratings_count) || 0 }; });
 
     const criticalError = docR.error || apptR.error;
     if(criticalError){
@@ -6437,7 +6426,8 @@ async function loadDB(){
         clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
         prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
         emergencyId: a.emergency_id || null,
-        notes:a.notes||'', cancelReason:a.cancel_reason,
+        clinicRating:a.clinic_rating||0,
+        rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
         reminders:a.reminders||{h2:false},
         transferredFrom: a.reminders?.transferredFrom || null,
         cancelledBy: a.reminders?.cancelledBy || undefined,
@@ -6612,7 +6602,8 @@ async function loadFullAppointmentsHistory(){
       clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
       prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
       emergencyId: a.emergency_id || null,
-      notes:a.notes||'', cancelReason:a.cancel_reason,
+      clinicRating:a.clinic_rating||0,
+      rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
       reminders:a.reminders||{h2:false},
       transferredFrom: a.reminders?.transferredFrom || null,
         cancelledBy: a.reminders?.cancelledBy || undefined,
@@ -7323,6 +7314,8 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
           prestation_id:a.prestationId||null,
           appt_type:a.apptType||'cabinet',
           emergency_id: a.emergencyId || null,
+          clinic_rating:a.clinicRating||0,
+          rating:a.rating||0,
           notes:a.notes||'',
           cancel_reason:a.cancelReason||null,
           reminders:(a.cancelledBy ? Object.assign({}, a.reminders||{h2:false}, {cancelledBy:a.cancelledBy}) : (a.reminders||{h2:false})),
@@ -7661,8 +7654,9 @@ if(state.role === 'doctor' && state.doctor) {
           clinicId:a.clinic_id||null, clinicServiceId:a.clinic_service_id||null,
           prestationId:a.prestation_id||null, apptType:a.appt_type||'cabinet',
           emergencyId: a.emergency_id || null,
+          clinicRating:a.clinic_rating||0,
           emergencyId: a.emergency_id || null,
-          notes:a.notes||'', cancelReason:a.cancel_reason,
+          rating:a.rating||0, notes:a.notes||'', cancelReason:a.cancel_reason,
           reminders:a.reminders||{h2:false},
           transferredFrom: a.reminders?.transferredFrom || null,
         cancelledBy: a.reminders?.cancelledBy || undefined,
@@ -7880,7 +7874,7 @@ function subscribeRealtime(){
                   status:data.status, internal:!!data.internal, clinicId:data.clinic_id||null,
                   clinicServiceId:data.clinic_service_id||null, prestationId:data.prestation_id||null,
                   apptType:data.appt_type||'cabinet', emergencyId:data.emergency_id||null,
-                  notes:data.notes||'',
+                  clinicRating:data.clinic_rating||0, rating:data.rating||0, notes:data.notes||'',
                   cancelReason:data.cancel_reason, reminders:data.reminders||{h2:false},
                   transferredFrom:data.reminders?.transferredFrom||null, cancelledBy:data.reminders?.cancelledBy||undefined, createdAt:data.created_at,
                   updatedAt:data.updated_at, deletedAt:data.deleted_at
@@ -8111,6 +8105,29 @@ function n2(v){
 function fmtNum(v){ return n2(v); }
 function fmtDA(n){ return n2(n) + ' DA'; }
 
+let _ratingsPub = { doctors: {}, clinics: {} };   // moyennes publiques (vues SQL doctor_ratings_pub / clinic_ratings_pub)
+function getDoctorRating(doctorId){
+  const ratings = DB.appointments
+    .filter(a => a.doctorId === doctorId && a.rating && a.rating > 0 && a.status === 'done')
+    .map(a => a.rating);
+  let local = {avg: 0, count: 0};
+  if(ratings.length){
+    const sum = ratings.reduce((s,r)=>s+r, 0);
+    local = {avg: Math.round((sum / ratings.length) * 10) / 10, count: ratings.length};
+  }
+  const pub = _ratingsPub.doctors[String(doctorId)];
+  return (pub && pub.count >= local.count) ? pub : local;   // la note qui vient d'être donnée (locale) reste prioritaire
+}
+function renderStars(value, size){
+  size = size || 14;
+  const rounded = Math.round(value);
+  let html = `<span style="font-size:${size}px;letter-spacing:1px;color:#f59e0b;line-height:1">`;
+  for(let i=1;i<=5;i++){
+    html += (i <= rounded) ? '★' : '<span style="color:#d1d5db">★</span>';
+  }
+  html += '</span>';
+  return html;
+}
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -8261,113 +8278,6 @@ function openModal(title, sub, bodyHTML, actionsHTML, wide){
     </div>`;
 }
 function closeModal(){ $('#modal-root').innerHTML=''; }
-
-/* 👋 Notification d'accueil — une seule fois, en 3 langues */
-const WELCOME_FLAG = 'omnimed_welcome_seen_v1';
-const WELCOME_CONTENT = {
-  fr:{
-    tab:'Français',
-    title:'Bienvenue sur OmniMed',
-    intro:'La plateforme qui vous permet de prendre et de gérer vos rendez-vous chez les médecins, partout en Algérie.',
-    items:[
-      {ico:'🔎', text:'Recherchez un médecin par spécialité, wilaya ou clinique et réservez un créneau en quelques gestes.'},
-      {ico:'📅', text:'Suivez vos rendez-vous, modifiez-les ou annulez-les depuis « Mes rendez-vous »'},
-      {ico:'🔔', text:'Recevez des rappels et des notifications directement sur votre téléphone.'},
-      {ico:'🚨', text:"En cas d'urgence, envoyez une demande et suivez la réponse en temps réel."},
-      {ico:'🌐', text:'Interface disponible en français, arabe et anglais.'}
-    ],
-    btn:"J'ai compris"
-  },
-  en:{
-    tab:'English',
-    title:'Welcome to OmniMed',
-    intro:'The platform that lets you book and manage your appointments with doctors, anywhere in Algeria.',
-    items:[
-      {ico:'🔎', text:'Search for a doctor by specialty, wilaya or clinic and book a slot in just a few taps.'},
-      {ico:'📅', text:'Follow your appointments, modify or cancel them from “My appointments”.'},
-      {ico:'🔔', text:'Receive reminders and notifications directly on your phone.'},
-      {ico:'🚨', text:'In an emergency, send a request and follow the response in real time.'},
-      {ico:'🌐', text:'Interface available in French, Arabic and English.'}
-    ],
-    btn:'Got it'
-  },
-  ar:{
-    tab:'العربية',
-    title:'مرحبًا بكم في أومني ميد',
-    intro:'المنصة التي تتيح لكم حجز مواعيدكم لدى الأطباء وإدارتها في كل مكان بالجزائر.',
-    items:[
-      {ico:'🔎', text:'ابحثوا عن طبيب حسب التخصص أو الولاية أو العيادة واحجزوا موعدًا بخطوات بسيطة.'},
-      {ico:'📅', text:'تابعوا مواعيدكم، عدّلوها أو ألغوها من «مواعيدي».'},
-      {ico:'🔔', text:'استقبلوا التذكيرات والإشعارات مباشرة على هواتفكم.'},
-      {ico:'🚨', text:'في حالة الطوارئ، أرسلوا طلبًا وتابعوا الرد في الوقت الفعلي.'},
-      {ico:'🌐', text:'الواجهة متاحة بالفرنسية والعربية والإنجليزية.'}
-    ],
-    btn:'فهمت'
-  }
-};
-let _welcomeLang = 'fr';
-function welcomePreferredLang(){
-  const l = (typeof state !== 'undefined' && state && state.lang) ? state.lang : 'fr';
-  return WELCOME_CONTENT[l] ? l : 'fr';
-}
-function setWelcomeLang(lang){
-  if(!WELCOME_CONTENT[lang]) return;
-  _welcomeLang = lang;
-  const root = document.getElementById('welcomeModalRoot');
-  if(!root) return;
-  const c = WELCOME_CONTENT[lang];
-  root.querySelectorAll('.welcome-tabs button').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
-  const modal = root.querySelector('.welcome-modal');
-  if(modal) modal.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
-  const title = root.querySelector('.welcome-title'); if(title) title.textContent = c.title;
-  const intro = root.querySelector('.welcome-intro'); if(intro) intro.textContent = c.intro;
-  const list = root.querySelector('.welcome-list');
-  if(list) list.innerHTML = c.items.map(it => `<li class="welcome-item"><span class="wi-ico">${it.ico}</span><span>${esc(it.text)}</span></li>`).join('');
-  const btn = root.querySelector('.welcome-btn'); if(btn) btn.textContent = c.btn;
-}
-function closeWelcome(){
-  const root = document.getElementById('welcomeModalRoot');
-  if(root) root.innerHTML = '';
-}
-function showWelcomeOnce(){
-  let seen = false;
-  try{
-    seen = localStorage.getItem(WELCOME_FLAG) === '1';
-    localStorage.setItem(WELCOME_FLAG, '1');
-  }catch(e){}
-  if(seen) return;
-  try{
-    let root = document.getElementById('welcomeModalRoot');
-    if(!root){ root = document.createElement('div'); root.id = 'welcomeModalRoot'; document.body.appendChild(root); }
-    const lang = welcomePreferredLang();
-    root.innerHTML = `
-      <div class="welcome-back" onclick="if(event.target===this)closeWelcome()">
-        <div class="welcome-modal" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-          <div class="welcome-hero">
-            <div class="welcome-ico">✅</div>
-            <div>
-              <h2 class="welcome-title"></h2>
-              <p class="welcome-intro"></p>
-            </div>
-          </div>
-          <div class="welcome-tabs">
-            <button type="button" data-lang="fr" onclick="setWelcomeLang('fr')">Français</button>
-            <button type="button" data-lang="ar" onclick="setWelcomeLang('ar')">العربية</button>
-            <button type="button" data-lang="en" onclick="setWelcomeLang('en')">English</button>
-          </div>
-          <ul class="welcome-list"></ul>
-          <div class="welcome-actions"><button type="button" class="welcome-btn" onclick="closeWelcome()"></button></div>
-        </div>
-      </div>`;
-    setWelcomeLang(lang);
-  }catch(e){ console.warn('[welcome]', e); }
-}
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape'){
-    const root = document.getElementById('welcomeModalRoot');
-    if(root && root.innerHTML) closeWelcome();
-  }
-});
 
 function showSubscriptionExpiredModal(){
   const root = document.getElementById('subModalRoot');
@@ -11287,11 +11197,15 @@ function viewHome(){
 }
 /* 🆕 Carte médecin — scroll horizontal accueil */
 function homeDoctorCard(d){
+  const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   const todayWork = isWorkDay(d, todayISO());
   const canToday = todayWork && dateHasAvail(d.id, todayISO(), '');
   const price = Number(d.fee) || 0;
   const duration = Number(d.duration) || 30;
+  const ratingHTML = rating.count > 0
+    ? `<span class="hrc-rating">⭐ ${rating.avg} <span style="opacity:.75;font-weight:500">(${rating.count})</span></span>`
+    : `<span class="hrc-rating empty">⭐ —</span>`;
   const statusHTML = closed
     ? `<div class="hrc-status closed">🔴 Fermé</div>`
     : canToday
@@ -11301,6 +11215,7 @@ function homeDoctorCard(d){
     <div class="home-recent-card ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
       <div class="hrc-top">
         <div class="hrc-avatar">${doctorAvatarContent(d)}</div>
+        ${ratingHTML}
       </div>
       <div class="hrc-name">${esc(d.name)}</div>
       <div class="hrc-spec">${esc(d.specialty)}</div>
@@ -11316,9 +11231,13 @@ function homeDoctorCard(d){
 
 /* 🆕 Carte clinique — scroll horizontal accueil */
 function homeClinicCard(c){
+  const rating = getClinicRating(c.id);
   const closed = !!c.sessionClosed;
   const svcCount = clinicServicesFor(c.id).length;
   const docCount = clinicLinkedDoctors(c.id).length;
+  const ratingHTML = rating.count > 0
+    ? `<span class="hrc-rating">⭐ ${rating.avg} <span style="opacity:.75;font-weight:500">(${rating.count})</span></span>`
+    : `<span class="hrc-rating empty">⭐ —</span>`;
   const statusHTML = closed
     ? `<div class="hrc-status closed">🔴 Fermée</div>`
     : `<div class="hrc-status available">✓ Ouverte · 24/7</div>`;
@@ -11326,6 +11245,7 @@ function homeClinicCard(c){
     <div class="home-recent-card ${closed?'closed':''}" onclick="openClinicPublic('${jsStr(c.id)}')">
       <div class="hrc-top">
         <div class="hrc-avatar" style="background:linear-gradient(135deg,rgba(236,72,153,.18),rgba(139,92,246,.12))">${clinicLogoContent(c)}</div>
+        ${ratingHTML}
       </div>
       <div class="hrc-name">${esc(c.name)}</div>
       <div class="hrc-spec">🩺 Clinique</div>
@@ -11391,6 +11311,7 @@ function onHomeSearchInput(v){
   render();
 }
 function searchResultLabelHTML(d){
+  const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   const clinics = clinicLinksForDoctor(d.id).filter(l=>l.status==='accepted').map(l=>clinicById(l.clinicId)).filter(Boolean);
   return `
@@ -11398,7 +11319,7 @@ function searchResultLabelHTML(d){
       <div class="sr-avatar" style="position:relative">${doctorAvatarContent(d)}</div>
       <div class="sr-info">
         <div class="sr-name">${esc(d.name)}</div>
-        <div class="sr-spec">${esc(d.specialty)}${clinics.length?' · 🩺 '+clinics.length:''}</div>
+        <div class="sr-spec">${esc(d.specialty)}${rating.count>0?' · ⭐ '+rating.avg:''}${clinics.length?' · 🩺 '+clinics.length:''}</div>
       </div>
       ${closed ? `<span class="sr-closed-badge">🔴 Fermé</span>` : ''}
     </button>
@@ -11428,6 +11349,7 @@ function renderRecentPagination(page, totalPages, totalItems){
    ============================================================ */
 function clinicCardHTML(c){
   const closed = !!c.sessionClosed;
+  const rating = getClinicRating(c.id);
   const svcCount = clinicServicesFor(c.id).length;
   const docCount = clinicLinkedDoctors(c.id).length;
   const hidden = isClinicHiddenFromPatients(c);
@@ -11444,6 +11366,7 @@ function clinicCardHTML(c){
           ${closed ? `<span class="tag danger">🔴 Fermé</span>` : `<span class="tag success">✓ Ouvert</span>`}
           <span class="tag accent">🥼 ${svcCount} services</span>
           <span class="tag accent">🧑‍⚕️ ${docCount} médecins</span>
+          ${rating.count>0 ? `<span class="tag rating">⭐ ${rating.avg}</span>` : ''}
         </div>
       </div>
       <span class="dr-arrow" style="font-size:20px;color:var(--text-muted)">›</span>
@@ -11474,6 +11397,7 @@ function viewClinicPublicProfile(){
   const c = clinicById(state.clinicBooking.clinicId);
   if(!c) return `<div class="empty" style="padding:40px">${t('clinic_not_found')}</div>`;
   const closed = !!c.sessionClosed;
+  const rating = getClinicRating(c.id);
   const services = clinicServicesFor(c.id);
   const doctors = clinicLinkedDoctors(c.id);
   const prestations = clinicPrestationsFor(c.id);
@@ -11490,6 +11414,7 @@ function viewClinicPublicProfile(){
         <div class="ch-tags">
           ${closed ? `<span class="tag danger">🔴 Fermé</span>` : `<span class="tag success">✓ Ouvert</span>`}
           <span class="tag accent">🕐 ${t('clinic_open_24_7')}</span>
+          ${rating.count>0 ? `<span class="tag rating">⭐ ${rating.avg} · ${rating.count} ${t('reviews')}</span>` : `<span class="tag rating-empty">⭐ ${t('no_rating_yet')}</span>`}
           <span class="tag accent">🥼 ${services.length} services</span>
           <span class="tag accent">🧑‍⚕️ ${doctors.length} médecins</span>
           <span class="tag accent">💉 ${prestations.length} prestations</span>
@@ -11545,6 +11470,7 @@ function viewClinicPublicProfile(){
       <div class="card-title" style="font-size:15px">🧑‍⚕️ ${t('clinic_doctors_available')} <span class="tag accent">${doctors.length}</span></div>
       <div class="grid grid-2" style="margin-top:10px">
         ${doctors.map(d=>{
+          const r = getDoctorRating(d.id);
           const svId = getDoctorServiceInClinic(d.id, c.id);
           const svName = svId ? (clinicServiceById(svId)?.name || '') : '';
           return `<div class="doc-card" onclick="openDoctorProfile('${jsStr(d.id)}')">
@@ -11556,6 +11482,7 @@ function viewClinicPublicProfile(){
                 ${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}
                 <span>⏱️ ${d.duration} ${t('min')}</span>
               </div>
+              ${r.count>0?`<div style="margin-top:6px"><span class="tag rating">⭐ ${r.avg} (${r.count})</span></div>`:''}
             </div>
           </div>`;
         }).join('')}
@@ -11596,6 +11523,7 @@ function openClinicServiceModal(serviceId){
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${t('clinic_service_choose_doctor_hint')}</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
         ${svDoctors.map(d => {
+          const r = getDoctorRating(d.id);
           const nextSlot = firstAvailableSlotForDoctorInService(d.id, sv.id, 60);
           const nextLabel = nextSlot ? `${fmtDate(nextSlot.date)} — ${nextSlot.time}` : t('clinic_service_no_slot');
           return `
@@ -11603,7 +11531,7 @@ function openClinicServiceModal(serviceId){
               <div class="doc-avatar" style="width:46px;height:46px;font-size:22px;position:relative">${doctorAvatarContent(d)}</div>
               <div style="flex:1;min-width:0">
                 <div style="font-weight:600;font-size:13.5px">${esc(d.name)}</div>
-                <div style="font-size:11.5px;color:var(--accent-primary);font-weight:500">${esc(d.specialty)}</div>
+                <div style="font-size:11.5px;color:var(--accent-primary);font-weight:500">${esc(d.specialty)}${r.count>0?' · ⭐ '+r.avg:''}</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:3px">
                   ⏱️ ${d.duration} ${t('min')}
                 </div>
@@ -11805,12 +11733,14 @@ function clinicBookStep2(){
       <div class="card-title" style="font-size:15px">🧑‍⚕️ ${t('clinic_book_doctor')}</div>
       <div class="grid grid-2" style="margin-top:10px">
         ${svDoctors.map(d=>{
+          const r = getDoctorRating(d.id);
           return `<div class="doc-card" onclick="pickClinicDoctor('${jsStr(d.id)}')">
             <div class="doc-avatar">${specialtyAvatar(d.specialty)}</div>
             <div class="doc-info">
               <div class="doc-name">${esc(d.name)}</div>
               <div class="doc-spec">${esc(d.specialty)}</div>
               <div class="doc-meta">${d.fee > 0 ? `<span>${n2(d.fee)} DA</span>` : ''}<span>⏱️ ${d.duration} ${t('min')}</span></div>
+              ${r.count>0?`<div style="margin-top:6px"><span class="tag rating">⭐ ${r.avg}</span></div>`:''}
             </div>
           </div>`;
         }).join('')}
@@ -12077,10 +12007,12 @@ async function confirmClinicBooking(){
     reminders:{h2:false},
     notes: '',
     internal: false,
+    rating: 0,
     clinicId: c.id,
     clinicServiceId: s.serviceId,
     prestationId: prestation ? prestation.id : null,
     apptType: isDoctor ? 'clinic_doctor' : 'clinic_prestation',
+    clinicRating: 0,
     _consent: true, _consentVersion: PRIVACY_CONFIG.version
   };
   DB.appointments.push(appt);
@@ -12162,6 +12094,7 @@ function openDoctorProfile(id){
   const disabled = d.disabledSlots || [];
   const availSlots = allSlots.filter(s=>!disabled.includes(s));
   const services = servicesForDoctor(d.id);
+  const rating = getDoctorRating(d.id);
   const isClosed = !!d.sessionClosed;
   const clinics = clinicLinksForDoctor(d.id).filter(l=>l.status==='accepted').map(l=>clinicById(l.clinicId)).filter(Boolean);
   const body = `
@@ -12175,6 +12108,7 @@ function openDoctorProfile(id){
           <div style="display:flex;gap:5px;flex-wrap:wrap">
             ${isClosed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
             <span class="tag accent">⏱️ ${d.duration} ${t('min')}</span>
+            ${rating.count > 0 ? `<span class="tag rating">⭐ ${rating.avg} · ${rating.count} ${t('reviews')}</span>` : `<span class="tag rating-empty">⭐ ${t('no_rating_yet')}</span>`}
             ${todayWork && dateHasAvail(d.id, todayISO(), '')?`<span class="tag success">✓ ${t('today_appts')}</span>`:`<span class="tag muted">⏳</span>`}
           </div>
           ${clinics.length ? `<div style="margin-top:6px;font-size:11px;color:var(--text-muted)">🩺 ${clinics.map(c=>esc(c.name)).join(' · ')}</div>` : ''}
@@ -12593,6 +12527,7 @@ function refreshBookDoctorList(){
 function docCardHTML(d, selected){
   const todayWork = isWorkDay(d, todayISO());
   const days = (d.workDays||[]);
+  const rating = getDoctorRating(d.id);
   const closed = !!d.sessionClosed;
   return `
     <div class="doc-card ${selected?'selected':''} ${closed?'closed':''}" onclick="openDoctorProfile('${jsStr(d.id)}')">
@@ -12606,6 +12541,7 @@ function docCardHTML(d, selected){
         </div>
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
           ${closed ? `<span class="tag danger">🔴 Fermé</span>` : ''}
+          ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} (${rating.count})</span>`:''}
           ${todayWork && dateHasAvail(d.id, todayISO(), '')
             ? `<span class="tag success">✓ ${t('today_appts')}</span>`
             : `<span class="tag muted">⏳ ${DAY_NAMES_SHORT[(new Date()).getDay()]}</span>`}
@@ -13057,8 +12993,8 @@ async function confirmBooking(){
     date:s.date, time:s.time, motif:motif||'Consultation',
     services: selectedServices, servicesTotal: servicesTotal,
     _v2: true,
-    status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:false,
-    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet',
+    status:'pending', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:false, rating:0,
+    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0,
     _consent: true, _consentVersion: PRIVACY_CONFIG.version
   };
   DB.appointments.push(appt);
@@ -13257,6 +13193,7 @@ function patientApptHTML(a){
             ${a.internal?`<span class="tag internal">🗂️ ${t('internal_badge')}</span>`:''}
             ${c?`<span class="tag clinic">🩺 ${t('clinic')}</span>`:''}
             ${prestation?`<span class="tag accent">💉 ${esc(prestation.name)}</span>`:''}
+            ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
             <span>🆔 ${a.id}${lockIcon}</span>
             ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
           </div>
@@ -13420,6 +13357,43 @@ function openPatientApptDetail(id){
     `;
   }
 
+  let ratingBlock = '';
+  if(a.status === 'done'){
+    if(a.rating && a.rating > 0){
+      ratingBlock += `
+        <div class="card" style="padding:14px;text-align:center;margin-top:12px;background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(251,191,36,.05));border-color:rgba(245,158,11,.35)">
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px">${t('your_rating')} — ${t('doctor')}</div>
+          <div class="rating-display">${renderStars(a.rating, 30)}</div>
+          <div style="font-size:11px;color:var(--success);margin-top:6px;font-weight:600">✓ ${t('thanks_for_rating')}</div>
+        </div>`;
+    } else {
+      ratingBlock += `
+        <div class="card" style="padding:14px;text-align:center;margin-top:12px">
+          <div style="font-size:12.5px;color:var(--text-main);font-weight:600;margin-bottom:8px">${t('rate_visit')}</div>
+          <div class="rating-widget" onmouseleave="resetStarHover(this)">
+            ${[1,2,3,4,5].map(i => `<button type="button" onclick="rateAppointment('${a.id}',${i})" title="${i}/5" onmouseenter="hoverStars(this)">★</button>`).join('')}
+          </div>
+        </div>`;
+    }
+    if(a.clinicId){
+      if(a.clinicRating && a.clinicRating > 0){
+        ratingBlock += `
+          <div class="card" style="padding:14px;text-align:center;margin-top:8px;background:linear-gradient(135deg,rgba(236,72,153,.08),rgba(139,92,246,.04));border-color:rgba(236,72,153,.35)">
+            <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:6px">${t('your_rating')} — ${t('clinic')}</div>
+            <div class="rating-display">${renderStars(a.clinicRating, 30)}</div>
+            <div style="font-size:11px;color:var(--success);margin-top:6px;font-weight:600">✓ ${t('thanks_for_rating')}</div>
+          </div>`;
+      } else {
+        ratingBlock += `
+          <div class="card" style="padding:14px;text-align:center;margin-top:8px">
+            <div style="font-size:12.5px;color:var(--text-main);font-weight:600;margin-bottom:8px">${t('rate_clinic')}</div>
+            <div class="rating-widget" onmouseleave="resetStarHover(this)">
+              ${[1,2,3,4,5].map(i => `<button type="button" onclick="rateClinic('${a.id}',${i})" title="${i}/5" onmouseenter="hoverStars(this)">★</button>`).join('')}
+            </div>
+          </div>`;
+      }
+    }
+  }
 
   /* 🆕 Bloc "transféré" si le RDV a été transféré automatiquement */
   let transferBlock = '';
@@ -13479,6 +13453,7 @@ function openPatientApptDetail(id){
         </div>
       </div>
     ` : ''}
+    ${ratingBlock}
   `;
   const canCancel = ['pending','confirmed','postponed'].includes(a.status);
   const canModify = ['pending','confirmed','postponed'].includes(a.status) && !a.clinicId;
@@ -13523,6 +13498,35 @@ async function verifyPatientPwd(apptId, action){
     toast(t('wrong_password'),'error');
   }
 }
+function rateAppointment(id, value){
+  const a = DB.appointments.find(x=>x.id===id);
+  if(!a) return;
+  if(a.rating && a.rating > 0){ toast(t('already_rated'),'error'); return; }
+  if(a.status !== 'done'){ toast(t('only_done_can_be_rated'),'error'); return; }
+  a.rating = value;
+  a.ratedAt = nowISO();
+  a.updatedAt = nowISO();
+  a._pushPending = true;   // force l'envoi de la note au serveur
+  saveDB();
+  closeModal();
+  openPatientApptDetail(id);
+  toast(t('thanks_for_rating') + ' ✓','success');
+}
+function rateClinic(apptId, value){
+  const a = DB.appointments.find(x=>x.id===apptId);
+  if(!a) return;
+  if(a.clinicRating && a.clinicRating > 0){ toast(t('already_rated'),'error'); return; }
+  if(a.status !== 'done'){ toast(t('only_done_can_be_rated'),'error'); return; }
+  if(!a.clinicId){ toast('Pas de clinique','error'); return; }
+  a.clinicRating = value;
+  a.clinicRatedAt = nowISO();
+  a.updatedAt = nowISO();
+  a._pushPending = true;   // force l'envoi de la note au serveur
+  saveDB();
+  closeModal();
+  openPatientApptDetail(apptId);
+  toast(t('thanks_for_rating') + ' ✓','success');
+}
 function queueInfoFor(a){
   const today = todayISO();
   const now = new Date();
@@ -13555,6 +13559,18 @@ function queueInfoFor(a){
     text: t('queue_today').replace('{when}', whenStr).replace('{time}', a.time),
     patientsAhead: earlierCount
   };
+}
+function hoverStars(btn){
+  const widget = btn.parentElement;
+  const buttons = Array.from(widget.querySelectorAll('button'));
+  const idx = buttons.indexOf(btn);
+  buttons.forEach((b, i) => {
+    if(i <= idx) b.classList.add('hover');
+    else b.classList.remove('hover');
+  });
+}
+function resetStarHover(widget){
+  widget.querySelectorAll('button').forEach(b => b.classList.remove('hover'));
 }
 function openNotifDetail(notifId){
   const n = DB.notifications.find(x=>x.id===notifId); if(!n) return;
@@ -14043,6 +14059,7 @@ function viewDoctorDash(){
     .filter(x=>x.appt && x.appt.status==='pending')
     .slice(0, 10);
   const todaySorted = today.sort((a,b)=>a.time.localeCompare(b.time));
+  const rating = getDoctorRating(doc.id);
   const totalDossiers = mfGetActiveForDoctor(doc.id).length;
   const clinicCount = clinicLinksForDoctor(doc.id).filter(l=>l.status==='accepted').length;
   const pendingInvites = doctorPendingInvites(doc.id).length;
@@ -14056,6 +14073,7 @@ function viewDoctorDash(){
       <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('ddossier')"><div style="width:30px;height:30px;border-radius:8px;background:var(--accent-light);color:var(--accent-primary);display:grid;place-items:center;font-size:14px;flex-shrink:0;">📁</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${totalDossiers}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('dossiers_medical')}</div></div></div>
       <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('dappts')"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1d4ed8;display:grid;place-items:center;font-size:14px;flex-shrink:0;">📅</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${todaySorted.length}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('today_appts')}</div></div></div>
       <div class="card" style="padding:8px; cursor:pointer; min-width:0; display:flex; align-items:center; gap:6px;" onclick="go('dclinics')"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,rgba(236,72,153,.15),rgba(139,92,246,.1));color:#be185d;display:grid;place-items:center;font-size:14px;flex-shrink:0;">🩺</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${clinicCount}${pendingInvites?`<span style="background:var(--danger);color:#fff;font-size:9px;padding:1px 5px;border-radius:9999px;margin-left:4px;">${pendingInvites}</span>`:''}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('doctor_my_clinics')}</div></div></div>
+      <div class="card" style="padding:8px; min-width:0; display:flex; align-items:center; gap:6px;"><div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;display:grid;place-items:center;font-size:14px;flex-shrink:0;">⭐</div><div style="min-width:0;"><div style="font-size:14px;font-weight:700;">${rating.count > 0 ? rating.avg : '—'}</div><div style="font-size:9.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t('average_rating')}</div></div></div>
     </div>
     <div class="card" style="margin-bottom:14px">
       <div class="card-title" style="font-size:15px">📩 ${t('dnotif')} <span class="tag accent">${pendingNotifs.length}</span></div>
@@ -14117,6 +14135,7 @@ function viewDoctorDash(){
               if(docN) badges.push(`<span class="ts-badge" title="${t('msg_files')}">📎${docN}</span>`);
               if(hasDossier) badges.push(`<span class="ts-badge" title="${t('dossier')}">📁</span>`);
               if(isEmergency) badges.push(`<span class="ts-badge" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--danger)" title="Urgence">🚨</span>`);
+              if(a.rating > 0) badges.push(`<span class="ts-badge" title="${t('your_rating')}">⭐${a.rating}</span>`);
               const svcN = (a.services||[]).length;
               if(svcN > 1) badges.push(`<span class="ts-badge" title="${t('services')}">💉${svcN}</span>`);
               if((Number(a.servicesTotal)||0) > 0) badges.push(`<span class="ts-badge" style="color:#059669;border-color:rgba(16,185,129,.3)" title="Total">${n2(a.servicesTotal)} DA</span>`);
@@ -14242,6 +14261,7 @@ function doctorApptHTML(a){
           ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
           ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
           ${hasDossier?`<span class="doc-chip" title="${t('dossier')}">📁 ${t('dossier')}</span>`:''}
+          ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
           ${isEmergency ? `<span class="doc-chip" onclick="event.stopPropagation();showEmergencyDetails('${a.emergencyId}')" title="Voir l'urgence" style="background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--danger);font-weight:700">🚨 Fiche urgence</span>` : ''}
         </div>
         ${cancelled?`
@@ -14794,8 +14814,8 @@ async function createInternalAppt(){
     patientPassword: '',
     date:f.date, time:f.time, motif:f.motif||'Consultation interne',
     services: selectedServices, servicesTotal: servicesTotal,
-    status:'confirmed', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:true,
-    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet'
+    status:'confirmed', createdAt:nowISO(), reminders:{h2:false}, notes:'', internal:true, rating:0,
+    clinicId: null, clinicServiceId: null, prestationId: null, apptType: 'cabinet', clinicRating: 0
   };
   DB.appointments.push(appt);
   pushNotif('patient','RDV interne créé', `Votre RDV ${appt.id} le ${fmtDate(appt.date)} à ${appt.time}`, null, appt.id);
@@ -16990,6 +17010,7 @@ function viewDoctorProfile(){
   const workDaysLbl = (d.workDays||[]).length ? (d.workDays||[]).map(i=>DAY_NAMES_LONG[i]).join(', ') : '—';
   const allSlots = generateSlots(d.workStart, d.workEnd, d.duration);
   const disabled = d.disabledSlots || [];
+  const rating = getDoctorRating(d.id);
   const bill = getDoctorBilling(d);
   const isSub = isSubscriptionType(d);
   const subActive = isSubscriptionActive(d);
@@ -17062,6 +17083,7 @@ function viewDoctorProfile(){
             </div>
             <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
               ${d.sessionClosed ? `<span class="tag danger">🔴 Session fermée aux patients</span>` : `<span class="tag success">🟢 Session ouverte</span>`}
+              ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} · ${rating.count} ${t('reviews')}</span>`:`<span class="tag rating-empty">⭐ ${t('no_rating_yet')}</span>`}
               ${clinics.length?`<span class="tag clinic">🩺 ${clinics.length} clinique(s)</span>`:''}
             </div>
           </div>
@@ -18082,6 +18104,13 @@ function computeAdminExtraStats(appts){
 
   const visits = DB.visits || { total:0, byDay:{}, byMonth:{}, byYear:{} };
 
+  const ratings = valid.filter(a => a.rating > 0 && a.status === 'done').map(a => a.rating);
+  const ratingDist = {1:0,2:0,3:0,4:0,5:0};
+  ratings.forEach(r => { if(r >= 1 && r <= 5) ratingDist[r]++; });
+  const avgRating = ratings.length ? Math.round((ratings.reduce((s,r)=>s+r,0)/ratings.length)*10)/10 : 0;
+
+  const clinicRatings = valid.filter(a => a.clinicRating > 0 && a.status === 'done').map(a => a.clinicRating);
+  const avgClinicRating = clinicRatings.length ? Math.round((clinicRatings.reduce((s,r)=>s+r,0)/clinicRatings.length)*10)/10 : 0;
 
   const externalDoctorIds = new Set(externalDoctors.map(d => String(d.id)));
   const apptsByExternalDocs = valid.filter(a => a.doctorId && externalDoctorIds.has(String(a.doctorId)) && !a.clinicId);
@@ -18101,6 +18130,8 @@ function computeAdminExtraStats(appts){
     subDoctorsCount: subDoctors.length, subDoctorsActive, subDoctorsExpired,
     subClinicsCount: subClinics.length, subClinicsActive, subClinicsExpired,
     visits,
+    ratingDist, ratingsCount: ratings.length, avgRating,
+    clinicRatingsCount: clinicRatings.length, avgClinicRating,
     avgApptsPerDoctor, avgApptsPerClinic,
     totalNotifs
   };
@@ -18122,6 +18153,8 @@ function renderAdminExtraSections(appts){
   const _visitsMonth = _v.byMonth?.[_today.slice(0,7)] || 0;
   const _visitsYear = _v.byYear?.[String(currentYear())] || 0;
 
+  const ratingEntries = [1,2,3,4,5].map(n => [`${n} étoile${n>1?'s':''}`, s.ratingDist[n]]);
+  const maxRating = Math.max(1, ...ratingEntries.map(e=>e[1]));
 
   return `
     <div class="aes">
@@ -18222,6 +18255,18 @@ function renderAdminExtraSections(appts){
         </div>
       </div>
 
+      ${s.ratingsCount > 0 ? `
+      <div class="aes-head"><span class="aes-ico">⭐</span> Qualité</div>
+      <div class="card">
+        <div class="card-title">⭐ Distribution des notes médecins <span class="tag rating" style="margin-left:6px">${s.avgRating} / 5</span></div>
+        <div class="stats-tags tiles-2">
+          ${statTag('Total notes', s.ratingsCount, 'accent', true)}
+          ${s.clinicRatingsCount > 0 ? statTag('Notes cliniques', s.clinicRatingsCount + ' · moy. ' + s.avgClinicRating, 'clinic', true) : ''}
+        </div>
+        <div style="margin-top:12px">
+          ${ratingEntries.map(([lbl,v]) => statBarRow(lbl, v, maxRating, '#f59e0b')).join('')}
+        </div>
+      </div>` : ''}
     </div>
   `;
 }
@@ -18233,6 +18278,7 @@ function viewDoctorStats(){
   const doneCount = s.statusCounts.done;
   const totalServices = s.totalServiceBookings;
   const topPatientsRows = s.topPatients.slice(0,10);
+  const rating = getDoctorRating(doc.id);
   const periodLabel = getStatsPeriodLabel();
   const searchCounts = getDoctorSearchCounts(doc.id);
   return `
@@ -18276,6 +18322,10 @@ function viewDoctorStats(){
         <div class="sph-kpi warn">
           <div class="sph-lbl"><span class="sph-lbl-ico">🎂</span> ${t('stats_avg_age')}</div>
           <div class="sph-val">${s.avgAge || '—'}<span class="sph-unit">${t('billing_years_old')}</span></div>
+        </div>
+        <div class="sph-kpi rating">
+          <div class="sph-lbl"><span class="sph-lbl-ico">⭐</span> ${t('average_rating')}</div>
+          <div class="sph-val">${rating.count > 0 ? rating.avg : '—'}</div>
         </div>
       </div>
     </div>
@@ -18669,11 +18719,12 @@ function viewAdminDash(){
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
           ${docStats.length ? docStats.map(({d,n})=>{
             const max = Math.max(1, docStats[0].n);
+            const rating = getDoctorRating(d.id);
             return `
             <div style="display:flex;align-items:center;gap:10px;font-size:12px">
               <div style="width:30px;height:30px;border-radius:8px;background:var(--accent-light);display:grid;place-items:center;font-size:15px">${specialtyAvatar(d.specialty)}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div>
+                <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}${rating.count>0?' · ⭐ '+rating.avg:''}</div>
                 <div class="bar" style="margin-top:4px"><div class="bar-fill" style="width:${(n/max)*100}%"></div></div>
               </div>
               <span style="font-weight:500;min-width:24px;text-align:right;font-family:var(--font-numbers)">${n}</span>
@@ -18721,6 +18772,7 @@ function viewAdminDoctors(){
       const apptCount = DB.appointments.filter(a=>String(a.doctorId)===String(d.id) && a.status!=='deleted').length;
       const servCount = servicesForDoctor(d.id).length;
       const days = (d.workDays||[]);
+      const rating = getDoctorRating(d.id);
       const bill = getDoctorBilling(d);
       const clinics = clinicLinksForDoctor(d.id).filter(l=>l.status==='accepted').map(l=>clinicById(l.clinicId)).filter(Boolean);
       const owningClinic = d.ownedByClinic ? clinicById(d.ownedByClinic) : null;
@@ -18749,6 +18801,7 @@ function viewAdminDoctors(){
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <span class="tag">📅 ${apptCount} RDV</span>
               ${servCount?`<span class="tag accent">💉 ${servCount}</span>`:''}
+              ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} (${rating.count})</span>`:`<span class="tag rating-empty">⭐ —</span>`}
               ${billTag}
               ${days.length?`<span class="tag success">🗓️ ${days.map(i=>DAY_NAMES_SHORT[i]).join(' ')}</span>`:`<span class="tag danger">🗓️ —</span>`}
               ${clinics.length?`<span class="tag clinic">🩺 ${clinics.length}</span>`:''}
@@ -19340,6 +19393,7 @@ function viewAdminClinics(){
       const prestCount = clinicPrestationsFor(c.id).length;
       const docCount = clinicLinkedDoctorIds(c.id).length;
       const days = (c.workDays||[]);
+      const rating = getClinicRating(c.id);
       const bill = getClinicBilling(c);
       let billTag = '';
       if(bill.type === 'commission') billTag = `<span class="tag success">💰 ${n2(bill.commissionAmount)} DA</span>`;
@@ -19368,6 +19422,7 @@ function viewAdminClinics(){
               <span class="tag accent">💉 ${prestCount} prestations</span>
               <span class="tag accent">🧑‍⚕️ ${docCount} médecins</span>
               ${localDocsCount ? `<span class="tag clinic">🩺 ${localDocsCount} ${t('doctor_local_badge')}</span>`:''}
+              ${rating.count>0?`<span class="tag rating">⭐ ${rating.avg} (${rating.count})</span>`:`<span class="tag rating-empty">⭐ —</span>`}
               ${billTag}
               <span class="tag success">🕐 24/7</span>
               ${c.locked
@@ -19820,6 +19875,7 @@ function openClinicDetailModal(id){
   const services = clinicServicesFor(c.id);
   const prestations = clinicPrestationsFor(c.id);
   const doctors = clinicLinkedDoctors(c.id);
+  const rating = getClinicRating(c.id);
   const body = `
     <div class="clinic-hero" style="margin:0 0 12px;padding:14px 16px">
       <div class="ch-avatar" style="width:56px;height:56px;font-size:28px;position:relative;overflow:hidden">${clinicLogoContent(c)}</div>
@@ -19834,6 +19890,7 @@ function openClinicDetailModal(id){
         </div>
         <div class="ch-tags" style="margin-top:6px">
           ${c.sessionClosed ? `<span class="tag danger">🔴 Fermé</span>` : `<span class="tag success">✓ Ouvert</span>`}
+          ${rating.count>0 ? `<span class="tag rating">⭐ ${rating.avg} · ${rating.count} avis</span>` : ''}
           <span class="tag accent">🥼 ${services.length}</span>
           <span class="tag accent">💉 ${prestations.length}</span>
           <span class="tag accent">🧑‍⚕️ ${doctors.length}</span>
@@ -22754,6 +22811,7 @@ function adminApptRow(a){
           ${a.motif?`<span>📝 ${esc(a.motif)}</span>`:''}
           ${a.patientWilaya?`<span>🗺️ ${esc(a.patientWilaya)}</span>`:''}
           ${a.services&&a.services.length?`<span>💉 ${a.services.length}</span>`:''}
+          ${a.rating && a.rating>0 ? `<span class="tag rating">⭐ ${a.rating}/5</span>` : ''}
           <span>🆔 ${a.id}</span>
         </div>
         ${cancelled?`
@@ -24432,10 +24490,12 @@ function openAdmissionFromEmergency(emergencyId){
       createdAt: e.createdAt || nowISO(),
       reminders: { h2: false },
       notes: '',
+      rating: 0,
       clinicId: e.assignedClinicId,
       clinicServiceId: null,
       prestationId: null,
       apptType: 'clinic_emergency',
+      clinicRating: 0,
       emergencyId: emergencyId
     };
     DB.appointments.push(appt);
@@ -26594,6 +26654,7 @@ function confirmTransfer(apptId){
       ${prest ? `<div class="ic-item"><div class="ic-lbl">💉 ${t('clinic_prestation')}</div><div class="ic-val">${esc(prest.name)}</div></div>` : ''}
       <div class="ic-item"><div class="ic-lbl">📝 ${t('motif')}</div><div class="ic-val wrap">${esc(a.motif || '—')}</div></div>
       ${a.cancelReason ? `<div class="ic-item" style="background:var(--danger-bg);border-color:rgba(239,68,68,.3)"><div class="ic-lbl" style="color:var(--danger)">❌ ${t('cancel_reason')}</div><div class="ic-val" style="color:var(--danger);font-weight:600">${esc(a.cancelReason)}</div></div>` : ''}
+      ${a.rating > 0 ? `<div class="ic-item" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(251,191,36,.05));border-color:rgba(245,158,11,.35)"><div class="ic-lbl" style="color:#b45309">⭐ ${t('your_rating')}</div><div class="ic-val">${renderStars(a.rating, 16)} <strong style="margin-left:4px">${a.rating}/5</strong></div></div>` : ''}
     </div>
 
     <!-- SERVICES -->
@@ -26974,10 +27035,12 @@ async function createClinicInternalAppt(){
     reminders: { h2: false },
     notes: '',
     internal: true,
+    rating: 0,
     clinicId: c.id,
     clinicServiceId: f.serviceId,
     prestationId: selectedPrestations.length === 1 ? selectedPrestations[0].id : null,
     apptType: 'clinic_internal',
+    clinicRating: 0
   };
   
   DB.appointments.push(appt);
@@ -28906,10 +28969,12 @@ function submitEmergency(){
     createdAt: now,
     reminders: { h2: false },
     notes: '',
+    rating: 0,
     clinicId: String(clinic.id),
     clinicServiceId: null,
     prestationId: null,
     apptType: 'clinic_emergency',
+    clinicRating: 0,
     emergencyId: emgId,
     _consent: true, _consentVersion: PRIVACY_CONFIG.version
   });
@@ -29035,10 +29100,12 @@ function acceptEmergency(emergencyId){
       createdAt: e.createdAt || nowISO(),
       reminders: { h2: false },
       notes: '',
+      rating: 0,
       clinicId: e.assignedClinicId,
       clinicServiceId: null,
       prestationId: null,
       apptType: 'clinic_emergency',
+      clinicRating: 0,
       emergencyId: emergencyId
     };
     DB.appointments.push(_emgLink1);
@@ -29590,7 +29657,7 @@ function detectPatientChangesAndUpdate(){
       notifications.push({
         kind: 'appt_done',
         title: '✅ Consultation terminée',
-        message: `Merci d'avoir consulté.`,
+        message: `Merci d'avoir consulté. Vous pouvez maintenant noter votre médecin.`,
         apptId: apptId
       });
     } else if((p.status === 'pending' || p.status === 'confirmed') && c.status === 'cancelled'){
@@ -29893,6 +29960,8 @@ async function pollPatientData(){
             if(!existing._pushPending) existing.updatedAt = row.updated_at;
             existing.date = row.date;
             existing.time = row.time;
+            if((row.rating || 0) > 0) existing.rating = row.rating;
+            if((row.clinic_rating || 0) > 0) existing.clinicRating = row.clinic_rating;
             if(row.reminders){
               existing.reminders = row.reminders;
               existing.transferredFrom = row.reminders.transferredFrom || null;
@@ -29959,156 +30028,6 @@ function logVisit(){
   saveDB();
 }
 
-/* ============================================================
-   📱 NOTIFICATIONS NATIVES (APK Android / Capacitor)
-   Uniquement les événements de rendez-vous :
-   demande envoyée / reçue, confirmation, rappel 15 min avant,
-   terminé, annulé, transféré. Aucune autre fonction n'est touchée.
-   ============================================================ */
-const NATIVE_CHANNEL_ID = 'omnimed-rdv';
-let _nativeNotifReady = false;
-let _nativeApptSnap = null;
-let _nativeReminders = {};
-
-function nativeNotifPlugin(){
-  try{
-    if(!window.Capacitor || !Capacitor.isNativePlatform()) return null;
-    const LN = window.capacitorLocalNotifications && window.capacitorLocalNotifications.LocalNotifications;
-    return LN || null;
-  }catch(e){ return null; }
-}
-function _nativeHash(str){
-  let h = 2166136261;
-  const s = String(str);
-  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return Math.abs(h % 2000000000) + 1;
-}
-function _nativeNotifId(apptId, suffix){ return _nativeHash(String(apptId) + '|' + String(suffix)); }
-function _apptSignature(a){
-  const r = a.reminders || {};
-  return [a.status, a.date, a.time, r.transferredFrom ? 'transferred' : '', r.cancelledBy ? 'by-' + r.cancelledBy : ''].join('|');
-}
-function _apptLabel(a){
-  const c = (DB.clinics || []).find(x => String(x.id) === String(a.clinicId));
-  if(c) return c.name || 'la clinique';
-  const d = (DB.doctors || []).find(x => String(x.id) === String(a.doctorId));
-  return d && d.name ? d.name : 'votre médecin';
-}
-async function nativeNotify(title, body, apptId, suffix){
-  const LN = nativeNotifPlugin();
-  if(!LN || !_nativeNotifReady) return;
-  try{
-    await LN.schedule({
-      notifications:[{
-        id: _nativeNotifId(apptId || 'omnimed', String(suffix) + '|' + Date.now()),
-        title: title,
-        body: body,
-        channelId: NATIVE_CHANNEL_ID,
-        schedule: { at: new Date(Date.now() + 900) },
-        extra: { apptId: apptId || null }
-      }]
-    });
-  }catch(e){ console.warn('[native notif]', e); }
-}
-async function syncNativeApptNotifications(firstRun){
-  const LN = nativeNotifPlugin();
-  if(!LN || !_nativeNotifReady || !_nativeApptSnap) return;
-
-  const appts = (DB.appointments || []).filter(a => a && a.id);
-  const current = {};
-  const desired = {};
-  const role = (typeof state !== 'undefined' && state && state.role) ? state.role : 'patient';
-
-  appts.forEach(a => {
-    const id = String(a.id);
-    const sig = _apptSignature(a);
-    current[id] = sig;
-    const prev = _nativeApptSnap[id];
-    const label = _apptLabel(a);
-    const when = (a.date ? fmtDate(a.date) : '') + ' ' + (a.time || '');
-
-    if(!firstRun && prev !== sig){
-      const oldStatus = prev === undefined ? '__new__' : String(prev).split('|')[0];
-      const newStatus = a.status;
-      if(newStatus === 'confirmed' && (oldStatus === 'pending' || oldStatus === '__new__')){
-        nativeNotify('✅ Rendez-vous confirmé', label + ' — ' + when, id, 'confirmed');
-      } else if(newStatus === 'done' && oldStatus !== 'done'){
-        nativeNotify('✅ Consultation terminée', 'Votre rendez-vous avec ' + label + ' est terminé.', id, 'done');
-      } else if(newStatus === 'cancelled' && oldStatus !== 'cancelled'){
-        nativeNotify('❌ Rendez-vous annulé', label + ' — ' + when, id, 'cancelled');
-      } else if(newStatus === 'transferred' || (a.reminders && a.reminders.transferredFrom)){
-        nativeNotify('🔄 Rendez-vous transféré', label + ' — ' + when, id, 'transferred');
-      } else if(newStatus === 'pending' && oldStatus === '__new__'){
-        if(role === 'patient') nativeNotify('📨 Demande envoyée', 'En attente de validation — ' + label + ' ' + when, id, 'sent');
-        else nativeNotify('🔔 Nouvelle demande reçue', (a.patientName || 'Patient') + ' — ' + when, id, 'received');
-      }
-    }
-
-    if((a.status === 'confirmed' || a.status === 'pending') && a.date && a.time){
-      const at = new Date(a.date + 'T' + a.time + ':00');
-      const remAt = new Date(at.getTime() - 15 * 60 * 1000);
-      if(remAt.getTime() > Date.now() + 30 * 1000){
-        const rid = String(_nativeNotifId(id, 'reminder15'));
-        desired[rid] = {
-          sig: sig,
-          at: remAt.toISOString(),
-          body: label + ' — ' + a.time
-        };
-      }
-    }
-  });
-
-  try{ localStorage.setItem('omnimed_native_appt_snap', JSON.stringify(current)); }catch(e){}
-  _nativeApptSnap = current;
-
-  if(JSON.stringify(desired) !== JSON.stringify(_nativeReminders)){
-    try{
-      const oldIds = Object.keys(_nativeReminders).map(Number).filter(n => !isNaN(n));
-      if(oldIds.length) await LN.cancel({ notifications: oldIds.map(id => ({ id: id })) });
-      const notes = Object.keys(desired).map(k => ({
-        id: Number(k),
-        title: '⏰ Rendez-vous dans 15 min',
-        body: desired[k].body,
-        channelId: NATIVE_CHANNEL_ID,
-        schedule: { at: new Date(desired[k].at) },
-        extra: { reminder: true }
-      }));
-      if(notes.length) await LN.schedule({ notifications: notes });
-      _nativeReminders = desired;
-      try{ localStorage.setItem('omnimed_native_reminders', JSON.stringify(desired)); }catch(e){}
-    }catch(e){ console.warn('[native reminders]', e); }
-  }
-}
-async function initNativeNotifications(){
-  const LN = nativeNotifPlugin();
-  if(!LN) return;
-  try{
-    await LN.createChannel({
-      id: NATIVE_CHANNEL_ID,
-      name: 'Rendez-vous OmniMed',
-      description: 'Demandes, confirmations et rappels de rendez-vous',
-      importance: 4,
-      vibration: true,
-      lights: true,
-      lightColor: '#8b5cf6'
-    });
-    const perm = await LN.requestPermissions();
-    _nativeNotifReady = !!(perm && (perm.display === 'granted' || perm.display === 'prompt-with-runtime'));
-  }catch(e){ console.warn('[native notif init]', e); }
-  if(!_nativeNotifReady) return;
-  try{
-    await LN.addListener('localNotificationActionPerformed', () => {
-      try{ window.focus && window.focus(); }catch(e){}
-    });
-  }catch(e){}
-  try{ _nativeApptSnap = JSON.parse(localStorage.getItem('omnimed_native_appt_snap') || 'null'); }catch(e){ _nativeApptSnap = null; }
-  try{ _nativeReminders = JSON.parse(localStorage.getItem('omnimed_native_reminders') || '{}') || {}; }catch(e){ _nativeReminders = {}; }
-  const hadSnap = !!(_nativeApptSnap && Object.keys(_nativeApptSnap).length);
-  if(!_nativeApptSnap) _nativeApptSnap = {};
-  await syncNativeApptNotifications(!hadSnap);
-  setInterval(() => { syncNativeApptNotifications(false); }, 20000);
-}
-
 async function init(){
   try{ await idb.open(); }catch(e){}
   await loadDB();
@@ -30139,7 +30058,6 @@ async function init(){
   if(!state.statsPeriod.year) state.statsPeriod.year = currentYear();
   state.quickRevVisible = QUICK_REV_PER_PAGE;
   loadPrefs(); checkReminders();
-  initNativeNotifications();
   /* Auto-lock des prestations cliniques */
   try { autoLockPrestations(); } catch(e){}
   setInterval(checkReminders, 5 * 60 * 1000);
@@ -30214,9 +30132,6 @@ async function init(){
   ['click', 'touchstart', 'keydown'].forEach(evt => {
     document.addEventListener(evt, _audioInit, { once: true, passive: true });
   });
-
-  // 👋 Message d'accueil une seule fois (page web + APK)
-  setTimeout(showWelcomeOnce, 400);
 }
 window.addEventListener('DOMContentLoaded', init);
 /* ═══════════════════════════════════════════════════════════
@@ -30758,7 +30673,8 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   openPrintRDVModal, refreshPrintRDVTable, printRDVTable,
   onAdminDoctorsSearch, onAdminClinicsSearch,
   createInternalAppt, toggleInternalService,
-  patientProtectedAction, verifyPatientPwd,
+  patientProtectedAction, verifyPatientPwd, rateAppointment, rateClinic,
+  hoverStars, resetStarHover,
   printHTML,
   printApptTicket,
   generateSlots, state,
@@ -30835,7 +30751,7 @@ showAllClinics, showAllDoctors,   /* 🆕 */
   clinicById, clinicServiceById, clinicPrestationById, clinicServicesFor, clinicPrestationsFor,
   clinicPrestationsForService, clinicLinksFor, clinicLinksForDoctor, clinicLinkedDoctorIds,
   clinicLinkedDoctors, clinicPendingLinks, doctorPendingInvites, isDoctorInClinic, getDoctorServiceInClinic,
-  isClinicSubscriptionType, isClinicSubscriptionActive, getClinicBilling, apptClinicCommission,
+  isClinicSubscriptionType, isClinicSubscriptionActive, getClinicBilling, apptClinicCommission, getClinicRating,
   renderClinicServicesListManager,
   peekClinicInvoiceNumber, assignClinicInvoiceNumberForClinic, formatClinicInvoiceNumberFromCount,
   computeClinicBillingData, computeClinicRevenue,
