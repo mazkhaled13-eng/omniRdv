@@ -7342,8 +7342,11 @@ if(_pendingDeletes.rooms && _pendingDeletes.rooms.length){
                 DB.notifications = DB.notifications.filter(n => n.apptId !== _src.id);
                 const _ent = _src.clinicId ? clinicById(_src.clinicId) : docById(_src.doctorId);
                 try{ showPatientBlockedModal(_src.clinicId ? 'clinic' : 'doctor', _ent ? _ent.name : ''); }catch(e){}
-              } else if(!_patientErr){
-                _patientErr = _r.error;
+              } else {
+                if(!_patientErr) _patientErr = _r.error;
+                if(_src._pushPending && !/RATE_LIMIT|FORBIDDEN|CONSENT_REQUIRED/.test(_r.error.message || '')){
+                  toast('⚠️ ' + String(_r.error.message || 'Erreur').slice(0, 140), 'error');   // diagnostic : note non enregistrée
+                }
               }
             } else {
               if(_src._editIntent) _src._editIntent = false;
